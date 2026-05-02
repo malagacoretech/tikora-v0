@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0A1628">
+<title>Tikora — Tu identidad fiscal en un QR</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='38' fill='%23F4C95D'%3ET%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #0A1628;
+  --surface: #142238;
+  --surface-2: #1E2D45;
+  --accent: #F4C95D;
+  --accent-dark: #D9AF45;
+  --text: #FFFFFF;
+  --text-muted: #93A3B8;
+  --border: #2A3A55;
+  --success: #22C55E;
+  --danger: #EF4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  padding: 1.25rem 1.25rem 2rem;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.4;
+}
+.container { max-width: 480px; margin: 0 auto; }
+.brand { text-align: center; margin: 0.5rem 0 1.75rem; }
+.brand h1 { font-size: 2.25rem; letter-spacing: -0.03em; font-weight: 800; line-height: 1; }
+.brand h1 span { color: var(--accent); }
+.brand p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 1.5rem; margin-bottom: 1rem; }
+h2 { font-size: 1.25rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: -0.01em; }
+.muted { color: var(--text-muted); font-size: 0.9rem; }
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.field input { width: 100%; padding: 0.9rem 1rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 1rem; font-family: inherit; -webkit-appearance: none; }
+.field input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.btn { display: block; width: 100%; padding: 1.05rem; border: none; border-radius: 14px; background: var(--accent); color: #0A1628; font-weight: 700; font-size: 1rem; cursor: pointer; transition: opacity 0.15s, transform 0.1s; font-family: inherit; letter-spacing: 0.01em; }
+.btn:hover { opacity: 0.92; }
+.btn:active { transform: scale(0.985); }
+.btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.qr-wrap { background: white; padding: 1.5rem; border-radius: 16px; display: flex; justify-content: center; align-items: center; min-height: 200px; margin-bottom: 1.25rem; }
+.qr-wrap canvas, .qr-wrap img { display: block; max-width: 100%; height: auto !important; }
+.data-row { display: flex; justify-content: space-between; align-items: center; padding: 0.95rem 0; border-bottom: 1px solid var(--border); gap: 0.75rem; }
+.data-row:first-child { padding-top: 0; }
+.data-row:last-child { border-bottom: none; padding-bottom: 0; }
+.data-row .lv { flex: 1; min-width: 0; }
+.data-row .lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+.data-row .val { font-size: 1rem; font-weight: 500; word-break: break-word; }
+.copy-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 0.55rem 0.85rem; border-radius: 9px; cursor: pointer; font-size: 0.85rem; font-family: inherit; flex-shrink: 0; font-weight: 500; min-width: 70px; }
+.copy-btn.copied { background: var(--success); border-color: var(--success); }
+.copy-all { background: var(--accent); color: #0A1628; font-weight: 700; padding: 1.1rem; text-align: center; border-radius: 14px; margin-bottom: 1rem; border: none; width: 100%; font-size: 1rem; cursor: pointer; font-family: inherit; }
+.copy-all.copied { background: var(--success); color: white; }
+.banner { background: var(--surface-2); padding: 0.95rem 1.1rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.88rem; color: var(--text-muted); border: 1px solid var(--border); }
+.banner.scan { background: rgba(244, 201, 93, 0.08); border-color: rgba(244, 201, 93, 0.3); color: var(--accent); text-align: center; font-weight: 500; }
+.footer { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin-top: 2rem; padding: 1rem 0; }
+.footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="brand">
+    <h1>Tikora<span>.</span></h1>
+    <p>Tu identidad fiscal en un QR</p>
+  </div>
+  <div id="app"><div class="card"><h2>Cargando…</h2></div></div>
+  <div class="footer">
+    v0 · MVP de validación · <a href="mailto:matias@tikora.es">matias@tikora.es</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const dataParam = params.get('d');
+  const app = document.getElementById('app');
+
+  function safeGet(key) {
+    try { return localStorage.getItem(key); } catch(e) { return null; }
+  }
+  function safeSet(key, val) {
+    try { localStorage.setItem(key, val); } catch(e) {}
+  }
+
+  function b64urlEncode(obj) {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(str) {
+    try {
+      let s = str.replace(/-/g,'+').replace(/_/g,'/');
+      while (s.length % 4) s += '=';
+      return JSON.parse(decodeURIComponent(escape(atob(s))));
+    } catch(e) { return null; }
+  }
+
+  function escapeAttr(s) {
+    return (s||'').toString()
+      .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+      .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function escapeHtml(s) {
+    return (s||'').toString()
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function renderRegister() {
+    const savedRaw = safeGet('tikora_data');
+    let d = {};
+    try { if (savedRaw) d = JSON.parse(savedRaw); } catch(e) { d = {}; }
+    app.innerHTML = ''
+      + '<div class="card">'
+      +   '<h2>Tus datos fiscales</h2>'
+      +   '<p class="muted" style="margin-bottom:1.25rem">Cárgalos una vez. Tu QR vivirá en tu móvil para mostrarlo en cualquier negocio.</p>'
+      +   '<form id="form">'
+      +     '<div class="field"><label>Nombre o razón social</label><input name="razonSocial" required value="' + escapeAttr(d.razonSocial) + '"></div>'
+      +     '<div class="field"><label>NIF / CIF</label><input name="nif" required autocapitalize="characters" value="' + escapeAttr(d.nif) + '"></div>'
+      +     '<div class="field"><label>Dirección fiscal</label><input name="direccion" required value="' + escapeAttr(d.direccion) + '"></div>'
+      +     '<div class="field"><label>Código postal</label><input name="cp" required inputmode="numeric" value="' + escapeAttr(d.cp) + '"></div>'
+      +     '<div class="field"><label>Ciudad</label><input name="ciudad" required value="' + escapeAttr(d.ciudad) + '"></div>'
+      +     '<div class="field"><label>Email para recibir facturas</label><input name="email" type="email" required value="' + escapeAttr(d.email) + '"></div>'
+      +     '<button type="submit" class="btn">Generar mi QR</button>'
+      +   '</form>'
+      + '</div>'
+      + '<div class="banner">Tus datos solo se guardan en tu móvil. Nadie más tiene acceso.</div>';
+
+    document.getElementById('form').addEventListener('submit', function(e){
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const obj = {};
+      fd.forEach(function(v,k){ obj[k] = v.toString().trim(); });
+      safeSet('tikora_data', JSON.stringify(obj));
+      showQR(obj);
+      window.scrollTo(0,0);
+    });
+  }
+
+  function showQR(fiscal) {
+    const url = location.origin + location.pathname + '?d=' + b64urlEncode(fiscal);
+
+    app.innerHTML = ''
+      + '<div class="card">'
+      +   '<h2>Tu QR Tikora</h2>'
+      +   '<p class="muted" style="margin-bottom:1.25rem">Muéstralo en cualquier bar, restaurante, hotel o gasolinera. Te emiten la factura sin que tengas que dictar nada.</p>'
+      +   '<div class="qr-wrap" id="qrWrap"><div style="padding:2rem 1rem;text-align:center;color:#0A1628;font-weight:500">Generando QR…</div></div>'
+      +   '<button class="btn" id="downloadBtn">Descargar QR</button>'
+      +   '<button class="btn secondary" id="editBtn" style="margin-top:0.75rem">Editar mis datos</button>'
+      + '</div>'
+      + '<div class="banner">Consejo: hazle una captura al QR y guárdalo en tus favoritos del móvil para mostrarlo en segundos.</div>';
+
+    const wrap = document.getElementById('qrWrap');
+
+    function showFallbackText() {
+      wrap.innerHTML = ''
+        + '<div style="padding:1rem;color:#0A1628;font-size:0.85rem;line-height:1.4;width:100%">'
+        +   '<strong>Comparte este link directamente con el negocio:</strong>'
+        +   '<div style="margin-top:0.75rem;padding:0.6rem;background:#F4F4F4;border-radius:6px;word-break:break-all;font-family:monospace;font-size:0.7rem;">' + escapeHtml(url) + '</div>'
+        + '</div>';
+    }
+
+    let success = false;
+
+    // Estrategia 1: librería QRious local
+    try {
+      if (typeof QRious !== 'undefined') {
+        const canvas = document.createElement('canvas');
+        canvas.id = 'qrcanvas';
+        canvas.style.maxWidth = '100%';
+        canvas.style.height = 'auto';
+        new QRious({
+          element: canvas,
+          value: url,
+          size: 400,
+          foreground: '#0A1628',
+          background: '#FFFFFF',
+          level: 'M'
+        });
+        wrap.innerHTML = '';
+        wrap.appendChild(canvas);
+        success = true;
+      }
+    } catch (e) { console.warn('QRious falló:', e); }
+
+    // Estrategia 2: API externa qrserver.com como fallback
+    if (!success) {
+      const img = document.createElement('img');
+      img.alt = 'QR Tikora';
+      img.style.cssText = 'display:block;width:100%;max-width:400px;height:auto;margin:0 auto';
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(url) + '&color=0A1628&bgcolor=FFFFFF&margin=10&format=png';
+      img.onerror = showFallbackText;
+      wrap.innerHTML = '';
+      wrap.appendChild(img);
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      const canvas = document.getElementById('qrcanvas');
+      if (canvas && canvas.toDataURL) {
+        const link = document.createElement('a');
+        link.download = 'tikora-qr.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } else {
+        const img = wrap.querySelector('img');
+        if (img && img.src) {
+          window.open(img.src, '_blank');
+        }
+      }
+    });
+    document.getElementById('editBtn').addEventListener('click', renderRegister);
+  }
+
+  function renderView(fiscal) {
+    const fields = [
+      { k: 'razonSocial', label: 'Razón social' },
+      { k: 'nif',         label: 'NIF / CIF' },
+      { k: 'direccion',   label: 'Dirección fiscal' },
+      { k: 'cp',          label: 'Código postal' },
+      { k: 'ciudad',      label: 'Ciudad' },
+      { k: 'email',       label: 'Email' }
+    ];
+    const allText = fields.map(function(f){ return f.label + ': ' + (fiscal[f.k]||''); }).join('\n');
+
+    let rowsHtml = '';
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      const val = fiscal[f.k] || '—';
+      rowsHtml += ''
+        + '<div class="data-row">'
+        +   '<div class="lv">'
+        +     '<div class="lbl">' + escapeHtml(f.label) + '</div>'
+        +     '<div class="val">' + escapeHtml(val) + '</div>'
+        +   '</div>'
+        +   '<button class="copy-btn" data-val="' + escapeAttr(fiscal[f.k]||'') + '">Copiar</button>'
+        + '</div>';
+    }
+
+    app.innerHTML = ''
+      + '<div class="banner scan">Datos fiscales del cliente — listos para tu sistema de facturación</div>'
+      + '<button class="copy-all" id="copyAll">Copiar todos los datos</button>'
+      + '<div class="card">' + rowsHtml + '</div>'
+      + '<div class="banner">¿Eres negocio? Tikora elimina dictar datos fiscales en tu local. <a href="' + location.origin + location.pathname + '" style="color:var(--accent)">Más info</a></div>';
+
+    const allBtn = document.getElementById('copyAll');
+    allBtn.addEventListener('click', function() {
+      copyToClipboard(allText);
+      allBtn.classList.add('copied');
+      allBtn.textContent = '✓ Copiado al portapapeles';
+      setTimeout(function() {
+        allBtn.classList.remove('copied');
+        allBtn.textContent = 'Copiar todos los datos';
+      }, 1800);
+    });
+
+    const copyBtns = document.querySelectorAll('.copy-btn');
+    for (let i = 0; i < copyBtns.length; i++) {
+      const btn = copyBtns[i];
+      btn.addEventListener('click', function() {
+        copyToClipboard(btn.getAttribute('data-val') || '');
+        const orig = btn.textContent;
+        btn.classList.add('copied');
+        btn.textContent = '✓';
+        setTimeout(function() {
+          btn.classList.remove('copied');
+          btn.textContent = orig;
+        }, 1200);
+      });
+    }
+  }
+
+  // === Boot ===
+  if (dataParam) {
+    const fiscal = b64urlDecode(dataParam);
+    if (!fiscal) {
+      app.innerHTML = '<div class="card"><h2>QR inválido</h2><p class="muted">El código no contiene datos válidos. Pídele al cliente que vuelva a generar su QR en tikora.es</p></div>';
+    } else {
+      renderView(fiscal);
+    }
+  } else {
+    renderRegister();
+  }
+})();
+</script>
+</body>
+</html>
+      { k: 'cp',          label: 'Código postal' },
+      { k: 'ciudad',      label: 'Ciudad' },
+      { k: 'email',       label: 'Email' }
+    ];
+    const allText = fields.map(function(f){ return f.label + ': ' + (fiscal[f.k]||''); }).join('\n');
+
+    let rowsHtml = '';
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      const val = fiscal[f.k] || '—';
+      rowsHtml += '<div class="data-row"><div class="lv"><div class="lbl">' + escapeHtml(f.label) + '</div><div class="val">' + escapeHtml(val) + '</div></div><button class="copy-btn" data-val="' + escapeAttr(fiscal[f.k]||'') + '">Copiar</button></div>';
+    }
+
+    app.innerHTML = '<div class="banner scan">Datos fiscales del cliente — listos para tu sistema de facturación</div><button class="copy-all" id="copyAll">Copiar todos los datos</button><div class="card">' + rowsHtml + '</div><div class="banner">¿Eres negocio? Tikora elimina dictar datos fiscales en tu local. <a href="' + location.origin + location.pathname + '" style="color:var(--accent)">Más info</a></div>';
+
+    const allBtn = document.getElementById('copyAll');
+    allBtn.addEventListener('click', function() {
+      copyToClipboard(allText);
+      allBtn.classList.add('copied');
+      allBtn.textContent = '✓ Copiado al portapapeles';
+      setTimeout(function() { allBtn.classList.remove('copied'); allBtn.textContent = 'Copiar todos los datos'; }, 1800);
+    });
+
+    const copyBtns = document.querySelectorAll('.copy-btn');
+    for (let i = 0; i < copyBtns.length; i++) {
+      (function(btn) {
+        btn.addEventListener('click', function() {
+          copyToClipboard(btn.getAttribute('data-val') || '');
+          const orig = btn.textContent;
+          btn.classList.add('copied');
+          btn.textContent = '✓';
+          setTimeout(function() { btn.classList.remove('copied'); btn.textContent = orig; }, 1200);
+        });
+      })(copyBtns[i]);
+    }
+  }
+
+  // === Boot ===
+  if (dataParam) {
+    const fiscal = b64urlDecode(dataParam);
+    if (!fiscal) {
+      app.innerHTML = '<div class="card"><h2>QR inválido</h2><p class="muted">El código no contiene datos válidos. Pídele al cliente que vuelva a generar su QR en tikora.es</p></div>';
+    } else {
+      renderView(fiscal);
+    }
+  } else {
+    renderRegister();
+  }
+})();
+</script>
+</body>
+</html>

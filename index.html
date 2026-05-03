@@ -37,7 +37,7 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
 .data-row .val{font-size:1rem;font-weight:500;word-break:break-word}
 .copy-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.55rem 0.85rem;border-radius:9px;cursor:pointer;font-size:0.85rem;font-family:inherit;flex-shrink:0;font-weight:500;min-width:70px}
 .copy-btn.copied{background:var(--success);border-color:var(--success)}
-.copy-all{background:var(--accent);color:#0A1628;font-weight:700;padding:1.1rem;text-align:center;border-radius:14px;margin-bottom:1rem;border:none;width:100%;font-size:1rem;cursor:pointer;font-family:inherit}
+.copy-all{background:var(--accent);color:#0A1628;font-weight:700;padding:1.1rem;text-align:center;border-radius:14px;margin-bottom:0.75rem;border:none;width:100%;font-size:1rem;cursor:pointer;font-family:inherit}
 .copy-all.copied{background:var(--success);color:white}
 .banner{background:var(--surface-2);padding:0.95rem 1.1rem;border-radius:12px;margin-bottom:1rem;font-size:0.88rem;color:var(--text-muted);border:1px solid var(--border)}
 .banner.scan{background:rgba(244,201,93,0.08);border-color:rgba(244,201,93,0.3);color:var(--accent);text-align:center;font-weight:500}
@@ -144,6 +144,7 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
       +   '<p class="muted" style="margin-bottom:1.25rem">Muestralo en cualquier bar, restaurante, hotel o gasolinera. Te emiten la factura sin que tengas que dictar nada.</p>'
       +   '<div class="qr-wrap" id="qrWrap"><div style="padding:2rem 1rem;text-align:center;color:#0A1628;font-weight:500">Generando QR...</div></div>'
       +   '<button class="btn" id="downloadBtn">Descargar QR</button>'
+      +   '<button class="btn secondary" id="shareQrBtn" style="margin-top:0.75rem">Compartir mi QR</button>'
       + '</div>'
       + '<div class="banner">Consejo: hazle una captura al QR y guardalo en tus favoritos del movil para mostrarlo en segundos.</div>';
 
@@ -189,6 +190,18 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
         if (i && i.src){ window.open(i.src, '_blank'); }
       }
     });
+    var shareQrBtn = document.getElementById('shareQrBtn');
+    if (shareQrBtn){
+      shareQrBtn.addEventListener('click', function(){
+        if (navigator.share){
+          navigator.share({ title: 'Mi QR Tikora', text: 'Estos son mis datos fiscales para emitir factura', url: url }).catch(function(){});
+        } else {
+          copyToClipboard(url);
+          shareQrBtn.textContent = 'Link copiado';
+          setTimeout(function(){ shareQrBtn.textContent = 'Compartir mi QR'; }, 1800);
+        }
+      });
+    }
   }
 
   function renderView(fiscal){
@@ -218,6 +231,7 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
       + ownBanner
       + '<div class="banner scan">Datos fiscales del cliente - listos para tu sistema de facturacion</div>'
       + '<button class="copy-all" id="copyAll">Copiar todos los datos</button>'
+      + '<button class="btn secondary" id="shareAllBtn" style="margin-bottom:1rem">Compartir datos (AirDrop, WhatsApp, Mail...)</button>'
       + '<div class="card">' + rowsHtml + '</div>';
 
     var ob = document.getElementById('ownBanner');
@@ -236,6 +250,19 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
       allBtn.textContent = 'Copiado al portapapeles';
       setTimeout(function(){ allBtn.classList.remove('copied'); allBtn.textContent = 'Copiar todos los datos'; }, 1800);
     });
+
+    var shareAllBtn = document.getElementById('shareAllBtn');
+    if (shareAllBtn){
+      shareAllBtn.addEventListener('click', function(){
+        if (navigator.share){
+          navigator.share({ title: 'Datos fiscales del cliente', text: allText }).catch(function(){});
+        } else {
+          copyToClipboard(allText);
+          shareAllBtn.textContent = 'Copiado al portapapeles';
+          setTimeout(function(){ shareAllBtn.textContent = 'Compartir datos (AirDrop, WhatsApp, Mail...)'; }, 1800);
+        }
+      });
+    }
 
     var copyBtns = document.querySelectorAll('.copy-btn');
     for (var j = 0; j < copyBtns.length; j++){

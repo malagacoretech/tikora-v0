@@ -44,6 +44,37 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
 .banner.own{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.4);color:#86efac;text-align:center;cursor:pointer;font-weight:500}
 .footer{text-align:center;color:var(--text-muted);font-size:0.78rem;margin-top:2rem;padding:1rem 0}
 .footer a{color:var(--accent);text-decoration:none}
+
+/* Tarjeta credencial Mis Datos */
+.cred-card{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border:1px solid var(--border);border-radius:18px;padding:1.5rem;margin-bottom:1rem;position:relative;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+.cred-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--accent)}
+.cred-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:1rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem}
+.cred-head .title{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--accent);font-weight:700}
+.cred-head .hint{font-size:0.7rem;color:var(--text-muted)}
+.field-card{padding:0.85rem 0;border-bottom:1px dashed var(--border);cursor:pointer;transition:background 0.15s}
+.field-card:last-child{border-bottom:none}
+.field-card:active{background:rgba(244,201,93,0.05)}
+.field-card .lbl{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.25rem;font-weight:500}
+.field-card .val{font-size:1.05rem;font-weight:500;word-break:break-word;transition:color 0.2s}
+.field-card .val.copied{color:var(--success)}
+
+/* Toast feedback */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--success);color:white;padding:0.8rem 1.6rem;border-radius:30px;font-size:0.95rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.3s;z-index:1000;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* Pantalla completa */
+.fs-mode{position:fixed;top:0;left:0;right:0;bottom:0;background:#0A1628;z-index:999;padding:2rem 1.5rem;overflow-y:auto;display:flex;flex-direction:column}
+.fs-close{position:absolute;top:1rem;right:1rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);width:46px;height:46px;border-radius:50%;font-size:1.6rem;line-height:1;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.fs-content{margin-top:auto;margin-bottom:auto;padding:1rem 0}
+.fs-brand{text-align:center;margin-bottom:1.75rem}
+.fs-brand h1{font-size:2.25rem;letter-spacing:-0.03em;font-weight:800;line-height:1}
+.fs-brand h1 span{color:var(--accent)}
+.fs-brand p{color:var(--text-muted);font-size:0.85rem;margin-top:0.4rem}
+.fs-data{padding:0 0.25rem}
+.fs-row{padding:1rem 0;border-bottom:1px dashed var(--border)}
+.fs-row:last-child{border-bottom:none}
+.fs-row .lbl{font-size:0.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;font-weight:600}
+.fs-row .val{font-size:1.55rem;font-weight:600;line-height:1.3;word-break:break-word}
 </style>
 </head>
 <body>
@@ -57,6 +88,7 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
     v0 - MVP de validacion - <a href="mailto:matias@tikora.es">matias@tikora.es</a>
   </div>
 </div>
+<div class="toast" id="toast">Copiado</div>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script>
 (function(){
@@ -94,6 +126,15 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
     document.body.removeChild(ta);
   }
 
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg || 'Copiado';
+    t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(function(){ t.classList.remove('show'); }, 1500);
+  }
+
   function isSameAsSaved(fiscal){
     var savedRaw = safeGet('tikora_data');
     if (!savedRaw) return false;
@@ -101,6 +142,17 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
       var saved = JSON.parse(savedRaw);
       return saved.nif && fiscal.nif && saved.nif === fiscal.nif && saved.email === fiscal.email;
     } catch(e){ return false; }
+  }
+
+  function getFields(){
+    return [
+      { k: 'razonSocial', label: 'Nombre / Razon social' },
+      { k: 'nif',         label: 'NIF / CIF' },
+      { k: 'direccion',   label: 'Direccion fiscal' },
+      { k: 'cp',          label: 'Codigo postal' },
+      { k: 'ciudad',      label: 'Ciudad' },
+      { k: 'email',       label: 'Email' }
+    ];
   }
 
   function renderRegister(){
@@ -144,6 +196,7 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
       +   '<p class="muted" style="margin-bottom:1.25rem">Muestralo en cualquier bar, restaurante, hotel o gasolinera. Te emiten la factura sin que tengas que dictar nada.</p>'
       +   '<div class="qr-wrap" id="qrWrap"><div style="padding:2rem 1rem;text-align:center;color:#0A1628;font-weight:500">Generando QR...</div></div>'
       +   '<button class="btn" id="downloadBtn">Descargar QR</button>'
+      +   '<button class="btn secondary" id="myDataBtn" style="margin-top:0.75rem">Mis datos</button>'
       +   '<button class="btn secondary" id="shareQrBtn" style="margin-top:0.75rem">Compartir mi QR</button>'
       + '</div>'
       + '<div class="banner">Consejo: hazle una captura al QR y guardalo en tus favoritos del movil para mostrarlo en segundos.</div>';
@@ -190,6 +243,10 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
         if (i && i.src){ window.open(i.src, '_blank'); }
       }
     });
+    document.getElementById('myDataBtn').addEventListener('click', function(){
+      showMyData(fiscal);
+      window.scrollTo(0,0);
+    });
     var shareQrBtn = document.getElementById('shareQrBtn');
     if (shareQrBtn){
       shareQrBtn.addEventListener('click', function(){
@@ -204,15 +261,99 @@ h2{font-size:1.25rem;margin-bottom:0.5rem;font-weight:700;letter-spacing:-0.01em
     }
   }
 
+  function showMyData(fiscal){
+    var fields = getFields();
+    var allText = fields.map(function(f){ return f.label + ': ' + (fiscal[f.k]||''); }).join('\n');
+
+    var fieldsHtml = '';
+    for (var i = 0; i < fields.length; i++){
+      var f = fields[i];
+      var val = fiscal[f.k] || '-';
+      fieldsHtml += '<div class="field-card" data-val="' + escapeAttr(fiscal[f.k]||'') + '">'
+                 +   '<div class="lbl">' + escapeHtml(f.label) + '</div>'
+                 +   '<div class="val">' + escapeHtml(val) + '</div>'
+                 + '</div>';
+    }
+
+    app.innerHTML = ''
+      + '<button class="btn back" id="backToQr">&larr; Volver al QR</button>'
+      + '<div class="cred-card">'
+      +   '<div class="cred-head">'
+      +     '<div class="title">Tikora &middot; Identidad fiscal</div>'
+      +     '<div class="hint">Toca un dato para copiar</div>'
+      +   '</div>'
+      +   fieldsHtml
+      + '</div>'
+      + '<button class="btn" id="fullscreenBtn">Pantalla completa</button>'
+      + '<button class="btn secondary" id="copyAllMyBtn" style="margin-top:0.75rem">Copiar todos los datos</button>'
+      + '<button class="btn secondary" id="shareMyBtn" style="margin-top:0.75rem">Compartir datos (WhatsApp, AirDrop, Mail...)</button>'
+      + '<div class="banner" style="margin-top:1rem">Si el cajero no puede escanear el QR, muestrale esta pantalla. Toca cualquier dato para copiarlo al portapapeles.</div>';
+
+    document.getElementById('backToQr').addEventListener('click', function(){
+      showQR(fiscal);
+      window.scrollTo(0,0);
+    });
+
+    var cards = document.querySelectorAll('.field-card');
+    for (var j = 0; j < cards.length; j++){
+      (function(card){
+        card.addEventListener('click', function(){
+          var val = card.getAttribute('data-val') || '';
+          if (!val) return;
+          copyToClipboard(val);
+          var valEl = card.querySelector('.val');
+          valEl.classList.add('copied');
+          setTimeout(function(){ valEl.classList.remove('copied'); }, 1200);
+          showToast('Copiado');
+        });
+      })(cards[j]);
+    }
+
+    document.getElementById('copyAllMyBtn').addEventListener('click', function(){
+      copyToClipboard(allText);
+      showToast('Todos copiados');
+    });
+
+    document.getElementById('shareMyBtn').addEventListener('click', function(){
+      if (navigator.share){
+        navigator.share({ title: 'Mis datos fiscales', text: allText }).catch(function(){});
+      } else {
+        copyToClipboard(allText);
+        showToast('Copiado al portapapeles');
+      }
+    });
+
+    document.getElementById('fullscreenBtn').addEventListener('click', function(){
+      showFullscreen(fiscal, fields);
+    });
+  }
+
+  function showFullscreen(fiscal, fields){
+    var rowsHtml = '';
+    for (var i = 0; i < fields.length; i++){
+      var f = fields[i];
+      var val = fiscal[f.k] || '-';
+      rowsHtml += '<div class="fs-row">'
+               +   '<div class="lbl">' + escapeHtml(f.label) + '</div>'
+               +   '<div class="val">' + escapeHtml(val) + '</div>'
+               + '</div>';
+    }
+    var fs = document.createElement('div');
+    fs.className = 'fs-mode';
+    fs.innerHTML = ''
+      + '<button class="fs-close" id="fsClose" aria-label="Cerrar">&times;</button>'
+      + '<div class="fs-content">'
+      +   '<div class="fs-brand"><h1>Tikora<span>.</span></h1><p>Mis datos fiscales</p></div>'
+      +   '<div class="fs-data">' + rowsHtml + '</div>'
+      + '</div>';
+    document.body.appendChild(fs);
+    document.getElementById('fsClose').addEventListener('click', function(){
+      document.body.removeChild(fs);
+    });
+  }
+
   function renderView(fiscal){
-    var fields = [
-      { k: 'razonSocial', label: 'Razon social' },
-      { k: 'nif',         label: 'NIF / CIF' },
-      { k: 'direccion',   label: 'Direccion fiscal' },
-      { k: 'cp',          label: 'Codigo postal' },
-      { k: 'ciudad',      label: 'Ciudad' },
-      { k: 'email',       label: 'Email' }
-    ];
+    var fields = getFields();
     var allText = fields.map(function(f){ return f.label + ': ' + (fiscal[f.k]||''); }).join('\n');
 
     var rowsHtml = '';

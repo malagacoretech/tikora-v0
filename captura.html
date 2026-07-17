@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0A1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TIKORA">
+<title>TIKORA — Captura de facturas</title>
+<link rel="manifest" href="/captura.webmanifest">
+<link rel="apple-touch-icon" href="/favicons/apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='38' fill='%23F4C95D'%3ET%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0A1628;--surface:#142238;--surface-2:#1E2D45;--accent:#F4C95D;--text:#FFFFFF;--text-muted:#93A3B8;--border:#2A3A55;--success:#22C55E;--danger:#EF4444}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.4;position:fixed;inset:0;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+
+/* ====== VISOR (pantalla principal) ====== */
+#screenCam{position:absolute;inset:0;background:#000;display:none}
+#screenCam.on{display:block}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(0.8rem + env(safe-area-inset-top)) 1rem 0.8rem;background:linear-gradient(rgba(10,22,40,0.75),rgba(10,22,40,0));z-index:5}
+.topbar .brand{font-size:1.15rem;font-weight:800;letter-spacing:-0.02em}
+.topbar .brand span{color:var(--accent)}
+.pill{background:rgba(10,22,40,0.6);border:1px solid rgba(255,255,255,0.14);backdrop-filter:blur(6px);border-radius:20px;padding:0.3rem 0.75rem;font-size:0.75rem;color:var(--text);font-weight:600;display:inline-flex;align-items:center;gap:0.35rem}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block}
+.pill.warn .dot{background:var(--accent)}
+.bottombar{position:absolute;bottom:0;left:0;right:0;padding:1rem 1.25rem calc(1.4rem + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(10,22,40,0),rgba(10,22,40,0.8));z-index:5}
+.sidebtn{width:56px;height:56px;border-radius:50%;background:rgba(20,34,56,0.72);border:1px solid rgba(255,255,255,0.16);backdrop-filter:blur(6px);color:var(--text);font-size:1.35rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit}
+.sidebtn:active{transform:scale(0.94)}
+.sidebtn.active{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+.sidebtn .lbl{position:absolute;bottom:-1.25rem;left:50%;transform:translateX(-50%);font-size:0.6rem;color:var(--text-muted);white-space:nowrap}
+.sidewrap{position:relative;display:flex;flex-direction:column;align-items:center}
+#shutter{width:82px;height:82px;border-radius:50%;border:5px solid rgba(255,255,255,0.92);background:rgba(255,255,255,0.18);cursor:pointer;position:relative;transition:transform 0.08s;flex-shrink:0}
+#shutter::after{content:"";position:absolute;inset:7px;border-radius:50%;background:#fff;transition:background 0.15s}
+#shutter:active{transform:scale(0.92)}
+#shutter.busy::after{background:var(--accent)}
+#shutter:disabled{opacity:0.45}
+.resbadge{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));right:1rem;z-index:5;font-size:0.62rem;color:rgba(255,255,255,0.75);background:rgba(10,22,40,0.5);border-radius:8px;padding:0.15rem 0.5rem;letter-spacing:0.03em}
+
+/* flash de captura */
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:8}
+#flash.go{animation:flash 0.28s ease-out}
+@keyframes flash{0%{opacity:0.85}100%{opacity:0}}
+
+/* ====== PREVIEW + ESTADOS DE ENVÍO ====== */
+#preview{position:absolute;inset:0;background:#000;z-index:9;display:none;align-items:center;justify-content:center}
+#preview.on{display:flex}
+#preview img{max-width:100%;max-height:100%;object-fit:contain}
+#preview .tag{position:absolute;bottom:calc(2.2rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:rgba(10,22,40,0.85);border:1px solid var(--border);border-radius:24px;padding:0.6rem 1.3rem;font-size:0.9rem;font-weight:600}
+#okOverlay{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;flex-direction:column;gap:0.6rem;background:rgba(10,22,40,0.55);backdrop-filter:blur(3px);pointer-events:none}
+#okOverlay.on{display:flex}
+#okOverlay .big{width:108px;height:108px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:3.4rem;color:#fff;box-shadow:0 10px 40px rgba(34,197,94,0.45)}
+#okOverlay .txt{font-size:1.35rem;font-weight:800}
+#okOverlay .sub{font-size:0.85rem;color:var(--text-muted)}
+
+/* ====== PANTALLAS ALTERNATIVAS (sin cámara / sin token) ====== */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.5rem + env(safe-area-inset-bottom));overflow-y:auto;background:var(--bg)}
+.screen.on{display:flex}
+.screen .brandbig{text-align:center;margin:1.5rem 0}
+.screen .brandbig h1{font-size:2.1rem;letter-spacing:-0.03em;font-weight:800}
+.screen .brandbig h1 span{color:var(--accent)}
+.screen .brandbig p{color:var(--text-muted);font-size:0.88rem;margin-top:0.4rem}
+.bigshot{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.9rem;background:var(--surface);border:2px dashed var(--border);border-radius:22px;cursor:pointer;min-height:290px;padding:2rem;text-align:center}
+.bigshot:active{background:var(--surface-2)}
+.bigshot .cam{width:96px;height:96px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:2.6rem}
+.bigshot .t1{font-size:1.3rem;font-weight:800}
+.bigshot .t2{font-size:0.85rem;color:var(--text-muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:1.5rem;margin-bottom:1rem}
+.card h2{font-size:1.2rem;margin-bottom:0.5rem;font-weight:700}
+.muted{color:var(--text-muted);font-size:0.88rem}
+.field{margin:1rem 0}
+.field label{display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:0.4rem;font-weight:500;text-transform:uppercase;letter-spacing:0.04em}
+.field input{width:100%;padding:0.9rem 1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1.05rem;font-family:inherit;-webkit-appearance:none;text-transform:uppercase}
+.field input:focus{outline:none;border-color:var(--accent)}
+.btn{display:block;width:100%;padding:1.05rem;border:none;border-radius:14px;background:var(--accent);color:#0A1628;font-weight:700;font-size:1rem;cursor:pointer;font-family:inherit;margin-top:0.5rem}
+.btn:active{transform:scale(0.985)}
+.btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
+
+/* ====== COLA PENDIENTES ====== */
+#queueBar{position:absolute;left:1rem;right:1rem;bottom:calc(8.6rem + env(safe-area-inset-bottom));z-index:6;display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
+#queueBar.on{display:flex}
+#queueBar .n{background:var(--accent);color:#0A1628;font-weight:800;border-radius:10px;padding:0.1rem 0.5rem}
+#queueBar .msg{flex:1;color:var(--text-muted)}
+#queueBar button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:0.45rem 0.8rem;font-size:0.8rem;font-family:inherit;cursor:pointer;font-weight:600}
+.toast{position:fixed;bottom:calc(7rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.75rem 1.4rem;border-radius:26px;font-size:0.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s;z-index:40;pointer-events:none;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.toast.err{background:var(--danger);border-color:var(--danger);color:#fff}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<!-- Pantalla 1: visor de cámara (la app ES esto) -->
+<div id="screenCam">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="flash"></div>
+  <div class="topbar">
+    <div class="brand">Tikora<span>.</span></div>
+    <div class="pill" id="weekPill"><span class="dot"></span><span id="weekCount">0 esta semana</span></div>
+  </div>
+  <div class="resbadge" id="resBadge"></div>
+  <div id="queueBar"><span class="n" id="queueN">0</span><span class="msg" id="queueMsg">pendientes de enviar</span><button id="retryBtn" type="button">Reintentar</button></div>
+  <div class="bottombar">
+    <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
+    <button id="shutter" type="button" aria-label="Capturar" disabled></button>
+    <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button><span class="lbl">c&aacute;mara nativa</span></div>
+  </div>
+  <div id="preview"><img id="previewImg" alt=""><div class="tag" id="previewTag">Guardada, enviando&hellip;</div></div>
+  <div id="okOverlay"><div class="big">&#10003;</div><div class="txt">Recibida &#10003;</div><div class="sub" id="okSub"></div></div>
+</div>
+
+<!-- Pantalla 2: sin cámara web disponible → botón gigante a la cámara nativa -->
+<div class="screen" id="screenShot">
+  <div class="brandbig"><h1>Tikora<span>.</span></h1><p>Captura de facturas</p></div>
+  <div class="bigshot" id="bigShot">
+    <div class="cam">&#128247;</div>
+    <div class="t1">Tocar para fotografiar<br>la factura</div>
+    <div class="t2">Se abre la c&aacute;mara del m&oacute;vil. La foto se env&iacute;a sola.</div>
+  </div>
+  <div id="queueBar2" style="margin-top:1rem"></div>
+  <div class="muted" style="text-align:center;margin-top:1rem" id="shotStatus"></div>
+</div>
+
+<!-- Pantalla 3: falta el token de alta -->
+<div class="screen" id="screenToken">
+  <div class="brandbig"><h1>Tikora<span>.</span></h1><p>Captura de facturas</p></div>
+  <div class="card">
+    <h2>Falta tu enlace de alta</h2>
+    <p class="muted">Esta app se activa con el enlace personal que te mand&oacute; Tikora por WhatsApp (termina en <b>?u=TUCODIGO</b>). &Aacute;brelo una vez y quedar&aacute; configurada para siempre.</p>
+    <div class="field"><label>O escribe tu c&oacute;digo</label><input id="tokenInput" autocomplete="off" autocapitalize="characters" placeholder="EJ: SP"></div>
+    <button class="btn" id="tokenSave" type="button">Activar</button>
+  </div>
+  <p class="muted" style="text-align:center">&iquest;No tienes c&oacute;digo? Escribe a <b>matias@tikora.es</b></p>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
+
+<script>
+(function(){
+'use strict';
+/* ================== CONFIG ================== */
+var WEBHOOK_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-app-5c59254275b582c6';
+var APP_HEADER  = 'x-tikora-app';
+var APP_SECRET  = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420'; /* gate anti-bots; el alta real es el token de usuario */
+var MAX_BYTES   = 10 * 1024 * 1024;         /* 10 MB por captura (límite del webhook) */
+var JPEG_Q      = 0.95;                      /* calidad canvas — nunca por debajo de 0.92 */
+var RETRY_MS    = 20000;                     /* reintento automático de la cola */
+
+/* ================== ESTADO ================== */
+var stream = null, track = null, usingImageCapture = false;
+var sending = false, torchOn = false;
+var video = document.getElementById('video');
+
+function $(id){ return document.getElementById(id); }
+function show(id){ ['screenCam','screenShot','screenToken'].forEach(function(s){ $(s).classList.remove('on'); }); $(id).classList.add('on'); }
+function toast(msg, isErr){
+  var t = $('toast'); t.textContent = msg;
+  t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+}
+
+/* ================== TOKEN DE ALTA ================== */
+function getToken(){
+  try {
+    var qs = new URLSearchParams(location.search);
+    var u = (qs.get('u')||'').trim().toUpperCase();
+    if (u){ localStorage.setItem('tikora_capture_token', u); }
+    return localStorage.getItem('tikora_capture_token') || '';
+  } catch(e){ return ''; }
+}
+var TOKEN = getToken();
+
+/* ================== CONTADOR SEMANAL ================== */
+function weekKey(){
+  var d = new Date(); var day = (d.getDay()+6)%7;   /* lunes=0 */
+  d.setDate(d.getDate()-day);
+  return 'tikora_week_' + d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+function weekCount(delta){
+  var k = weekKey(), n = 0;
+  try { n = parseInt(localStorage.getItem(k)||'0',10)||0; if (delta){ n += delta; localStorage.setItem(k, String(n)); } } catch(e){}
+  $('weekCount').textContent = n + ' esta semana';
+  return n;
+}
+
+/* ================== COLA OFFLINE (IndexedDB, patrón outbox) ================== */
+var db = null;
+function openDB(){
+  return new Promise(function(res, rej){
+    if (db) return res(db);
+    var r = indexedDB.open('tikora-captura', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('cola', { keyPath:'id', autoIncrement:true }); };
+    r.onsuccess = function(){ db = r.result; res(db); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function dbAdd(item){ return openDB().then(function(d){ return new Promise(function(res,rej){ var tx=d.transaction('cola','readwrite'); var rq=tx.objectStore('cola').add(item); rq.onsuccess=function(){res(rq.result);}; tx.onerror=function(){rej(tx.error);} }); }); }
+function dbAll(){ return openDB().then(function(d){ return new Promise(function(res,rej){ var rq=d.transaction('cola','readonly').objectStore('cola').getAll(); rq.onsuccess=function(){res(rq.result||[]);}; rq.onerror=function(){rej(rq.error);} }); }); }
+function dbDel(id){ return openDB().then(function(d){ return new Promise(function(res,rej){ var tx=d.transaction('cola','readwrite'); tx.objectStore('cola').delete(id); tx.oncomplete=res; tx.onerror=function(){rej(tx.error);} }); }); }
+function dbPut(item){ return openDB().then(function(d){ return new Promise(function(res,rej){ var tx=d.transaction('cola','readwrite'); tx.objectStore('cola').put(item); tx.oncomplete=res; tx.onerror=function(){rej(tx.error);} }); }); }
+
+function refreshQueueUI(){
+  return dbAll().then(function(items){
+    var pend = items.filter(function(i){ return !i.dead; });
+    var dead = items.filter(function(i){ return i.dead; });
+    var bar = $('queueBar');
+    if (pend.length || dead.length){
+      bar.classList.add('on');
+      $('queueN').textContent = pend.length + (dead.length ? ('+' + dead.length) : '');
+      $('queueMsg').textContent = dead.length
+        ? (pend.length + ' pendientes, ' + dead.length + ' con error (toca Reintentar para ver)')
+        : 'pendientes de enviar';
+    } else { bar.classList.remove('on'); }
+    return items;
+  });
+}
+
+/* blob → base64 (sin cabecera dataURL) */
+function toB64(blob){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ var s = String(fr.result); res(s.slice(s.indexOf(',')+1)); };
+    fr.onerror = function(){ rej(fr.error); };
+    fr.readAsDataURL(blob);
+  });
+}
+
+function sendItem(item){
+  return toB64(item.blob).then(function(b64){
+    return fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: (function(){ var h = { 'Content-Type':'application/json' }; h[APP_HEADER] = APP_SECRET; return h; })(),
+      body: JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64 })
+    });
+  }).then(function(resp){
+    if (resp.ok) return { ok:true };
+    /* errores definitivos: no reintentar en bucle */
+    if (resp.status===403) return { ok:false, dead:true, why:'Enlace no válido. Pedí uno nuevo a Tikora.' };
+    if (resp.status===413) return { ok:false, dead:true, why:'Archivo demasiado grande (máx 10 MB).' };
+    if (resp.status===415) return { ok:false, dead:true, why:'Formato no soportado.' };
+    if (resp.status===400) return { ok:false, dead:true, why:'Archivo no válido.' };
+    return { ok:false, dead:false, why:'HTTP '+resp.status };
+  });
+}
+
+var processing = false;
+function processQueue(fromUser){
+  if (processing) return Promise.resolve();
+  processing = true;
+  return dbAll().then(function(items){
+    var pend = items.filter(function(i){ return !i.dead; }).sort(function(a,b){ return a.id-b.id; });
+    var chain = Promise.resolve();
+    pend.forEach(function(item){
+      chain = chain.then(function(){
+        return sendItem(item).then(function(r){
+          if (r.ok){
+            return dbDel(item.id).then(function(){
+              weekCount(1);
+              flashOK(item.kind === 'archivo' ? 'archivo' : 'foto');
+            });
+          }
+          if (r.dead){
+            item.dead = true; item.why = r.why;
+            toast('No enviada: ' + r.why, true);
+            return dbPut(item);
+          }
+          throw new Error(r.why || 'red');
+        });
+      });
+    });
+    return chain;
+  }).catch(function(){
+    if (fromUser) toast('Sin conexión. Se reintenta solo al volver la red.', true);
+  }).then(function(){
+    processing = false;
+    return refreshQueueUI();
+  });
+}
+
+/* purga de items con error definitivo, con confirmación */
+$('retryBtn').addEventListener('click', function(){
+  dbAll().then(function(items){
+    var dead = items.filter(function(i){ return i.dead; });
+    if (dead.length && confirm(dead.length + ' captura(s) con error definitivo (' + (dead[0].why||'') + ') ¿Descartarlas?')){
+      var p = Promise.resolve();
+      dead.forEach(function(d){ p = p.then(function(){ return dbDel(d.id); }); });
+      p.then(refreshQueueUI);
+    }
+    processQueue(true);
+  });
+});
+
+/* ================== ENCOLAR CAPTURA ================== */
+function tsName(ext){
+  var d = new Date();
+  function p(n){ return (n<10?'0':'')+n; }
+  return 'captura_' + d.getFullYear()+p(d.getMonth()+1)+p(d.getDate()) + '_' + p(d.getHours())+p(d.getMinutes())+p(d.getSeconds()) + '.' + ext;
+}
+function enqueue(blob, mime, filename, kind){
+  if (blob.size > MAX_BYTES){
+    toast('Demasiado grande ('+ (blob.size/1048576).toFixed(1) +' MB, máx 10). Usá el modo estándar de la cámara.', true);
+    return Promise.resolve(false);
+  }
+  if (blob.size < 1024){ toast('Captura vacía, probá otra vez.', true); return Promise.resolve(false); }
+  return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false })
+    .then(function(){ refreshQueueUI(); processQueue(false); return true; });
+}
+
+/* ================== FEEDBACK VISUAL ================== */
+var okTimer = null;
+function flashOK(){
+  var o = $('okOverlay');
+  $('okSub').textContent = 'En tu carpeta de facturas';
+  o.classList.add('on');
+  clearTimeout(okTimer);
+  okTimer = setTimeout(function(){ o.classList.remove('on'); }, 1400);
+  var s = $('shotStatus'); if (s) s.textContent = 'Recibida ✓';
+}
+function showPreview(blob){
+  var img = $('previewImg');
+  var url = URL.createObjectURL(blob);
+  img.src = url;
+  $('preview').classList.add('on');
+  setTimeout(function(){
+    $('preview').classList.remove('on');
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+/* ================== CÁMARA ================== */
+function stopCamera(){
+  if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; track = null; }
+}
+function initCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ return Promise.reject(new Error('no-gum')); }
+  /* pedir el máximo que dé el hardware; el UA ajusta al mejor modo real */
+  return navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } }
+  }).then(function(s){
+    stream = s; track = s.getVideoTracks()[0];
+    video.srcObject = s;
+    return new Promise(function(res){
+      if (video.readyState >= 1) res(); else video.onloadedmetadata = function(){ res(); };
+    });
+  }).then(function(){
+    video.play().catch(function(){});
+    $('shutter').disabled = false;
+    usingImageCapture = (typeof window.ImageCapture !== 'undefined');
+    /* transparencia de nitidez: qué está dando de verdad el hardware */
+    var st = track.getSettings ? track.getSettings() : {};
+    var res = (st.width||video.videoWidth||0) + '×' + (st.height||video.videoHeight||0);
+    $('resBadge').textContent = usingImageCapture ? 'foto nativa del sensor' : ('vídeo ' + res);
+    /* linterna si el hardware la tiene */
+    try {
+      var caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.torch){ $('torchBtn').style.visibility = 'visible'; $('torchLbl').textContent = 'linterna'; }
+      if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function(){});
+      }
+    } catch(e){}
+  });
+}
+
+$('torchBtn').addEventListener('click', function(){
+  if (!track) return;
+  torchOn = !torchOn;
+  track.applyConstraints({ advanced: [{ torch: torchOn }] })
+    .then(function(){ $('torchBtn').classList.toggle('active', torchOn); })
+    .catch(function(){ toast('La linterna no está disponible', true); torchOn = false; });
+});
+
+/* Captura con máxima nitidez:
+   1) ImageCapture.takePhoto → foto REAL del sensor (Android Chrome), sin recomprimir.
+   2) canvas a resolución completa del stream, JPEG 0.95 (iOS y resto).
+   Nunca se reescala hacia abajo. */
+function capturePhoto(){
+  if (!track || sending) return;
+  sending = true;
+  $('shutter').classList.add('busy');
+  $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
+  if (navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
+
+  var done = function(blob){
+    sending = false;
+    $('shutter').classList.remove('busy');
+    if (!blob){ toast('No se pudo capturar, probá de nuevo', true); return; }
+    showPreview(blob);
+    enqueue(blob, blob.type || 'image/jpeg', tsName('jpg'), 'foto');
+  };
+
+  var viaCanvas = function(){
+    try {
+      var c = document.createElement('canvas');
+      c.width = video.videoWidth; c.height = video.videoHeight;   /* resolución completa, jamás menos */
+      c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+      c.toBlob(function(b){ done(b); }, 'image/jpeg', JPEG_Q);
+    } catch(e){ done(null); }
+  };
+
+  if (usingImageCapture){
+    var ic;
+    try { ic = new ImageCapture(track); } catch(e){ return viaCanvas(); }
+    ic.getPhotoCapabilities().then(function(caps){
+      var opts = {};
+      try { if (caps.imageWidth && caps.imageWidth.max) opts.imageWidth = caps.imageWidth.max; } catch(e){}
+      return ic.takePhoto(opts).catch(function(){ return ic.takePhoto(); });
+    }).catch(function(){
+      try { return ic.takePhoto(); } catch(e){ return null; }
+    }).then(function(blob){
+      if (blob && blob.size > 0){ done(blob); } else { viaCanvas(); }
+    }).catch(function(){ viaCanvas(); });
+  } else {
+    viaCanvas();
+  }
+}
+$('shutter').addEventListener('click', capturePhoto);
+
+/* ================== CÁMARA NATIVA (fallback / modo pro) ==================
+   El fichero se envía TAL CUAL llega del sistema: cero recompresión, EXIF intacto. */
+function openNative(){ $('fileInput').value = ''; $('fileInput').click(); }
+$('nativeBtn').addEventListener('click', openNative);
+$('fileInput').addEventListener('change', function(){
+  var f = this.files && this.files[0];
+  if (!f) return;
+  var mime = f.type || 'image/jpeg';
+  var okTypes = ['image/jpeg','image/png','image/webp','application/pdf'];
+  if (okTypes.indexOf(mime) < 0){ toast('Formato no soportado ('+mime+'). Usá JPG, PNG, WEBP o PDF.', true); return; }
+  var ext = mime === 'application/pdf' ? 'pdf' : (mime.split('/')[1]||'jpg').replace('jpeg','jpg');
+  if ($('screenCam').classList.contains('on')) showPreview(f);
+  enqueue(f, mime, f.name || tsName(ext), 'archivo');
+  var s = $('shotStatus'); if (s) s.textContent = 'Enviando…';
+});
+
+/* ================== ARRANQUE ================== */
+function bootCameraScreen(){
+  show('screenCam');
+  initCamera().catch(function(){
+    stopCamera();
+    show('screenShot');            /* sin getUserMedia o permiso denegado → botón gigante a la nativa */
+  });
+}
+function boot(){
+  weekCount(0);
+  refreshQueueUI();
+  if (!TOKEN){ show('screenToken'); return; }
+  bootCameraScreen();
+  processQueue(false);
+}
+$('bigShot').addEventListener('click', openNative);
+$('tokenSave').addEventListener('click', function(){
+  var v = ($('tokenInput').value||'').trim().toUpperCase();
+  if (!v){ toast('Escribí tu código', true); return; }
+  try { localStorage.setItem('tikora_capture_token', v); } catch(e){}
+  TOKEN = v;
+  bootCameraScreen();
+});
+
+/* la cámara muere al pasar a segundo plano: revivirla al volver */
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible'){
+    if (TOKEN && $('screenCam').classList.contains('on') && (!track || track.readyState === 'ended')){
+      stopCamera(); initCamera().catch(function(){ show('screenShot'); });
+    }
+    processQueue(false);
+  } else {
+    if (torchOn && track){ torchOn=false; $('torchBtn').classList.remove('active'); }
+  }
+});
+window.addEventListener('online', function(){ processQueue(false); });
+setInterval(function(){ dbAll().then(function(it){ if (it.some(function(i){ return !i.dead; })) processQueue(false); }); }, RETRY_MS);
+
+/* pantalla siempre encendida en tandas largas (estación de captura) */
+function wakeLock(){ if (navigator.wakeLock && navigator.wakeLock.request){ navigator.wakeLock.request('screen').catch(function(){}); } }
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState==='visible') wakeLock(); });
+wakeLock();
+
+/* service worker: la app abre incluso sin red */
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/captura-sw.js', { updateViaCache: 'none' }).catch(function(){});
+}
+
+/* hooks de diagnóstico (usados por los tests; no afectan al uso normal) */
+window.__tikora = { enqueue: enqueue, processQueue: processQueue, dbAll: dbAll, state: function(){ return { token: TOKEN, cam: !!track, ic: usingImageCapture }; } };
+
+boot();
+})();
+</script>
+</body>
+</html>

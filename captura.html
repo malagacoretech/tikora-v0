@@ -28,7 +28,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .pill{background:rgba(10,22,40,0.6);border:1px solid rgba(255,255,255,0.14);backdrop-filter:blur(6px);border-radius:20px;padding:0.3rem 0.75rem;font-size:0.75rem;color:var(--text);font-weight:600;display:inline-flex;align-items:center;gap:0.35rem}
 .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block}
 .pill.warn .dot{background:var(--accent)}
-.bottombar{position:absolute;bottom:0;left:0;right:0;padding:1rem 1.25rem calc(1.4rem + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(10,22,40,0),rgba(10,22,40,0.8));z-index:5}
+.bottombar{position:absolute;bottom:calc(3.6rem + env(safe-area-inset-bottom));left:0;right:0;padding:1rem 1.25rem 1.1rem;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(10,22,40,0),rgba(10,22,40,0.8));z-index:5}
 .sidebtn{width:56px;height:56px;border-radius:50%;background:rgba(20,34,56,0.72);border:1px solid rgba(255,255,255,0.16);backdrop-filter:blur(6px);color:var(--text);font-size:1.35rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit}
 .sidebtn:active{transform:scale(0.94)}
 .sidebtn.active{background:var(--accent);color:#0A1628;border-color:var(--accent)}
@@ -54,7 +54,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #okOverlay .sub{font-size:0.85rem;color:var(--text-muted)}
 
 /* miniatura flotante de la última captura: estado de subida sin tapar el visor */
-#thumb{position:absolute;left:1rem;bottom:calc(9.2rem + env(safe-area-inset-bottom));z-index:7;width:72px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s}
+#thumb{position:absolute;left:1rem;bottom:calc(12.8rem + env(safe-area-inset-bottom));z-index:7;width:72px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s}
 #thumb.on{display:block}
 #thumb img{display:block;width:100%;height:72px;object-fit:cover}
 #thumb .st{display:block;font-size:0.6rem;font-weight:700;text-align:center;padding:0.22rem 0.2rem;background:rgba(10,22,40,0.92);color:var(--text-muted);letter-spacing:0.02em}
@@ -91,15 +91,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
 
 /* ====== COLA PENDIENTES ====== */
-#queueBar{position:absolute;left:1rem;right:1rem;bottom:calc(8.6rem + env(safe-area-inset-bottom));z-index:6;display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
+#queueBar{position:absolute;left:1rem;right:1rem;bottom:calc(12.2rem + env(safe-area-inset-bottom));z-index:6;display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
 #queueBar.on{display:flex}
 #queueBar .n{background:var(--accent);color:#0A1628;font-weight:800;border-radius:10px;padding:0.1rem 0.5rem}
 #queueBar .msg{flex:1;color:var(--text-muted)}
 #queueBar button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:0.45rem 0.8rem;font-size:0.8rem;font-family:inherit;cursor:pointer;font-weight:600}
-.toast{position:fixed;bottom:calc(7rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.75rem 1.4rem;border-radius:26px;font-size:0.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s;z-index:40;pointer-events:none;max-width:88vw;text-align:center}
+.toast{position:fixed;bottom:calc(10.6rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.75rem 1.4rem;border-radius:26px;font-size:0.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s;z-index:40;pointer-events:none;max-width:88vw;text-align:center}
 .toast.show{opacity:1}
 .toast.err{background:var(--danger);border-color:var(--danger);color:#fff}
 input[type=file]{display:none}
+
+/* ====== PESTAÑAS (📷 Capturar | 📊 Mi panel) ====== */
+#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:1fr 1fr;background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar.on{display:grid}
+#tabbar .tab{height:3.6rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.88rem;font-weight:700;cursor:pointer;letter-spacing:0.01em}
+#tabbar .tab.active{color:var(--accent)}
+#tabbar .tab:active{transform:scale(0.97)}
+.screen.with-tabs{padding-bottom:calc(5rem + env(safe-area-inset-bottom))}
+
+/* ====== MI PANEL ====== */
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.panel-head .brand{font-size:1.3rem;font-weight:800;letter-spacing:-0.02em}
+.panel-head .brand span{color:var(--accent)}
+.refreshbtn{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0.5rem 0.95rem;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer}
+.refreshbtn:active{transform:scale(0.97)}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
+.pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
+.pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.pcard .lbl{font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.3rem}
+.pcard.hero .val{font-size:2.4rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;line-height:1.1}
+.pcard.hero .sub{font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+.grid3 .pcard{padding:0.8rem 0.7rem}
+.pcard .val2{font-size:1rem;font-weight:700;word-break:break-word}
+.plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
+.prow{display:flex;align-items:center;gap:0.7rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
+.prow .who{flex:1;min-width:0}
+.prow .who .e{font-size:0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .who .d{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
+.prow .amt{font-size:0.95rem;font-weight:700;white-space:nowrap}
+.prow a.foto{color:var(--accent);text-decoration:none;font-size:1.1rem;flex-shrink:0;padding:0.2rem}
+.pbanner{background:rgba(244,201,93,0.08);border:1px solid rgba(244,201,93,0.3);color:var(--accent);border-radius:12px;padding:0.7rem 1rem;font-size:0.82rem;margin-bottom:0.9rem;text-align:center}
+.pbanner button{margin-left:0.6rem;background:var(--accent);color:#0A1628;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-family:inherit;font-weight:700;font-size:0.78rem;cursor:pointer}
+.legal{font-size:0.66rem;color:var(--text-muted);text-align:center;margin-top:1.1rem;line-height:1.5}
+.pempty{text-align:center;color:var(--text-muted);font-size:0.88rem;padding:1.5rem 1rem;background:var(--surface);border:1px dashed var(--border);border-radius:14px}
 </style>
 </head>
 <body>
@@ -148,6 +183,35 @@ input[type=file]{display:none}
   <p class="muted" style="text-align:center">&iquest;No tienes c&oacute;digo? Escribe a <b>matias@tikora.es</b></p>
 </div>
 
+<!-- Pestaña 2: Mi panel (lee el Sheet vía n8n) -->
+<div class="screen with-tabs" id="screenPanel">
+  <div class="panel-head">
+    <div class="brand">Tikora<span>.</span></div>
+    <button class="refreshbtn" id="panelRefresh" type="button">&#8635; Actualizar</button>
+  </div>
+  <div class="pbanner" id="panelBanner" style="display:none"></div>
+  <div class="pcard hero">
+    <div class="lbl">IVA identificado</div>
+    <div class="val" id="pIva">&mdash;</div>
+    <div class="sub">de tus facturas capturadas</div>
+  </div>
+  <div class="grid3">
+    <div class="pcard"><div class="lbl">Facturas</div><div class="val2" id="pN">&mdash;</div></div>
+    <div class="pcard"><div class="lbl">Base imponible</div><div class="val2" id="pBase">&mdash;</div></div>
+    <div class="pcard"><div class="lbl">Total</div><div class="val2" id="pTotal">&mdash;</div></div>
+  </div>
+  <div class="plist-head">&Uacute;ltimas facturas</div>
+  <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
+  <p class="legal">IVA de tus facturas capturadas. No constituye asesoramiento fiscal.</p>
+  <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
+</div>
+
+<!-- Barra de pestañas -->
+<nav id="tabbar">
+  <button class="tab active" id="tabCam" type="button">📷 Capturar</button>
+  <button class="tab" id="tabPanel" type="button">📊 Mi panel</button>
+</nav>
+
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
 
@@ -156,6 +220,7 @@ input[type=file]{display:none}
 'use strict';
 /* ================== CONFIG ================== */
 var WEBHOOK_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-app-5c59254275b582c6';
+var PANEL_URL   = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70d26bc7d11fe857';
 var APP_HEADER  = 'x-tikora-app';
 var APP_SECRET  = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420'; /* gate anti-bots; el alta real es el token de usuario */
 var MAX_BYTES   = 10 * 1024 * 1024;         /* 10 MB por captura (límite del webhook) */
@@ -168,7 +233,14 @@ var sending = false, torchOn = false;
 var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
-function show(id){ ['screenCam','screenShot','screenToken'].forEach(function(s){ $(s).classList.remove('on'); }); $(id).classList.add('on'); }
+function show(id){
+  ['screenCam','screenShot','screenToken','screenPanel'].forEach(function(s){ $(s).classList.remove('on'); });
+  $(id).classList.add('on');
+  var tb = $('tabbar');
+  if (TOKEN && id !== 'screenToken'){ tb.classList.add('on'); } else { tb.classList.remove('on'); }
+  $('tabCam').classList.toggle('active', id === 'screenCam' || id === 'screenShot');
+  $('tabPanel').classList.toggle('active', id === 'screenPanel');
+}
 function toast(msg, isErr){
   var t = $('toast'); t.textContent = msg;
   t.classList.toggle('err', !!isErr); t.classList.add('show');
@@ -502,6 +574,109 @@ $('fileInput').addEventListener('change', function(){
   var s = $('shotStatus'); if (s) s.textContent = 'Enviando…';
 });
 
+/* ================== MI PANEL ================== */
+function fmtEur(n){ return (typeof n === 'number' ? n : 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+function fmtFecha(iso){
+  if (!iso || String(iso).length < 10) return '—';
+  iso = String(iso);
+  return iso.slice(8,10) + '/' + iso.slice(5,7) + '/' + iso.slice(0,4);
+}
+function panelBanner(msg, retry){
+  var b = $('panelBanner');
+  if (!msg){ b.style.display = 'none'; return; }
+  b.innerHTML = '';
+  b.appendChild(document.createTextNode(msg));
+  if (retry){
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.textContent = 'Reintentar';
+    btn.addEventListener('click', function(){ loadPanel(false); });
+    b.appendChild(btn);
+  }
+  b.style.display = 'block';
+}
+function renderPanel(data, cachedNote){
+  var st = data.stats || {};
+  $('pIva').textContent = fmtEur(st.iva);
+  $('pN').textContent = String(st.n || 0);
+  $('pBase').textContent = fmtEur(st.base);
+  $('pTotal').textContent = fmtEur(st.total);
+  var cont = $('panelRows');
+  cont.innerHTML = '';
+  var rows = (data.rows || []).slice(0, 10);
+  if (!rows.length){
+    var e = document.createElement('div');
+    e.className = 'pempty';
+    e.textContent = 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.';
+    cont.appendChild(e);
+  } else {
+    rows.forEach(function(r){
+      var row = document.createElement('div'); row.className = 'prow';
+      var who = document.createElement('div'); who.className = 'who';
+      var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
+      var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
+      who.appendChild(e1); who.appendChild(d1);
+      var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
+      row.appendChild(who); row.appendChild(amt);
+      if (r.foto){
+        var a = document.createElement('a'); a.className = 'foto'; a.href = r.foto; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
+        row.appendChild(a);
+      }
+      cont.appendChild(row);
+    });
+  }
+  $('panelUpdated').textContent = cachedNote
+    ? ('datos guardados ' + cachedNote)
+    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
+}
+var panelLoading = false;
+function loadPanel(silent){
+  if (!TOKEN) return;
+  /* cache primero: algo en pantalla al instante, incluso sin red */
+  var cache = null;
+  try { cache = JSON.parse(localStorage.getItem('tikora_panel_cache') || 'null'); } catch(e){}
+  if (cache && cache.data){
+    var d = new Date(cache.ts);
+    function p(n){ return (n<10?'0':'')+n; }
+    renderPanel(cache.data, 'el ' + p(d.getDate()) + '/' + p(d.getMonth()+1) + ' a las ' + p(d.getHours()) + ':' + p(d.getMinutes()));
+  }
+  if (panelLoading) return;
+  panelLoading = true;
+  if (!silent) panelBanner(null);
+  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN))
+    .then(function(resp){
+      if (resp.status === 403) throw { fatal: true, msg: 'Enlace no válido. Pedí uno nuevo a Tikora.' };
+      if (!resp.ok) throw { msg: 'El servicio no responde ahora mismo.' };
+      return resp.json();
+    })
+    .then(function(data){
+      if (!data || !data.ok) throw { msg: 'Respuesta inesperada del servicio.' };
+      renderPanel(data, null);
+      panelBanner(null);
+      try { localStorage.setItem('tikora_panel_cache', JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
+    })
+    .catch(function(err){
+      var hasCache = !!(cache && cache.data);
+      if (err && err.fatal){ panelBanner(err.msg, false); }
+      else if (hasCache){ panelBanner('Sin conexión — mostrando lo último guardado.', true); }
+      else {
+        panelBanner((err && err.msg) ? err.msg : 'Sin conexión.', true);
+        $('panelRows').innerHTML = '<div class="pempty">No se pudo cargar. Revisá la conexión y reintentá.</div>';
+      }
+    })
+    .then(function(){ panelLoading = false; });
+}
+$('panelRefresh').addEventListener('click', function(){ loadPanel(false); });
+$('tabCam').addEventListener('click', function(){
+  if ($('screenCam').classList.contains('on') || $('screenShot').classList.contains('on')) return;
+  bootCameraScreen();
+});
+$('tabPanel').addEventListener('click', function(){
+  if ($('screenPanel').classList.contains('on')) return;
+  stopCamera();                     /* cámara apagada mientras se mira el panel */
+  show('screenPanel');
+  loadPanel(false);
+});
+
 /* ================== ARRANQUE ================== */
 function bootCameraScreen(){
   show('screenCam');
@@ -514,7 +689,10 @@ function boot(){
   weekCount(0);
   refreshQueueUI();
   if (!TOKEN){ show('screenToken'); return; }
-  bootCameraScreen();
+  var deepPanel = false;
+  try { deepPanel = new URLSearchParams(location.search).get('v') === 'panel'; } catch(e){}
+  if (deepPanel){ show('screenPanel'); loadPanel(false); }   /* solo para pruebas; la app abre SIEMPRE en cámara */
+  else { bootCameraScreen(); }
   processQueue(false);
 }
 $('bigShot').addEventListener('click', openNative);
@@ -532,6 +710,7 @@ document.addEventListener('visibilitychange', function(){
     if (TOKEN && $('screenCam').classList.contains('on') && (!track || track.readyState === 'ended')){
       stopCamera(); initCamera().catch(function(){ show('screenShot'); });
     }
+    if ($('screenPanel').classList.contains('on')) loadPanel(true);   /* refresco al volver a la app */
     processQueue(false);
   } else {
     if (torchOn && track){ torchOn=false; $('torchBtn').classList.remove('active'); }

@@ -602,7 +602,7 @@ function renderPanel(data, cachedNote){
   $('pTotal').textContent = fmtEur(st.total);
   var cont = $('panelRows');
   cont.innerHTML = '';
-  var rows = (data.rows || []).slice(0, 10);
+  var rows = (data.rows || []);          /* todas las que manda el API (hasta 50) */
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
@@ -623,6 +623,12 @@ function renderPanel(data, cachedNote){
       }
       cont.appendChild(row);
     });
+    if ((data.stats && data.stats.n || 0) > rows.length){
+      var more = document.createElement('div');
+      more.className = 'pempty';
+      more.textContent = 'Mostrando las últimas ' + rows.length + ' de ' + data.stats.n + ' facturas.';
+      cont.appendChild(more);
+    }
   }
   $('panelUpdated').textContent = cachedNote
     ? ('datos guardados ' + cachedNote)

@@ -119,12 +119,19 @@ input[type=file]{display:none}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
 .pcard .lbl{font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.3rem}
-.pcard.hero .val{font-size:2.4rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;line-height:1.1}
+.pcard.hero .val{font-size:3rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;line-height:1.1}
+.prow.clickable{cursor:pointer}
+.prow.clickable:active{background:var(--surface-2)}
+.backprov{display:flex;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.9rem;margin-bottom:0.6rem;font-size:0.85rem;font-weight:600;cursor:pointer;color:var(--text)}
 .pcard.hero .sub{font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
 .grid3 .pcard{padding:0.8rem 0.7rem}
 .pcard .val2{font-size:1rem;font-weight:700;word-break:break-word}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:1.25rem 0 0.65rem}
+.seg button{padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+.prow .who .iva{font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem}
 .prow{display:flex;align-items:center;gap:0.7rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
 .prow .who{flex:1;min-width:0}
 .prow .who .e{font-size:0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -200,7 +207,10 @@ input[type=file]{display:none}
     <div class="pcard"><div class="lbl">Base imponible</div><div class="val2" id="pBase">&mdash;</div></div>
     <div class="pcard"><div class="lbl">Total</div><div class="val2" id="pTotal">&mdash;</div></div>
   </div>
-  <div class="plist-head">&Uacute;ltimas facturas</div>
+  <div class="seg">
+    <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
+    <button type="button" id="segProv">Por proveedor</button>
+  </div>
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">IVA de tus facturas capturadas. No constituye asesoramiento fiscal.</p>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
@@ -594,35 +604,91 @@ function panelBanner(msg, retry){
   }
   b.style.display = 'block';
 }
+var panelData = null, panelModo = 'ultimas', panelProvSel = null;
+function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
+function renderFilas(cont, rowsArr){
+  rowsArr.forEach(function(r){
+    var row = document.createElement('div'); row.className = 'prow' + (r.foto ? ' clickable' : '');
+    var who = document.createElement('div'); who.className = 'who';
+    var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
+    var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
+    who.appendChild(e1); who.appendChild(d1);
+    var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
+    row.appendChild(who); row.appendChild(amt);
+    if (r.foto){
+      var a = document.createElement('a'); a.className = 'foto'; a.href = r.foto; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
+      a.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      row.appendChild(a);
+      row.addEventListener('click', function(){ abrirFoto(r.foto); });   /* toda la fila abre la foto */
+    }
+    cont.appendChild(row);
+  });
+}
 function renderPanel(data, cachedNote){
+  panelData = data;
   var st = data.stats || {};
   $('pIva').textContent = fmtEur(st.iva);
   $('pN').textContent = String(st.n || 0);
   $('pBase').textContent = fmtEur(st.base);
   $('pTotal').textContent = fmtEur(st.total);
+  renderLista();
+  $('panelUpdated').textContent = cachedNote
+    ? ('datos guardados ' + cachedNote)
+    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
+}
+function renderLista(){
+  var data = panelData || {};
   var cont = $('panelRows');
   cont.innerHTML = '';
-  var rows = (data.rows || []);          /* todas las que manda el API (hasta 50) */
+  $('segUltimas').classList.toggle('on', panelModo === 'ultimas');
+  $('segProv').classList.toggle('on', panelModo === 'prov');
+  if (panelModo === 'prov'){
+    var provs = (data.proveedores || []);
+    if (!provs.length){
+      var pe = document.createElement('div'); pe.className = 'pempty';
+      pe.textContent = 'Sin datos de proveedores todavía.';
+      cont.appendChild(pe);
+      return;
+    }
+    if (panelProvSel){
+      /* drill-down: las facturas de UN proveedor, con sus fotos */
+      var sel = provs.filter(function(p){ return p.clave === panelProvSel; })[0];
+      var back = document.createElement('div'); back.className = 'backprov';
+      back.textContent = '← Proveedores' + (sel ? (' · ' + sel.nombre) : '');
+      back.addEventListener('click', function(){ panelProvSel = null; renderLista(); });
+      cont.appendChild(back);
+      var suyas = (data.rows || []).filter(function(r){ return r.clave === panelProvSel; });
+      if (!suyas.length){
+        var v = document.createElement('div'); v.className = 'pempty';
+        v.textContent = 'Sin facturas visibles de este proveedor.';
+        cont.appendChild(v);
+      } else {
+        renderFilas(cont, suyas);
+      }
+      return;
+    }
+    provs.forEach(function(p){
+      var row = document.createElement('div'); row.className = 'prow clickable';
+      var who = document.createElement('div'); who.className = 'who';
+      var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = p.nombre;
+      var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = p.n + (p.n === 1 ? ' factura' : ' facturas') + (p.nif ? (' · ' + p.nif) : '');
+      var i1 = document.createElement('div'); i1.className = 'iva'; i1.textContent = 'IVA identificado: ' + fmtEur(p.iva);
+      who.appendChild(e1); who.appendChild(d1); who.appendChild(i1);
+      var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(p.total);
+      row.appendChild(who); row.appendChild(amt);
+      row.addEventListener('click', function(){ panelProvSel = p.clave; renderLista(); });
+      cont.appendChild(row);
+    });
+    return;
+  }
+  var rows = (data.rows || []);          /* todas las que manda el API */
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
     e.textContent = 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.';
     cont.appendChild(e);
   } else {
-    rows.forEach(function(r){
-      var row = document.createElement('div'); row.className = 'prow';
-      var who = document.createElement('div'); who.className = 'who';
-      var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
-      var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
-      who.appendChild(e1); who.appendChild(d1);
-      var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
-      row.appendChild(who); row.appendChild(amt);
-      if (r.foto){
-        var a = document.createElement('a'); a.className = 'foto'; a.href = r.foto; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
-        row.appendChild(a);
-      }
-      cont.appendChild(row);
-    });
+    renderFilas(cont, rows);
     if ((data.stats && data.stats.n || 0) > rows.length){
       var more = document.createElement('div');
       more.className = 'pempty';
@@ -630,10 +696,9 @@ function renderPanel(data, cachedNote){
       cont.appendChild(more);
     }
   }
-  $('panelUpdated').textContent = cachedNote
-    ? ('datos guardados ' + cachedNote)
-    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
 }
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; renderLista(); });
 var panelLoading = false;
 function loadPanel(silent){
   if (!TOKEN) return;

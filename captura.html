@@ -113,20 +113,20 @@ input[type=file]{display:none}
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
 .panel-head .brand{font-size:1.3rem;font-weight:800;letter-spacing:-0.02em}
 .panel-head .brand span{color:var(--accent)}
-.refreshbtn{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0.5rem 0.95rem;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer}
-.refreshbtn:active{transform:scale(0.97)}
+/* v8: el panel se refresca solo — el boton Actualizar sobra (se oculta, no se borra: el JS lo referencia) */
+.refreshbtn{display:none}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
 .pcard .lbl{font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.3rem}
-.pcard.hero .val{font-size:3rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;line-height:1.1}
+.pcard.hero .val{font-size:clamp(2.1rem,10vw,3rem);font-weight:800;color:var(--accent);letter-spacing:-0.02em;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums}
 .prow.clickable{cursor:pointer}
 .prow.clickable:active{background:var(--surface-2)}
 .backprov{display:flex;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.9rem;margin-bottom:0.6rem;font-size:0.85rem;font-weight:600;cursor:pointer;color:var(--text)}
 .pcard.hero .sub{font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
 .grid3 .pcard{padding:0.8rem 0.7rem}
-.pcard .val2{font-size:1rem;font-weight:700;word-break:break-word}
+.pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:1.25rem 0 0.65rem}
 .seg button{padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}

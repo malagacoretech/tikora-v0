@@ -737,6 +737,16 @@ function loadPanel(silent){
     .then(function(){ panelLoading = false; });
 }
 $('panelRefresh').addEventListener('click', function(){ loadPanel(false); });
+/* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
+   y siempre que se vuelve a la app — sin tocar nada */
+setInterval(function(){
+  if (document.hidden) return;
+  if (!$('screenPanel').classList.contains('on')) return;
+  loadPanel(true);
+}, 60000);
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && $('screenPanel').classList.contains('on')) loadPanel(true);
+});
 $('tabCam').addEventListener('click', function(){
   if ($('screenCam').classList.contains('on') || $('screenShot').classList.contains('on')) return;
   bootCameraScreen();

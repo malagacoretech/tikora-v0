@@ -279,6 +279,10 @@ input[type=file]{display:none}
   <div class="fichabtns">
     <button type="button" id="fichaFoto">&#128206; Ver la foto de la factura</button>
     <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+      <button type="button" id="fichaEfectivo">&#128181; Efectivo</button>
+      <button type="button" id="fichaTarjeta">&#128179; Tarjeta</button>
+    </div>
     <button type="button" id="fichaCerrar">Cerrar</button>
   </div>
 </div></div>
@@ -851,8 +855,11 @@ $('tabPanel').addEventListener('click', function(){
 });
 
 /* ================== CHAT "PREGUNTALE A TUS FACTURAS" (v11) ================== */
-var CHAT_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat-cd5449d27b0f0615';
+var CHAT_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat2-351b44e16ffb3c51';
+var PAGO_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-pago-fd7db9da51d3982c';
 var chatPend = false;
+var chatFile = null;   /* fileId de la factura en contexto (desde la mini-ficha) → el chat VE su foto */
+function fotoId(url){ var m = String(url || '').match(/\/d\/([^\/?]+)/); return m ? m[1] : null; }
 function chatMsg(texto, cls){
   var d = document.createElement('div'); d.className = 'cmsg ' + cls; d.textContent = texto;
   $('chatMsgs').appendChild(d); $('chatMsgs').scrollTop = 999999; return d;
@@ -871,7 +878,7 @@ function sendChat(q){
   fetch(CHAT_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET },
-    body: JSON.stringify({ token: TOKEN, q: q })
+    body: JSON.stringify(chatFile ? { token: TOKEN, q: q, fileId: chatFile } : { token: TOKEN, q: q })
   })
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(d){ pend.textContent = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.'; pend.classList.remove('pend'); })
@@ -881,7 +888,7 @@ function sendChat(q){
 $('chatSend').addEventListener('click', function(){ sendChat(); });
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.chatsug button').forEach(function(b){
-  b.addEventListener('click', function(){ sendChat(b.textContent); });
+  b.addEventListener('click', function(){ chatFile = null; sendChat(b.textContent); });
 });
 $('tabChat').addEventListener('click', function(){
   if ($('screenChat').classList.contains('on')) return;
@@ -906,10 +913,31 @@ $('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fic
 $('fichaPreg').addEventListener('click', function(){
   if (!fichaRow) return;
   $('ficha').classList.remove('on');
+  chatFile = fotoId(fichaRow.foto);   /* el chat vera SU foto → detalle linea a linea */
   stopCamera(); show('screenChat'); chatHello();
   $('chatInput').value = 'Sobre la factura de ' + (fichaRow.emisor || '') + ' del ' + fmtFecha(fichaRow.fecha) + (fichaRow.nfac ? (' (nº ' + fichaRow.nfac + ')') : '') + ': ';
   $('chatInput').focus();
 });
+function marcarPago(pago){
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid){ toast('Esta factura no tiene foto asociada', true); return; }
+  $('ficha').classList.remove('on');
+  fetch(PAGO_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET },
+    body: JSON.stringify({ token: TOKEN, fileId: fid, pago: pago })
+  })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      if (d && d.ok) toast('Marcada como ' + pago + ' ✓', false);
+      else if (d && d.pendiente) toast('Aún procesándose — probá en un minuto', true);
+      else toast('No se pudo marcar', true);
+    })
+    .catch(function(){ toast('Sin conexión — probá de nuevo', true); });
+}
+$('fichaEfectivo').addEventListener('click', function(){ marcarPago('efectivo'); });
+$('fichaTarjeta').addEventListener('click', function(){ marcarPago('tarjeta'); });
 
 /* ================== DICTADO POR VOZ (v12) ================== */
 (function(){

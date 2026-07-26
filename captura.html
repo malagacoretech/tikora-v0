@@ -148,6 +148,10 @@ input[type=file]{display:none}
 .fichabtns button.pri{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 .micbtn{width:3rem;flex-shrink:0;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1.05rem;cursor:pointer}
 .micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
+/* v14: chip de factura en contexto */
+.chatctx{display:none;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid rgba(244,201,93,0.45);border-radius:10px;padding:0.45rem 0.7rem;font-size:0.8rem;margin-bottom:0.5rem}
+.chatctx.on{display:flex}
+.chatctx button{margin-left:auto;background:none;border:none;color:var(--text-muted);font-size:0.9rem;cursor:pointer;padding:0 0.2rem}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -257,6 +261,7 @@ input[type=file]{display:none}
 <!-- Pantalla 5: Chat "preguntale a tus facturas" -->
 <div class="screen with-tabs" id="screenChat">
   <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+  <div class="chatctx" id="chatCtx"><span id="chatCtxTxt"></span><button type="button" id="chatCtxX" aria-label="Quitar factura del contexto">&#10005;</button></div>
   <div id="chatMsgs"></div>
   <div class="chatsug">
     <button type="button">&iquest;Cu&aacute;nto IVA llevo identificado?</button>
@@ -859,7 +864,18 @@ var CHAT_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat2-351b44
 var PAGO_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-pago-fd7db9da51d3982c';
 var chatPend = false;
 var chatFile = null;   /* fileId de la factura en contexto (desde la mini-ficha) → el chat VE su foto */
+var chatHist = [];     /* memoria: ultimas burbujas reales, viajan con cada pregunta */
 function fotoId(url){ var m = String(url || '').match(/\/d\/([^\/?]+)/); return m ? m[1] : null; }
+function setChatCtx(row){
+  var fid = row ? fotoId(row.foto) : null;
+  chatFile = fid;
+  if (fid){
+    $('chatCtxTxt').textContent = '📎 ' + (row.emisor || 'factura') + ' · ' + fmtFecha(row.fecha);
+    $('chatCtx').classList.add('on');
+  } else {
+    $('chatCtx').classList.remove('on');
+  }
+}
 function chatMsg(texto, cls){
   var d = document.createElement('div'); d.className = 'cmsg ' + cls; d.textContent = texto;
   $('chatMsgs').appendChild(d); $('chatMsgs').scrollTop = 999999; return d;
@@ -873,23 +889,31 @@ function sendChat(q){
   if (!q || chatPend || !TOKEN) return;
   $('chatInput').value = '';
   chatMsg(q, 'user');
-  var pend = chatMsg('Pensando…', 'bot pend');
+  var pend = chatMsg(chatFile ? 'Leyendo la factura…' : 'Pensando…', 'bot pend');
   chatPend = true; $('chatSend').disabled = true;
+  var cuerpo = { token: TOKEN, q: q, hist: chatHist.slice(-6) };
+  if (chatFile) cuerpo.fileId = chatFile;
   fetch(CHAT_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET },
-    body: JSON.stringify(chatFile ? { token: TOKEN, q: q, fileId: chatFile } : { token: TOKEN, q: q })
+    body: JSON.stringify(cuerpo)
   })
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
-    .then(function(d){ pend.textContent = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.'; pend.classList.remove('pend'); })
+    .then(function(d){
+      var resp = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.';
+      pend.textContent = resp; pend.classList.remove('pend');
+      chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
+      if (chatHist.length > 12) chatHist = chatHist.slice(-12);
+    })
     .catch(function(){ pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend'); })
     .then(function(){ chatPend = false; $('chatSend').disabled = false; $('chatMsgs').scrollTop = 999999; });
 }
 $('chatSend').addEventListener('click', function(){ sendChat(); });
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.chatsug button').forEach(function(b){
-  b.addEventListener('click', function(){ chatFile = null; sendChat(b.textContent); });
+  b.addEventListener('click', function(){ setChatCtx(null); sendChat(b.textContent); });
 });
+$('chatCtxX').addEventListener('click', function(){ setChatCtx(null); });
 $('tabChat').addEventListener('click', function(){
   if ($('screenChat').classList.contains('on')) return;
   stopCamera();
@@ -913,7 +937,7 @@ $('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fic
 $('fichaPreg').addEventListener('click', function(){
   if (!fichaRow) return;
   $('ficha').classList.remove('on');
-  chatFile = fotoId(fichaRow.foto);   /* el chat vera SU foto → detalle linea a linea */
+  setChatCtx(fichaRow);   /* el chat vera SU foto → detalle linea a linea, con chip visible */
   stopCamera(); show('screenChat'); chatHello();
   $('chatInput').value = 'Sobre la factura de ' + (fichaRow.emisor || '') + ' del ' + fmtFecha(fichaRow.fecha) + (fichaRow.nfac ? (' (nº ' + fichaRow.nfac + ')') : '') + ': ';
   $('chatInput').focus();

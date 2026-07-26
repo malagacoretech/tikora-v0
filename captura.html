@@ -119,6 +119,10 @@ input[type=file]{display:none}
 .clipbtn{width:2.15rem;height:2.15rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .clipbtn:active{transform:scale(0.94)}
 .attachlink{margin:1.1rem auto 0;display:block;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;padding:0.7rem 1.15rem;font-family:inherit;font-size:0.85rem;cursor:pointer}
+/* v10: buscador del panel */
+.psearch{width:100%;box-sizing:border-box;margin:0 0 0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.68rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
+.psearch::placeholder{color:var(--text-muted)}
+.psearch:focus{border-color:var(--accent)}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -219,6 +223,7 @@ input[type=file]{display:none}
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
   </div>
+  <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">IVA de tus facturas capturadas. No constituye asesoramiento fiscal.</p>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
@@ -665,9 +670,12 @@ function renderLista(){
   $('segProv').classList.toggle('on', panelModo === 'prov');
   if (panelModo === 'prov'){
     var provs = (data.proveedores || []);
+    if (panelQuery && !panelProvSel){
+      provs = provs.filter(function(p){ return normTxt(p.nombre + ' ' + (p.nif || '')).indexOf(panelQuery) >= 0; });
+    }
     if (!provs.length){
       var pe = document.createElement('div'); pe.className = 'pempty';
-      pe.textContent = 'Sin datos de proveedores todavía.';
+      pe.textContent = panelQuery ? 'Nada que coincida con la búsqueda.' : 'Sin datos de proveedores todavía.';
       cont.appendChild(pe);
       return;
     }
@@ -703,14 +711,17 @@ function renderLista(){
     return;
   }
   var rows = (data.rows || []);          /* todas las que manda el API */
+  if (panelQuery){
+    rows = rows.filter(function(r){ return normTxt(r.emisor + ' ' + (r.nfac || '') + ' ' + (r.fecha || '')).indexOf(panelQuery) >= 0; });
+  }
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
-    e.textContent = 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.';
+    e.textContent = panelQuery ? 'Nada que coincida con la búsqueda.' : 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.';
     cont.appendChild(e);
   } else {
     renderFilas(cont, rows);
-    if ((data.stats && data.stats.n || 0) > rows.length){
+    if (!panelQuery && (data.stats && data.stats.n || 0) > rows.length){
       var more = document.createElement('div');
       more.className = 'pempty';
       more.textContent = 'Mostrando las últimas ' + rows.length + ' de ' + data.stats.n + ' facturas.';
@@ -720,6 +731,10 @@ function renderLista(){
 }
 $('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; renderLista(); });
 $('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; renderLista(); });
+/* v10: buscador — filtra sin acentos ni mayusculas, en las dos vistas */
+var panelQuery = '';
+function normTxt(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+$('panelSearch').addEventListener('input', function(){ panelQuery = normTxt(this.value.trim()); renderLista(); });
 var panelLoading = false;
 function loadPanel(silent){
   if (!TOKEN) return;

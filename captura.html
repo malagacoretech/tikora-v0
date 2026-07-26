@@ -136,6 +136,18 @@ input[type=file]{display:none}
 .chatbar input:focus{border-color:var(--accent)}
 .chatbar button{width:3rem;flex-shrink:0;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-size:1.05rem;font-weight:800;cursor:pointer}
 .chatbar button:disabled{opacity:0.5}
+/* v12: mini-ficha de factura + dictado por voz */
+#ficha{position:fixed;inset:0;background:rgba(4,10,20,0.62);z-index:60;display:none;align-items:flex-end}
+#ficha.on{display:flex}
+.fichacard{background:var(--bg);border-top:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;padding:1.1rem 1.25rem calc(1.2rem + env(safe-area-inset-bottom));box-sizing:border-box}
+.fichacard .fe{font-size:1.05rem;font-weight:800}
+.fichacard .fd{font-size:0.8rem;color:var(--text-muted);margin:0.15rem 0 0.8rem}
+.fichacard .ft{font-size:1.55rem;font-weight:800;color:var(--accent);margin-bottom:0.9rem}
+.fichabtns{display:grid;gap:0.5rem}
+.fichabtns button{padding:0.85rem 1rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left}
+.fichabtns button.pri{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+.micbtn{width:3rem;flex-shrink:0;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1.05rem;cursor:pointer}
+.micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -253,10 +265,23 @@ input[type=file]{display:none}
   </div>
   <div class="chatbar">
     <input id="chatInput" type="text" placeholder="Pregunt&aacute; sobre tus facturas&hellip;" autocomplete="off" maxlength="400">
+    <button id="chatMic" class="micbtn" type="button" aria-label="Dictar">&#127908;</button>
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
   <p class="legal">Responde solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
+
+<!-- Mini-ficha de factura -->
+<div id="ficha"><div class="fichacard">
+  <div class="fe" id="fichaEmisor"></div>
+  <div class="fd" id="fichaDetalle"></div>
+  <div class="ft" id="fichaTotal"></div>
+  <div class="fichabtns">
+    <button type="button" id="fichaFoto">&#128206; Ver la foto de la factura</button>
+    <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
+    <button type="button" id="fichaCerrar">Cerrar</button>
+  </div>
+</div></div>
 
 <!-- Barra de pestañas -->
 <nav id="tabbar">
@@ -665,7 +690,7 @@ var panelData = null, panelModo = 'ultimas', panelProvSel = null;
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
 function renderFilas(cont, rowsArr){
   rowsArr.forEach(function(r){
-    var row = document.createElement('div'); row.className = 'prow' + (r.foto ? ' clickable' : '');
+    var row = document.createElement('div'); row.className = 'prow clickable';
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
@@ -676,8 +701,8 @@ function renderFilas(cont, rowsArr){
       var a = document.createElement('a'); a.className = 'foto'; a.href = r.foto; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
       a.addEventListener('click', function(ev){ ev.stopPropagation(); });
       row.appendChild(a);
-      row.addEventListener('click', function(){ abrirFoto(r.foto); });   /* toda la fila abre la foto */
     }
+    row.addEventListener('click', function(){ abrirFicha(r); });   /* toda la fila abre su mini-ficha */
     cont.appendChild(row);
   });
 }
@@ -864,6 +889,51 @@ $('tabChat').addEventListener('click', function(){
   show('screenChat');
   chatHello();
 });
+
+/* ================== MINI-FICHA DE FACTURA (v12) ================== */
+var fichaRow = null;
+function abrirFicha(r){
+  fichaRow = r;
+  $('fichaEmisor').textContent = r.emisor || '(sin emisor)';
+  $('fichaDetalle').textContent = fmtFecha(r.fecha) + (r.nfac ? (' · Nº ' + r.nfac) : '') + ' · IVA ' + fmtEur(r.iva);
+  $('fichaTotal').textContent = fmtEur(r.total);
+  $('fichaFoto').style.display = r.foto ? '' : 'none';
+  $('ficha').classList.add('on');
+}
+$('fichaCerrar').addEventListener('click', function(){ $('ficha').classList.remove('on'); });
+$('ficha').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
+$('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fichaRow.foto); });
+$('fichaPreg').addEventListener('click', function(){
+  if (!fichaRow) return;
+  $('ficha').classList.remove('on');
+  stopCamera(); show('screenChat'); chatHello();
+  $('chatInput').value = 'Sobre la factura de ' + (fichaRow.emisor || '') + ' del ' + fmtFecha(fichaRow.fecha) + (fichaRow.nfac ? (' (nº ' + fichaRow.nfac + ')') : '') + ': ';
+  $('chatInput').focus();
+});
+
+/* ================== DICTADO POR VOZ (v12) ================== */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var btn = $('chatMic');
+  if (!SR){ btn.style.display = 'none'; return; }   /* sin soporte (iPhone): queda el mic del teclado */
+  var rec = null, grabando = false;
+  btn.addEventListener('click', function(){
+    if (grabando){ try { rec.stop(); } catch(e){} return; }
+    rec = new SR();
+    rec.lang = 'es-ES'; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = function(ev){
+      var t = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || '';
+      $('chatInput').value = ($('chatInput').value + ' ' + t).trim();
+    };
+    rec.onend = function(){
+      grabando = false; btn.classList.remove('rec');
+      if ($('chatInput').value.trim()) sendChat();   /* hablaste → se envía sola */
+    };
+    rec.onerror = function(){ grabando = false; btn.classList.remove('rec'); };
+    grabando = true; btn.classList.add('rec');
+    try { rec.start(); } catch(e){ grabando = false; btn.classList.remove('rec'); }
+  });
+})();
 
 /* ================== ARRANQUE ================== */
 function bootCameraScreen(){

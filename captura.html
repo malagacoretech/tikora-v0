@@ -102,7 +102,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 input[type=file]{display:none}
 
 /* ====== PESTAÑAS (📷 Capturar | 📊 Mi panel) ====== */
-#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:1fr 1fr;background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(3,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
 #tabbar.on{display:grid}
 #tabbar .tab{height:3.6rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.88rem;font-weight:700;cursor:pointer;letter-spacing:0.01em}
 #tabbar .tab.active{color:var(--accent)}
@@ -123,6 +123,19 @@ input[type=file]{display:none}
 .psearch{width:100%;box-sizing:border-box;margin:0 0 0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.68rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
 .psearch::placeholder{color:var(--text-muted)}
 .psearch:focus{border-color:var(--accent)}
+/* v11: chat "preguntale a tus facturas" */
+#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.5rem;padding:0.3rem 0 0.8rem;-webkit-overflow-scrolling:touch}
+.cmsg{max-width:88%;border-radius:14px;padding:0.65rem 0.9rem;font-size:0.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600}
+.cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border)}
+.cmsg.pend{opacity:0.65;font-style:italic}
+.chatsug{display:flex;gap:0.4rem;flex-wrap:wrap;margin:0 0 0.55rem}
+.chatsug button{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.42rem 0.8rem;font-family:inherit;font-size:0.78rem;cursor:pointer}
+.chatbar{display:flex;gap:0.5rem}
+.chatbar input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.75rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.95rem;outline:none;-webkit-appearance:none}
+.chatbar input:focus{border-color:var(--accent)}
+.chatbar button{width:3rem;flex-shrink:0;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-size:1.05rem;font-weight:800;cursor:pointer}
+.chatbar button:disabled{opacity:0.5}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -229,10 +242,27 @@ input[type=file]{display:none}
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
 </div>
 
+<!-- Pantalla 5: Chat "preguntale a tus facturas" -->
+<div class="screen with-tabs" id="screenChat">
+  <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+  <div id="chatMsgs"></div>
+  <div class="chatsug">
+    <button type="button">&iquest;Cu&aacute;nto IVA llevo identificado?</button>
+    <button type="button">&iquest;Cu&aacute;l es mi mayor proveedor?</button>
+    <button type="button">&iquest;Qu&eacute; compr&eacute; esta semana?</button>
+  </div>
+  <div class="chatbar">
+    <input id="chatInput" type="text" placeholder="Pregunt&aacute; sobre tus facturas&hellip;" autocomplete="off" maxlength="400">
+    <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
+  </div>
+  <p class="legal">Responde solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
+</div>
+
 <!-- Barra de pestañas -->
 <nav id="tabbar">
   <button class="tab active" id="tabCam" type="button">📷 Capturar</button>
-  <button class="tab" id="tabPanel" type="button">📊 Mi panel</button>
+  <button class="tab" id="tabPanel" type="button">📊 Panel</button>
+  <button class="tab" id="tabChat" type="button">💬 Preguntar</button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -258,12 +288,13 @@ var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
 function show(id){
-  ['screenCam','screenShot','screenToken','screenPanel'].forEach(function(s){ $(s).classList.remove('on'); });
+  ['screenCam','screenShot','screenToken','screenPanel','screenChat'].forEach(function(s){ $(s).classList.remove('on'); });
   $(id).classList.add('on');
   var tb = $('tabbar');
   if (TOKEN && id !== 'screenToken'){ tb.classList.add('on'); } else { tb.classList.remove('on'); }
   $('tabCam').classList.toggle('active', id === 'screenCam' || id === 'screenShot');
   $('tabPanel').classList.toggle('active', id === 'screenPanel');
+  $('tabChat').classList.toggle('active', id === 'screenChat');
 }
 function toast(msg, isErr){
   var t = $('toast'); t.textContent = msg;
@@ -792,6 +823,46 @@ $('tabPanel').addEventListener('click', function(){
   stopCamera();                     /* cámara apagada mientras se mira el panel */
   show('screenPanel');
   loadPanel(false);
+});
+
+/* ================== CHAT "PREGUNTALE A TUS FACTURAS" (v11) ================== */
+var CHAT_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat-cd5449d27b0f0615';
+var chatPend = false;
+function chatMsg(texto, cls){
+  var d = document.createElement('div'); d.className = 'cmsg ' + cls; d.textContent = texto;
+  $('chatMsgs').appendChild(d); $('chatMsgs').scrollTop = 999999; return d;
+}
+function chatHello(){
+  if ($('chatMsgs').children.length) return;
+  chatMsg('Hola — preguntame lo que quieras sobre tus facturas: totales, IVA, proveedores, fechas. Respondo solo con tus datos.', 'bot');
+}
+function sendChat(q){
+  q = (q || $('chatInput').value || '').trim();
+  if (!q || chatPend || !TOKEN) return;
+  $('chatInput').value = '';
+  chatMsg(q, 'user');
+  var pend = chatMsg('Pensando…', 'bot pend');
+  chatPend = true; $('chatSend').disabled = true;
+  fetch(CHAT_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET },
+    body: JSON.stringify({ token: TOKEN, q: q })
+  })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(d){ pend.textContent = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.'; pend.classList.remove('pend'); })
+    .catch(function(){ pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend'); })
+    .then(function(){ chatPend = false; $('chatSend').disabled = false; $('chatMsgs').scrollTop = 999999; });
+}
+$('chatSend').addEventListener('click', function(){ sendChat(); });
+$('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
+document.querySelectorAll('.chatsug button').forEach(function(b){
+  b.addEventListener('click', function(){ sendChat(b.textContent); });
+});
+$('tabChat').addEventListener('click', function(){
+  if ($('screenChat').classList.contains('on')) return;
+  stopCamera();
+  show('screenChat');
+  chatHello();
 });
 
 /* ================== ARRANQUE ================== */

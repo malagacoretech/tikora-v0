@@ -115,6 +115,10 @@ input[type=file]{display:none}
 .panel-head .brand span{color:var(--accent)}
 /* v8: el panel se refresca solo — el boton Actualizar sobra (se oculta, no se borra: el JS lo referencia) */
 .refreshbtn{display:none}
+/* v9: adjuntar desde galeria/archivos */
+.clipbtn{width:2.15rem;height:2.15rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.clipbtn:active{transform:scale(0.94)}
+.attachlink{margin:1.1rem auto 0;display:block;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;padding:0.7rem 1.15rem;font-family:inherit;font-size:0.85rem;cursor:pointer}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -152,7 +156,10 @@ input[type=file]{display:none}
   <div id="flash"></div>
   <div class="topbar">
     <div class="brand">Tikora<span>.</span></div>
-    <div class="pill" id="weekPill"><span class="dot"></span><span id="weekCount">0 esta semana</span></div>
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <div class="pill" id="weekPill"><span class="dot"></span><span id="weekCount">0 esta semana</span></div>
+      <button class="clipbtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button>
+    </div>
   </div>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
@@ -174,6 +181,7 @@ input[type=file]{display:none}
     <div class="t1">Tocar para fotografiar<br>la factura</div>
     <div class="t2">Se abre la c&aacute;mara del m&oacute;vil. La foto se env&iacute;a sola.</div>
   </div>
+  <button class="attachlink" id="attachBtn2" type="button">&#128206; O adjunt&aacute; fotos o PDF guardados</button>
   <div id="queueBar2" style="margin-top:1rem"></div>
   <div class="muted" style="text-align:center;margin-top:1rem" id="shotStatus"></div>
 </div>
@@ -224,6 +232,7 @@ input[type=file]{display:none}
 
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
+<input type="file" id="pickInput" accept="image/*,application/pdf" multiple style="display:none">
 
 <script>
 (function(){
@@ -571,18 +580,30 @@ $('shutter').addEventListener('click', capturePhoto);
    El fichero se envía TAL CUAL llega del sistema: cero recompresión, EXIF intacto. */
 function openNative(){ $('fileInput').value = ''; $('fileInput').click(); }
 $('nativeBtn').addEventListener('click', openNative);
-$('fileInput').addEventListener('change', function(){
-  var f = this.files && this.files[0];
-  if (!f) return;
-  var mime = f.type || 'image/jpeg';
+function handleIncomingFiles(files){
+  if (!files || !files.length) return;
   var okTypes = ['image/jpeg','image/png','image/webp','application/pdf'];
-  if (okTypes.indexOf(mime) < 0){ toast('Formato no soportado ('+mime+'). Usá JPG, PNG, WEBP o PDF.', true); return; }
-  var ext = mime === 'application/pdf' ? 'pdf' : (mime.split('/')[1]||'jpg').replace('jpeg','jpg');
-  var esFoto = mime.indexOf('image/') === 0;
-  if ($('screenCam').classList.contains('on') && esFoto) setThumb(f);
-  enqueue(f, mime, f.name || tsName(ext), 'archivo', $('screenCam').classList.contains('on') && esFoto);
+  var enviados = 0;
+  for (var i = 0; i < files.length; i++){
+    var f = files[i];
+    var mime = f.type || 'image/jpeg';
+    if (okTypes.indexOf(mime) < 0){ toast('Formato no soportado ('+mime+'). Usá JPG, PNG, WEBP o PDF.', true); continue; }
+    var ext = mime === 'application/pdf' ? 'pdf' : (mime.split('/')[1]||'jpg').replace('jpeg','jpg');
+    var esFoto = mime.indexOf('image/') === 0;
+    var enCam = $('screenCam').classList.contains('on');
+    var unico = files.length === 1;
+    if (enCam && esFoto && unico) setThumb(f);
+    enqueue(f, mime, f.name || tsName(ext), 'archivo', enCam && esFoto && unico);
+    enviados++;
+  }
   var s = $('shotStatus'); if (s) s.textContent = 'Enviando…';
-});
+  if (enviados > 1) toast(enviados + ' archivos en cola de envío', false);
+}
+$('fileInput').addEventListener('change', function(){ handleIncomingFiles(this.files); });
+$('pickInput').addEventListener('change', function(){ handleIncomingFiles(this.files); });
+function openPicker(){ $('pickInput').value = ''; $('pickInput').click(); }
+$('attachBtn').addEventListener('click', openPicker);
+$('attachBtn2').addEventListener('click', openPicker);
 
 /* ================== MI PANEL ================== */
 function fmtEur(n){ return (typeof n === 'number' ? n : 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }

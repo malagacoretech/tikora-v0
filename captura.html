@@ -161,6 +161,14 @@ input[type=file]{display:none}
 #postShot.on{display:flex}
 #postShot button{flex:1;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
 #postShot button.sel{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+/* v17: semaforo de pagos */
+.prow.pg-pendiente{border-left:4px solid #E5484D}
+.prow.pg-pendiente .amt{color:#FF6B6B}
+.prow.pg-efectivo{border-left:4px solid #2F9E44}
+.prow.pg-efectivo .amt{color:#51CF66}
+.prow.pg-tarjeta{border-left:4px solid #1971C2}
+.prow.pg-tarjeta .amt{color:#4DABF7}
+.pgtag{font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#FF6B6B}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -208,9 +216,10 @@ input[type=file]{display:none}
   <div id="thumb"><img id="thumbImg" alt=""><span class="bar"><i id="thumbBar"></i></span><span class="st" id="thumbSt"></span></div>
   <div id="queueBar"><span class="n" id="queueN">0</span><span class="msg" id="queueMsg">pendientes de enviar</span><button id="retryBtn" type="button">Reintentar</button></div>
   <div id="postShot">
-    <button type="button" id="psRehacer">&#8635; Rehacer</button>
+    <button type="button" id="psRehacer">&#8635;</button>
     <button type="button" id="psEfectivo">&#128181; Efectivo</button>
     <button type="button" id="psTarjeta">&#128179; Tarjeta</button>
+    <button type="button" id="psPendiente">&#128337; Sin pagar</button>
   </div>
   <div class="bottombar">
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
@@ -298,9 +307,10 @@ input[type=file]{display:none}
   <div class="fichabtns">
     <button type="button" id="fichaFoto">&#128206; Ver la foto de la factura</button>
     <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem">
       <button type="button" id="fichaEfectivo">&#128181; Efectivo</button>
       <button type="button" id="fichaTarjeta">&#128179; Tarjeta</button>
+      <button type="button" id="fichaPendiente">&#128337; Sin pagar</button>
     </div>
     <button type="button" id="fichaCerrar">Cerrar</button>
   </div>
@@ -545,7 +555,7 @@ try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]');
 function guardarPagosPend(){ try { localStorage.setItem('tikora_pagos_pend', JSON.stringify(pagosPend.slice(-30))); } catch(e){} }
 function mostrarPostShot(id){
   holdItem = { id: id };
-  $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel');
+  $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel'); $('psPendiente').classList.remove('sel');
   $('postShot').classList.add('on');
   clearTimeout(postTimer);
   postTimer = setTimeout(function(){ $('postShot').classList.remove('on'); holdItem = null; }, 4600);
@@ -564,6 +574,7 @@ function elegirPago(pago){
   var id = holdItem.id;
   $('psEfectivo').classList.toggle('sel', pago === 'efectivo');
   $('psTarjeta').classList.toggle('sel', pago === 'tarjeta');
+  $('psPendiente').classList.toggle('sel', pago === 'pendiente');
   dbAll().then(function(items){
     var it = items.filter(function(i){ return i.id === id; })[0];
     if (it){ it.pago = pago; return dbPut(it); }
@@ -573,6 +584,7 @@ function elegirPago(pago){
 }
 $('psEfectivo').addEventListener('click', function(){ elegirPago('efectivo'); });
 $('psTarjeta').addEventListener('click', function(){ elegirPago('tarjeta'); });
+$('psPendiente').addEventListener('click', function(){ elegirPago('pendiente'); });
 function marcarPagoRemoto(fid, pago){
   return fetch(PAGO_URL, {
     method: 'POST',
@@ -796,9 +808,17 @@ function entroHoy(s){
 function renderFilas(cont, rowsArr){
   rowsArr.forEach(function(r){
     var row = document.createElement('div'); row.className = 'prow clickable';
+    var pg = String(r.pago || '').toLowerCase();
+    if (pg === 'pendiente') row.classList.add('pg-pendiente');
+    else if (pg === 'efectivo') row.classList.add('pg-efectivo');
+    else if (pg === 'tarjeta') row.classList.add('pg-tarjeta');
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
+    if (pg === 'pendiente'){
+      var pt = document.createElement('span'); pt.className = 'pgtag'; pt.textContent = ' · SIN PAGAR';
+      d1.appendChild(pt);
+    }
     var eh = entroHoy(r.entro);
     if (eh){
       var tag = document.createElement('span'); tag.className = 'nuevotag'; tag.textContent = ' · entró hoy ' + eh;
@@ -1073,7 +1093,10 @@ function marcarPago(pago){
   })
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(d){
-      if (d && d.ok) toast('Marcada como ' + pago + ' ✓', false);
+      if (d && d.ok){
+        toast(pago === 'pendiente' ? 'Marcada como SIN PAGAR' : ('Marcada como pagada (' + pago + ') ✓'), false);
+        setTimeout(function(){ loadPanel(true); }, 1200);   /* repinta el semaforo */
+      }
       else if (d && d.pendiente) toast('Aún procesándose — probá en un minuto', true);
       else toast('No se pudo marcar', true);
     })
@@ -1081,6 +1104,7 @@ function marcarPago(pago){
 }
 $('fichaEfectivo').addEventListener('click', function(){ marcarPago('efectivo'); });
 $('fichaTarjeta').addEventListener('click', function(){ marcarPago('tarjeta'); });
+$('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'); });
 
 /* ================== DICTADO POR VOZ (v12) ================== */
 (function(){

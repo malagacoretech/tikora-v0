@@ -1080,8 +1080,9 @@ $('tabChat').addEventListener('click', function(){
   show('screenChat');
   chatHello();
 });
-/* v18: MODO EMPLEADO — tokens terminados en CAM: solo camara (el servidor ademas les niega panel/chat/pago) */
-if (/CAM$/.test(String(TOKEN || ''))){
+/* v18: MODO EMPLEADO — token de empleado: solo camara (el servidor ademas le niega panel/chat/pago).
+   v21: acepta el corto heredado (…CAM) y el largo nuevo (CAM… ). */
+if (/CAM$/.test(String(TOKEN || '')) || /^CAM/.test(String(TOKEN || ''))){
   $('tabPanel').style.display = 'none';
   $('tabChat').style.display = 'none';
   $('tabbar').style.gridTemplateColumns = '1fr';

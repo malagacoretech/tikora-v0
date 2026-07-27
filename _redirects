@@ -1,3 +1,7 @@
-# Rutas cortas de Tikora (Netlify)
+# Rutas cortas de Tikora (Netlify) — apuntan a los tokens largos (auditoria 27-jul)
+/sp        /captura.html?u=SPCB28CCFED753CD655B    301
+/1949      /captura.html?u=SPCB28CCFED753CD655B    301
+/spcam     /captura.html?u=CAMCA3E2CDD9725A423A2   301
+/demo      /captura.html?u=DEMO6AFA25562E2F857B    301# Rutas cortas de Tikora (Netlify)
 /sp     /captura.html?u=SP     301
 /1949   /captura.html?u=1949   301

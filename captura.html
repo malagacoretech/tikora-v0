@@ -339,6 +339,7 @@ input[type=file]{display:none}
 /* ================== CONFIG ================== */
 var WEBHOOK_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-app-5c59254275b582c6';
 var PANEL_URL   = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70d26bc7d11fe857';
+var FOTO_URL    = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-foto-8e4e138a0cc20dc1';
 var APP_HEADER  = 'x-tikora-app';
 var APP_SECRET  = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420'; /* gate anti-bots; el alta real es el token de usuario */
 var MAX_BYTES   = 10 * 1024 * 1024;         /* 10 MB por captura (límite del webhook) */
@@ -802,6 +803,11 @@ function panelBanner(msg, retry){
 }
 var panelData = null, panelModo = 'ultimas', panelProvSel = null;
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
+/* v19 (RGPD): la foto se abre via el proxy con token — el enlace directo de Drive no llega al cliente */
+function fotoSegura(url){
+  var fid = fotoId(url);
+  return fid ? (FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid)) : url;
+}
 /* v15: "entro" viene como dd/mm/aaaa hh:mm:ss — devuelve hh:mm si fue HOY, si no null */
 function entroHoy(s){
   var m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
@@ -834,7 +840,7 @@ function renderFilas(cont, rowsArr){
     var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
     row.appendChild(who); row.appendChild(amt);
     if (r.foto){
-      var a = document.createElement('a'); a.className = 'foto'; a.href = r.foto; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
+      var a = document.createElement('a'); a.className = 'foto'; a.href = fotoSegura(r.foto); a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
       a.addEventListener('click', function(ev){ ev.stopPropagation(); });
       row.appendChild(a);
     }
@@ -1093,7 +1099,7 @@ function abrirFicha(r){
 }
 $('fichaCerrar').addEventListener('click', function(){ $('ficha').classList.remove('on'); });
 $('ficha').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
-$('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fichaRow.foto); });
+$('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fotoSegura(fichaRow.foto)); });
 $('fichaPreg').addEventListener('click', function(){
   if (!fichaRow) return;
   $('ficha').classList.remove('on');

@@ -163,19 +163,29 @@ input[type=file]{display:none}
 .psearch{width:100%;box-sizing:border-box;margin:0 0 0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.68rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
 .psearch::placeholder{color:var(--text-muted)}
 .psearch:focus{border-color:var(--accent)}
-/* v11: chat "preguntale a tus facturas" */
-#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.5rem;padding:0.3rem 0 0.8rem;-webkit-overflow-scrolling:touch}
-.cmsg{max-width:88%;border-radius:14px;padding:0.65rem 0.9rem;font-size:0.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600}
-.cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border)}
+/* v11: chat "preguntale a tus facturas" — v27: pase fino movil (delicado y profesional) */
+#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch}
+.cmsg{max-width:88%;border-radius:16px;padding:0.62rem 0.85rem;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600;border-bottom-right-radius:6px}
+.cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
+.cmsg.bot b{color:#F8D57E;font-weight:700}
 .cmsg.pend{opacity:0.65;font-style:italic}
-.chatsug{display:flex;gap:0.4rem;flex-wrap:wrap;margin:0 0 0.55rem}
-.chatsug button{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.42rem 0.8rem;font-family:inherit;font-size:0.78rem;cursor:pointer}
-.chatbar{display:flex;gap:0.5rem}
-.chatbar input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.75rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.95rem;outline:none;-webkit-appearance:none}
+/* v27: sugerencias plegadas bajo un titulo fino — no tapan la conversacion */
+.chatsug{margin:0 0 0.45rem}
+.sugtoggle{display:flex;align-items:center;gap:0.4rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;padding:0.25rem 0.1rem}
+.sugtoggle .sgc{font-size:0.55rem;transition:transform 0.18s}
+.chatsug.open .sgc{transform:rotate(180deg)}
+.sugchips{display:none;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0.15rem 0 0.3rem;scrollbar-width:none}
+.sugchips::-webkit-scrollbar{display:none}
+.chatsug.open .sugchips{display:flex}
+.sugchips button{flex-shrink:0;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.38rem 0.75rem;font-family:inherit;font-size:0.76rem;cursor:pointer;white-space:nowrap}
+.chatbar{display:flex;gap:0.45rem;align-items:center}
+.chatbar input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:0.72rem 1rem;color:var(--text);font-family:inherit;font-size:0.95rem;outline:none;-webkit-appearance:none}
 .chatbar input:focus{border-color:var(--accent)}
-.chatbar button{width:3rem;flex-shrink:0;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-size:1.05rem;font-weight:800;cursor:pointer}
+.chatbar button{width:2.8rem;height:2.8rem;flex-shrink:0;border-radius:50%;border:none;background:var(--accent);color:#0A1628;font-size:1rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .chatbar button:disabled{opacity:0.5}
+.chatbar button.micbtn{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.chatbar button.micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
 /* v12: mini-ficha de factura + dictado por voz */
 #ficha{position:fixed;inset:0;background:rgba(4,10,20,0.62);z-index:60;display:none;align-items:flex-end}
 #ficha.on{display:flex}
@@ -332,10 +342,13 @@ input[type=file]{display:none}
   <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
   <div class="chatctx" id="chatCtx"><span id="chatCtxTxt"></span><button type="button" id="chatCtxX" aria-label="Quitar factura del contexto">&#10005;</button></div>
   <div id="chatMsgs"></div>
-  <div class="chatsug">
-    <button type="button">&iquest;Cu&aacute;nto IVA llevo identificado?</button>
-    <button type="button">&iquest;Cu&aacute;l es mi mayor proveedor?</button>
-    <button type="button">&iquest;Qu&eacute; compr&eacute; esta semana?</button>
+  <div class="chatsug" id="chatSug">
+    <button type="button" class="sugtoggle" id="sugToggle">Preguntas frecuentes <span class="sgc">&#9662;</span></button>
+    <div class="sugchips">
+      <button type="button">&iquest;Cu&aacute;nto IVA llevo identificado?</button>
+      <button type="button">&iquest;Cu&aacute;l es mi mayor proveedor?</button>
+      <button type="button">&iquest;Qu&eacute; compr&eacute; esta semana?</button>
+    </div>
   </div>
   <div class="chatbar">
     <input id="chatInput" type="text" placeholder="Pregunt&aacute; sobre tus facturas&hellip;" autocomplete="off" maxlength="400">
@@ -1175,18 +1188,29 @@ function setChatCtx(row){
     $('chatCtx').classList.remove('on');
   }
 }
+/* v27: las respuestas llegan con **negritas** y guiones de lista — se pintan bien, no crudos */
+function chatFmt(t){
+  var e = String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  e = e.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  e = e.replace(/^\s*[-*] /gm, '· ');
+  return e;
+}
 function chatMsg(texto, cls){
-  var d = document.createElement('div'); d.className = 'cmsg ' + cls; d.textContent = texto;
+  var d = document.createElement('div'); d.className = 'cmsg ' + cls;
+  if (cls.indexOf('bot') >= 0) d.innerHTML = chatFmt(texto); else d.textContent = texto;
   $('chatMsgs').appendChild(d); $('chatMsgs').scrollTop = 999999; return d;
 }
+function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
 function chatHello(){
   if ($('chatMsgs').children.length) return;
   chatMsg('Hola — preguntame lo que quieras sobre tus facturas: totales, IVA, proveedores, fechas. Respondo solo con tus datos.', 'bot');
+  sugAbrir(true);   /* primera visita: las sugerencias a la vista; despues se pliegan solas */
 }
 function sendChat(q){
   q = (q || $('chatInput').value || '').trim();
   if (!q || chatPend || !TOKEN) return;
   $('chatInput').value = '';
+  sugAbrir(false);
   chatMsg(q, 'user');
   var pend = chatMsg(chatFile ? 'Leyendo la factura…' : 'Pensando…', 'bot pend');
   chatPend = true; $('chatSend').disabled = true;
@@ -1200,7 +1224,7 @@ function sendChat(q){
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(d){
       var resp = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.';
-      pend.textContent = resp; pend.classList.remove('pend');
+      pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
       chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
       if (chatHist.length > 12) chatHist = chatHist.slice(-12);
     })
@@ -1209,9 +1233,10 @@ function sendChat(q){
 }
 $('chatSend').addEventListener('click', function(){ sendChat(); });
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
-document.querySelectorAll('.chatsug button').forEach(function(b){
+document.querySelectorAll('.sugchips button').forEach(function(b){
   b.addEventListener('click', function(){ setChatCtx(null); sendChat(b.textContent); });
 });
+$('sugToggle').addEventListener('click', function(){ sugAbrir(!$('chatSug').classList.contains('open')); });
 $('chatCtxX').addEventListener('click', function(){ setChatCtx(null); });
 $('tabChat').addEventListener('click', function(){
   if ($('screenChat').classList.contains('on')) return;

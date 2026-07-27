@@ -956,7 +956,7 @@ function loadPanel(silent){
   if (panelLoading) return;
   panelLoading = true;
   if (!silent) panelBanner(null);
-  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN))
+  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN), { headers: { 'x-tikora-app': APP_SECRET } })
     .then(function(resp){
       if (resp.status === 403) throw { fatal: true, msg: 'Enlace no válido. Pedí uno nuevo a Tikora.' };
       if (!resp.ok) throw { msg: 'El servicio no responde ahora mismo.' };

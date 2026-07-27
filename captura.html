@@ -371,7 +371,7 @@ input[type=file]{display:none}
     <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
     <button class="dbtn sec" type="button" id="dShareBtn">&#128228; Compartir</button>
   </div>
-  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Enseñá este código o compartí tus datos</div></div>
+  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Que lo escaneen con la c&aacute;mara: les sale tu ficha para guardarte como contacto, con tu NIF incluido.</div></div>
 
   <div id="dCopias"></div>
 
@@ -401,7 +401,7 @@ input[type=file]{display:none}
   <div class="dsec">Editar mis datos</div>
   <div class="dform">
     <input id="dInNom" type="text" placeholder="Nombre o raz&oacute;n social" maxlength="80">
-    <input id="dInNif" type="text" placeholder="NIF / CIF" maxlength="15">
+    <input id="dInNif" type="text" placeholder="NIF (el CIF de toda la vida)" maxlength="15">
     <input id="dInDir" type="text" placeholder="Direcci&oacute;n fiscal" maxlength="120">
     <div class="par">
       <input id="dInTel" type="tel" placeholder="Tel&eacute;fono" maxlength="20">
@@ -1255,12 +1255,27 @@ function textoDatos(){
   if (datos.mail) l.push(datos.mail);
   return l.join('\n');
 }
+/* El QR va en formato TARJETA DE CONTACTO (MECARD): asi el movil que lo escanea
+   ofrece "Anadir contacto" en vez de quedarse mudo con un texto suelto. */
+function limpiaMe(s){ return String(s || '').replace(/[;:\\]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function payloadQR(){
+  var n = limpiaMe(datos.nom), nif = limpiaMe(datos.nif), dir = limpiaMe(datos.dir),
+      tel = limpiaMe(datos.tel), mail = limpiaMe(datos.mail);
+  if (!nif) return null;
+  var nota = 'NIF ' + nif;
+  var completa = 'MECARD:N:' + (n || nif) + ';' + (tel ? ('TEL:' + tel + ';') : '') +
+                 (mail ? ('EMAIL:' + mail + ';') : '') + (dir ? ('ADR:' + dir + ';') : '') +
+                 'NOTE:' + nota + ';;';
+  var media   = 'MECARD:N:' + (n || nif) + ';' + (tel ? ('TEL:' + tel + ';') : '') + 'NOTE:' + nota + ';;';
+  var minima  = 'MECARD:N:' + (n || nif) + ';NOTE:' + nota + ';;';
+  return [completa, media, minima];
+}
 function renderDatos(){
   $('dNom').textContent = datos.nom || 'Tus datos fiscales';
   $('dNif').textContent = datos.nif || '—';
   $('dDir').textContent = datos.dir || (datos.nif ? '' : 'Rellená tus datos abajo y tenelos siempre a mano.');
   var c = $('dCopias'); c.innerHTML = '';
-  if (datos.nif) c.appendChild(filaCopia('NIF / CIF', datos.nif));
+  if (datos.nif) c.appendChild(filaCopia('NIF (el CIF de toda la vida)', datos.nif));
   if (datos.nom) c.appendChild(filaCopia('Nombre fiscal', datos.nom));
   if (datos.dir) c.appendChild(filaCopia('Dirección', datos.dir));
   if (datos.tel) c.appendChild(filaCopia('Teléfono', datos.tel));
@@ -1357,9 +1372,11 @@ $('tabDatos').addEventListener('click', function(){
 
 /* ============ QR local (modo byte, correccion L, versiones 1-6 = 1 bloque) ============
    Se genera en el propio movil: el NIF no viaja a ningun servidor y funciona sin internet. */
-var QR_DATA = [19, 34, 55, 80, 108, 136];      /* codewords de datos por version (L) */
-var QR_ECCN = [7, 10, 15, 20, 26, 36];         /* codewords de correccion por version (L) */
-var QR_ALIN = [0, 18, 22, 26, 30, 34];         /* centro del patron de alineacion (v2-v6) */
+/* SOLO versiones 1-5: a partir de la 6 el estandar parte los datos en VARIOS bloques
+   y habria que intercalarlos. Con 108 bytes sobra para una ficha de contacto. */
+var QR_DATA = [19, 34, 55, 80, 108];           /* codewords de datos por version (L) */
+var QR_ECCN = [7, 10, 15, 20, 26];             /* codewords de correccion por version (L) */
+var QR_ALIN = [0, 18, 22, 26, 30];             /* centro del patron de alineacion (v2-v5) */
 var GF_EXP = new Array(512), GF_LOG = new Array(256);
 (function(){
   var x = 1;
@@ -1393,7 +1410,7 @@ function qrMatriz(texto){
   var enc = unescape(encodeURIComponent(texto));            /* UTF-8 a bytes */
   for (var i = 0; i < enc.length; i++) bytes.push(enc.charCodeAt(i) & 255);
   var ver = -1;
-  for (var v = 0; v < 6; v++){ if (bytes.length + 2 <= QR_DATA[v]) { ver = v; break; } }
+  for (var v = 0; v < QR_DATA.length; v++){ if (bytes.length + 2 <= QR_DATA[v]) { ver = v; break; } }
   if (ver < 0) return null;                                  /* texto demasiado largo */
   var V = ver + 1, size = 17 + 4 * V;
   /* --- bits: modo 0100 + longitud 8 bits + datos + relleno --- */
@@ -1475,12 +1492,12 @@ function qrMatriz(texto){
   return m;
 }
 function pintarQR(){
-  var texto = textoDatos();
-  if (!datos.nif) return false;
-  var m = qrMatriz(texto);
-  if (!m){ m = qrMatriz(datos.nom ? (datos.nom + '\nNIF: ' + datos.nif) : ('NIF: ' + datos.nif)); }
+  var cands = payloadQR();
+  if (!cands) return false;
+  var m = null;
+  for (var i = 0; i < cands.length && !m; i++) m = qrMatriz(cands[i]);   /* de la mas rica a la mas corta */
   if (!m) return false;
-  var n = m.length, q = 4, esc = 6, lado = (n + q * 2) * esc;
+  var n = m.length, q = 4, esc = 8, lado = (n + q * 2) * esc;
   var cv = $('qrCanvas'); cv.width = lado; cv.height = lado;
   var ctx = cv.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, lado, lado);

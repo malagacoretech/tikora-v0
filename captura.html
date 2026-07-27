@@ -128,7 +128,13 @@ input[type=file]{display:none}
 .dbtn.sec{background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-weight:700}
 #qrBox{display:none;text-align:center;margin:0.4rem 0 0.9rem}
 #qrBox.on{display:block}
-#qrBox canvas{background:#fff;border-radius:12px;padding:10px;max-width:230px;width:100%;height:auto;image-rendering:pixelated}
+/* sin image-rendering:pixelated — al reescalar dejaba los modulos desiguales y el escaner fallaba */
+#qrBox canvas{background:#fff;border-radius:10px;padding:8px;width:min(280px,86vw);height:auto;cursor:pointer}
+#qrFull{position:fixed;inset:0;background:#fff;z-index:80;display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+#qrFull.on{display:flex}
+#qrFull canvas{width:min(92vw,92vh);height:auto}
+#qrFull .cerrar{background:#0A1628;color:#fff;border:none;border-radius:12px;padding:0.8rem 1.6rem;font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer}
+#qrFull .pista{color:#333;font-size:0.85rem;text-align:center;padding:0 1.2rem}
 #qrBox .qh{font-size:0.7rem;color:var(--text-muted);margin-top:0.45rem}
 .acc{border:1px solid var(--border);border-radius:12px;margin-bottom:0.5rem;overflow:hidden;background:var(--surface)}
 .acc>button{width:100%;text-align:left;background:none;border:none;color:var(--text);font-family:inherit;font-size:0.9rem;font-weight:700;padding:0.85rem 0.95rem;cursor:pointer;display:flex;justify-content:space-between;gap:0.5rem}
@@ -339,6 +345,13 @@ input[type=file]{display:none}
   <p class="legal">Responde solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
+<!-- QR a pantalla completa (para escanear de lejos, en el mostrador) -->
+<div id="qrFull">
+  <canvas id="qrCanvasBig"></canvas>
+  <div class="pista" id="qrFullTxt"></div>
+  <button class="cerrar" type="button" id="qrFullCerrar">Cerrar</button>
+</div>
+
 <!-- Mini-ficha de factura -->
 <div id="ficha"><div class="fichacard">
   <div class="fe" id="fichaEmisor"></div>
@@ -371,7 +384,7 @@ input[type=file]{display:none}
     <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
     <button class="dbtn sec" type="button" id="dShareBtn">&#128228; Compartir</button>
   </div>
-  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Que lo escaneen con la c&aacute;mara: les sale tu ficha para guardarte como contacto, con tu NIF incluido.</div></div>
+  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Toc&aacute; el c&oacute;digo para verlo en grande. Al escanearlo con la c&aacute;mara sale tu ficha de contacto con el NIF.</div></div>
 
   <div id="dCopias"></div>
 
@@ -1359,6 +1372,23 @@ $('dQrBtn').addEventListener('click', function(){
   if (!pintarQR()){ toast('Primero guardá tu NIF', true); return; }
   box.classList.add('on');
 });
+/* QR a pantalla completa: fondo blanco y el codigo lo mas grande posible = se escanea de lejos */
+function qrGrande(){
+  if (!qrUltima && !pintarQR()) { toast('Primero guardá tu NIF', true); return; }
+  var m = qrUltima, n = m.length, q = 4, esc = 14, lado = (n + q * 2) * esc;
+  var cv = $('qrCanvasBig'); cv.width = lado; cv.height = lado;
+  var ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, lado, lado);
+  ctx.fillStyle = '#000';
+  for (var y = 0; y < n; y++) for (var x = 0; x < n; x++){
+    if (m[y][x]) ctx.fillRect((x + q) * esc, (y + q) * esc, esc, esc);
+  }
+  $('qrFullTxt').textContent = (datos.nom || '') + (datos.nif ? ('  ·  NIF ' + datos.nif) : '');
+  $('qrFull').classList.add('on');
+}
+$('qrCanvas').addEventListener('click', qrGrande);
+$('qrFullCerrar').addEventListener('click', function(){ $('qrFull').classList.remove('on'); });
+$('qrFull').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
 document.querySelectorAll('#screenDatos .acc > button').forEach(function(b){
   b.addEventListener('click', function(){ b.parentNode.classList.toggle('on'); });
 });
@@ -1374,6 +1404,7 @@ $('tabDatos').addEventListener('click', function(){
    Se genera en el propio movil: el NIF no viaja a ningun servidor y funciona sin internet. */
 /* SOLO versiones 1-5: a partir de la 6 el estandar parte los datos en VARIOS bloques
    y habria que intercalarlos. Con 108 bytes sobra para una ficha de contacto. */
+var qrUltima = null;                           /* ultima matriz pintada (para el modo pantalla completa) */
 var QR_DATA = [19, 34, 55, 80, 108];           /* codewords de datos por version (L) */
 var QR_ECCN = [7, 10, 15, 20, 26];             /* codewords de correccion por version (L) */
 var QR_ALIN = [0, 18, 22, 26, 30];             /* centro del patron de alineacion (v2-v5) */
@@ -1497,6 +1528,7 @@ function pintarQR(){
   var m = null;
   for (var i = 0; i < cands.length && !m; i++) m = qrMatriz(cands[i]);   /* de la mas rica a la mas corta */
   if (!m) return false;
+  qrUltima = m;
   var n = m.length, q = 4, esc = 8, lado = (n + q * 2) * esc;
   var cv = $('qrCanvas'); cv.width = lado; cv.height = lado;
   var ctx = cv.getContext('2d');

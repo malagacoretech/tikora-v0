@@ -102,9 +102,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 input[type=file]{display:none}
 
 /* ====== PESTAÑAS (📷 Capturar | 📊 Mi panel) ====== */
-#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(3,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(4,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar.solo3{grid-template-columns:repeat(3,1fr)}
 #tabbar.on{display:grid}
-#tabbar .tab{height:3.6rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.88rem;font-weight:700;cursor:pointer;letter-spacing:0.01em}
+#tabbar .tab{height:3.6rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:0}
+/* ====== v22: CAPA 1 — MIS DATOS ====== */
+.dcard{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border:1px solid rgba(244,201,93,0.35);border-radius:16px;padding:1.1rem 1.15rem;margin-bottom:0.9rem;position:relative;overflow:hidden}
+.dcard::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.dcard .dnom{font-size:1.15rem;font-weight:800;line-height:1.25;word-break:break-word}
+.dcard .dnif{font-size:1.85rem;font-weight:800;color:var(--accent);letter-spacing:0.02em;margin:0.35rem 0 0.15rem;font-variant-numeric:tabular-nums}
+.dcard .ddir{font-size:0.8rem;color:var(--text-muted);line-height:1.4}
+.drow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
+.drow .dk{font-size:0.66rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:700}
+.drow .dv{font-size:0.98rem;font-weight:700;word-break:break-word}
+.drow .dgrow{flex:1;min-width:0}
+.copybtn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer}
+.copybtn:active{background:var(--accent);color:#0A1628}
+.delbtn{flex-shrink:0;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0 0.2rem}
+.dsec{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin:1.3rem 0 0.6rem}
+.dform{display:grid;gap:0.5rem;margin-bottom:0.5rem}
+.dform input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0.7rem 0.9rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
+.dform input:focus{border-color:var(--accent)}
+.dform .par{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}
+.dbtn{width:100%;padding:0.85rem;border-radius:12px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.95rem;font-weight:800;cursor:pointer}
+.dbtn.sec{background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-weight:700}
+#qrBox{display:none;text-align:center;margin:0.4rem 0 0.9rem}
+#qrBox.on{display:block}
+#qrBox canvas{background:#fff;border-radius:12px;padding:10px;max-width:230px;width:100%;height:auto;image-rendering:pixelated}
+#qrBox .qh{font-size:0.7rem;color:var(--text-muted);margin-top:0.45rem}
+.acc{border:1px solid var(--border);border-radius:12px;margin-bottom:0.5rem;overflow:hidden;background:var(--surface)}
+.acc>button{width:100%;text-align:left;background:none;border:none;color:var(--text);font-family:inherit;font-size:0.9rem;font-weight:700;padding:0.85rem 0.95rem;cursor:pointer;display:flex;justify-content:space-between;gap:0.5rem}
+.acc .accbody{display:none;padding:0 0.95rem 0.95rem;font-size:0.85rem;color:var(--text-muted);line-height:1.55}
+.acc.on .accbody{display:block}
+.acc .accbody b{color:var(--text)}
+.neta{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.9rem 1rem;margin-top:0.5rem}
+.neta .nv{font-size:1.5rem;font-weight:800;letter-spacing:-0.01em}
+.neta .nl{font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:700}
+.neta .nsub{font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem;line-height:1.45}
 #tabbar .tab.active{color:var(--accent)}
 #tabbar .tab:active{transform:scale(0.97)}
 .screen.with-tabs{padding-bottom:calc(5rem + env(safe-area-inset-bottom))}
@@ -323,10 +357,90 @@ input[type=file]{display:none}
 </div></div>
 
 <!-- Barra de pestañas -->
+<!-- Pantalla 6: Mis datos (Capa 1) -->
+<div class="screen with-tabs" id="screenDatos">
+  <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+
+  <div class="dcard" id="dCard">
+    <div class="dnom" id="dNom">Tus datos fiscales</div>
+    <div class="dnif" id="dNif">—</div>
+    <div class="ddir" id="dDir">Rellená tus datos abajo y tenelos siempre a mano.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.9rem">
+    <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
+    <button class="dbtn sec" type="button" id="dShareBtn">&#128228; Compartir</button>
+  </div>
+  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Enseñá este código o compartí tus datos</div></div>
+
+  <div id="dCopias"></div>
+
+  <div class="dsec">Mis n&uacute;meros de cliente</div>
+  <div id="dNums"></div>
+  <div class="dform">
+    <div class="par">
+      <input id="dNumComercio" type="text" placeholder="Comercio (ej: Mercadona)" maxlength="40">
+      <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
+    </div>
+    <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir n&uacute;mero</button>
+  </div>
+
+  <div class="dsec" id="dIvaSec">Mi IVA del trimestre</div>
+  <div id="dIvaBloque">
+    <div class="dform">
+      <input id="dIvaRep" type="text" inputmode="decimal" placeholder="IVA de mis ventas este trimestre (&euro;)">
+      <button class="dbtn sec" type="button" id="dIvaSave">Guardar IVA de ventas</button>
+    </div>
+    <div class="neta" id="dNeta" style="display:none">
+      <div class="nl" id="dNetaLbl">Posici&oacute;n estimada del trimestre</div>
+      <div class="nv" id="dNetaVal">&mdash;</div>
+      <div class="nsub" id="dNetaSub"></div>
+    </div>
+  </div>
+
+  <div class="dsec">Editar mis datos</div>
+  <div class="dform">
+    <input id="dInNom" type="text" placeholder="Nombre o raz&oacute;n social" maxlength="80">
+    <input id="dInNif" type="text" placeholder="NIF / CIF" maxlength="15">
+    <input id="dInDir" type="text" placeholder="Direcci&oacute;n fiscal" maxlength="120">
+    <div class="par">
+      <input id="dInTel" type="tel" placeholder="Tel&eacute;fono" maxlength="20">
+      <input id="dInMail" type="email" placeholder="Email" maxlength="60">
+    </div>
+    <button class="dbtn" type="button" id="dSave">Guardar mis datos</button>
+  </div>
+
+  <div class="dsec">Informaci&oacute;n &uacute;til</div>
+  <div class="acc"><button type="button">&iquest;Qu&eacute; es el &laquo;IVA identificado&raquo;? <span>+</span></button><div class="accbody">
+    Es la cuota de IVA que pagaste en tus compras y que <b>est&aacute; documentada y ordenada</b> gracias a las fotos que sacaste.<br><br>
+    No es dinero que te devuelvan ni lo que te ahorr&aacute;s: es el IVA que <b>tiene papel detr&aacute;s</b> y que tu gestor podr&aacute; usar. Cada trimestre se declara la diferencia entre el IVA que cobraste al vender y el que pagaste al comprar.
+  </div></div>
+  <div class="acc"><button type="button">&iquest;Qu&eacute; hace que una factura sirva? <span>+</span></button><div class="accbody">
+    Cuatro cosas a la vez:<br>
+    1. Que lleve <b>tu NIF</b> y el <b>IVA en un rengl&oacute;n aparte</b>.<br>
+    2. Que sea un gasto del negocio.<br>
+    3. Que no est&eacute; en la lista de excluidos (regalos, consumo propio, ocio&hellip;).<br>
+    4. Que est&eacute; guardada y dentro de plazo (4 a&ntilde;os).<br><br>
+    El g&eacute;nero que compr&aacute;s para vender <b>s&iacute;</b> cuenta. Lo que te llev&aacute;s a casa, no.
+  </div></div>
+  <div class="acc"><button type="button">El ticket normal no vale &mdash; pero tiene arreglo <span>+</span></button><div class="accbody">
+    Un ticket suelto no lleva tu NIF ni el IVA desglosado, as&iacute; que <b>no se puede deducir</b>.<br><br>
+    La ley dice que <b>si vos lo ped&iacute;s</b>, el comercio debe a&ntilde;adir tu NIF y separar la cuota de IVA. Con eso, ese mismo ticket ya sirve.<br><br>
+    <b>Qu&eacute; decir en el mostrador:</b> &laquo;&iquest;Me pon&eacute;s el NIF y desglos&aacute;s el IVA, por favor?&raquo; &mdash; y les ense&ntilde;&aacute;s esta pantalla.
+  </div></div>
+  <div class="acc"><button type="button">&iquest;Y esto sustituye a mi gestor? <span>+</span></button><div class="accbody">
+    No. Tikora <b>ordena y guarda</b> lo que compr&aacute;s, y le deja el trabajo hecho a tu gestor&iacute;a.<br><br>
+    Quien presenta tus impuestos y decide qu&eacute; se deduce sigue siendo tu gestor: aqu&iacute; ve todo m&aacute;s claro y m&aacute;s r&aacute;pido.
+  </div></div>
+
+  <p class="legal">Tus datos se guardan solo en este dispositivo. Informaci&oacute;n orientativa: no es asesoramiento fiscal.</p>
+</div>
+
 <nav id="tabbar">
   <button class="tab active" id="tabCam" type="button">📷 Capturar</button>
   <button class="tab" id="tabPanel" type="button">📊 Panel</button>
   <button class="tab" id="tabChat" type="button">💬 Preguntar</button>
+  <button class="tab" id="tabDatos" type="button">🪪 Mis datos</button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -353,13 +467,14 @@ var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
 function show(id){
-  ['screenCam','screenShot','screenToken','screenPanel','screenChat'].forEach(function(s){ $(s).classList.remove('on'); });
+  ['screenCam','screenShot','screenToken','screenPanel','screenChat','screenDatos'].forEach(function(s){ $(s).classList.remove('on'); });
   $(id).classList.add('on');
   var tb = $('tabbar');
   if (TOKEN && id !== 'screenToken'){ tb.classList.add('on'); } else { tb.classList.remove('on'); }
   $('tabCam').classList.toggle('active', id === 'screenCam' || id === 'screenShot');
   $('tabPanel').classList.toggle('active', id === 'screenPanel');
   $('tabChat').classList.toggle('active', id === 'screenChat');
+  $('tabDatos').classList.toggle('active', id === 'screenDatos');
 }
 function toast(msg, isErr){
   var t = $('toast'); t.textContent = msg;
@@ -1080,9 +1195,311 @@ $('tabChat').addEventListener('click', function(){
   show('screenChat');
   chatHello();
 });
+
+/* ================== CAPA 1 — MIS DATOS (v22) ==================
+   Todo vive en el dispositivo (localStorage por token). Cero servidor, cero RGPD extra. */
+/* la llave sigue al token: si el usuario activa su codigo despues, sus datos no se pierden */
+function dKey(){ return 'tikora_datos_' + (TOKEN || 'anon'); }
+var datos = { nom: '', nif: '', dir: '', tel: '', mail: '', nums: [], iva: {} };
+function dCargar(){
+  var vacio = { nom: '', nif: '', dir: '', tel: '', mail: '', nums: [], iva: {} };
+  var g = null;
+  try { g = JSON.parse(localStorage.getItem(dKey()) || 'null'); } catch(e){}
+  if (!g && TOKEN){
+    /* rescate: datos escritos antes de activar el codigo */
+    try { g = JSON.parse(localStorage.getItem('tikora_datos_anon') || 'null'); } catch(e){}
+    if (g){ datos = Object.assign(vacio, g); dGuardar(); try { localStorage.removeItem('tikora_datos_anon'); } catch(e){} return; }
+  }
+  datos = Object.assign(vacio, g || {});
+}
+function dGuardar(){ try { localStorage.setItem(dKey(), JSON.stringify(datos)); } catch(e){} }
+dCargar();
+function trimestreActual(){
+  var d = new Date();
+  return d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
+}
+function copiar(txt, btn){
+  var ok = function(){
+    if (btn){ var o = btn.textContent; btn.textContent = '✓'; setTimeout(function(){ btn.textContent = o; }, 1100); }
+    toast('Copiado', false);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(function(){ fallback(); });
+  } else { fallback(); }
+  function fallback(){
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); ok();
+    } catch(e){ toast('No se pudo copiar', true); }
+  }
+}
+function filaCopia(clave, valor){
+  var row = document.createElement('div'); row.className = 'drow';
+  var g = document.createElement('div'); g.className = 'dgrow';
+  var k = document.createElement('div'); k.className = 'dk'; k.textContent = clave;
+  var v = document.createElement('div'); v.className = 'dv'; v.textContent = valor;
+  g.appendChild(k); g.appendChild(v);
+  var b = document.createElement('button'); b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copiar';
+  b.addEventListener('click', function(){ copiar(valor, b); });
+  row.appendChild(g); row.appendChild(b);
+  return row;
+}
+function textoDatos(){
+  var l = [];
+  if (datos.nom) l.push(datos.nom);
+  if (datos.nif) l.push('NIF: ' + datos.nif);
+  if (datos.dir) l.push(datos.dir);
+  if (datos.tel) l.push('Tel: ' + datos.tel);
+  if (datos.mail) l.push(datos.mail);
+  return l.join('\n');
+}
+function renderDatos(){
+  $('dNom').textContent = datos.nom || 'Tus datos fiscales';
+  $('dNif').textContent = datos.nif || '—';
+  $('dDir').textContent = datos.dir || (datos.nif ? '' : 'Rellená tus datos abajo y tenelos siempre a mano.');
+  var c = $('dCopias'); c.innerHTML = '';
+  if (datos.nif) c.appendChild(filaCopia('NIF / CIF', datos.nif));
+  if (datos.nom) c.appendChild(filaCopia('Nombre fiscal', datos.nom));
+  if (datos.dir) c.appendChild(filaCopia('Dirección', datos.dir));
+  if (datos.tel) c.appendChild(filaCopia('Teléfono', datos.tel));
+  if (datos.mail) c.appendChild(filaCopia('Email', datos.mail));
+  var n = $('dNums'); n.innerHTML = '';
+  (datos.nums || []).forEach(function(item, i){
+    var row = filaCopia(item.c, item.v);
+    var del = document.createElement('button'); del.className = 'delbtn'; del.type = 'button'; del.textContent = '✕';
+    del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderDatos(); });
+    row.appendChild(del);
+    n.appendChild(row);
+  });
+  if (!(datos.nums || []).length){
+    var e = document.createElement('div'); e.className = 'pempty';
+    e.textContent = 'Guardá acá los números que te piden en cada sitio (Mercadona, el cash, el mayorista…).';
+    n.appendChild(e);
+  }
+  $('dInNom').value = datos.nom || ''; $('dInNif').value = datos.nif || '';
+  $('dInDir').value = datos.dir || ''; $('dInTel').value = datos.tel || ''; $('dInMail').value = datos.mail || '';
+  renderNeta();
+}
+function renderNeta(){
+  var q = trimestreActual();
+  var rep = (datos.iva && datos.iva[q] !== undefined) ? Number(datos.iva[q]) : null;
+  $('dIvaRep').value = (rep === null || isNaN(rep)) ? '' : String(rep).replace('.', ',');
+  var box = $('dNeta');
+  if (rep === null || isNaN(rep)){ box.style.display = 'none'; return; }
+  var sop = 0, hay = false;
+  try {
+    var cache = JSON.parse(localStorage.getItem('tikora_panel_cache') || 'null');
+    var rows = (cache && cache.data && cache.data.rows) || [];
+    var ini = q.slice(0, 4) + '-' + ('0' + ((parseInt(q.slice(-1), 10) - 1) * 3 + 1)).slice(-2);
+    rows.forEach(function(r){
+      if (!r.fecha || r.fecha < ini) return;
+      sop += Number(r.iva) || 0; hay = true;
+    });
+  } catch(e){}
+  var neto = rep - sop;
+  box.style.display = 'block';
+  $('dNetaLbl').textContent = 'Posición estimada · ' + q;
+  $('dNetaVal').textContent = (neto >= 0 ? 'A ingresar: ' : 'A tu favor: ') + fmtEur(Math.abs(neto));
+  $('dNetaSub').textContent = 'IVA de tus ventas que metiste: ' + fmtEur(rep) + ' − IVA identificado en tus compras: ' + fmtEur(sop) +
+    (hay ? '' : ' (abrí Mi panel para que cargue tus compras)') +
+    '. Estimación informativa con los datos que vos cargaste; tu declaración la presenta tu gestor.';
+}
+$('dSave').addEventListener('click', function(){
+  datos.nom = $('dInNom').value.trim();
+  datos.nif = $('dInNif').value.trim().toUpperCase();
+  datos.dir = $('dInDir').value.trim();
+  datos.tel = $('dInTel').value.trim();
+  datos.mail = $('dInMail').value.trim();
+  dGuardar(); renderDatos(); pintarQR();
+  toast('Datos guardados ✓', false);
+});
+$('dNumAdd').addEventListener('click', function(){
+  var c = $('dNumComercio').value.trim(), v = $('dNumValor').value.trim();
+  if (!c || !v){ toast('Poné el comercio y el número', true); return; }
+  datos.nums = datos.nums || [];
+  datos.nums.push({ c: c, v: v });
+  $('dNumComercio').value = ''; $('dNumValor').value = '';
+  dGuardar(); renderDatos();
+});
+$('dIvaSave').addEventListener('click', function(){
+  var raw = $('dIvaRep').value.trim().replace(/\./g, '').replace(',', '.');
+  var n = parseFloat(raw);
+  datos.iva = datos.iva || {};
+  if (raw === '' || isNaN(n)){ delete datos.iva[trimestreActual()]; }
+  else { datos.iva[trimestreActual()] = n; }
+  dGuardar(); renderNeta();
+  toast('Guardado ✓', false);
+});
+$('dShareBtn').addEventListener('click', function(){
+  var t = textoDatos();
+  if (!t){ toast('Primero guardá tus datos', true); return; }
+  if (navigator.share){ navigator.share({ title: 'Mis datos fiscales', text: t }).catch(function(){}); }
+  else { copiar(t, null); }
+});
+$('dQrBtn').addEventListener('click', function(){
+  var box = $('qrBox');
+  if (box.classList.contains('on')){ box.classList.remove('on'); return; }
+  if (!pintarQR()){ toast('Primero guardá tu NIF', true); return; }
+  box.classList.add('on');
+});
+document.querySelectorAll('#screenDatos .acc > button').forEach(function(b){
+  b.addEventListener('click', function(){ b.parentNode.classList.toggle('on'); });
+});
+$('tabDatos').addEventListener('click', function(){
+  if ($('screenDatos').classList.contains('on')) return;
+  stopCamera();
+  dCargar();                 /* por si el token se activo despues de cargar la pagina */
+  show('screenDatos');
+  renderDatos();
+});
+
+/* ============ QR local (modo byte, correccion L, versiones 1-6 = 1 bloque) ============
+   Se genera en el propio movil: el NIF no viaja a ningun servidor y funciona sin internet. */
+var QR_DATA = [19, 34, 55, 80, 108, 136];      /* codewords de datos por version (L) */
+var QR_ECCN = [7, 10, 15, 20, 26, 36];         /* codewords de correccion por version (L) */
+var QR_ALIN = [0, 18, 22, 26, 30, 34];         /* centro del patron de alineacion (v2-v6) */
+var GF_EXP = new Array(512), GF_LOG = new Array(256);
+(function(){
+  var x = 1;
+  for (var i = 0; i < 255; i++){ GF_EXP[i] = x; GF_LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11D; }
+  for (var j = 255; j < 512; j++) GF_EXP[j] = GF_EXP[j - 255];
+})();
+function gfMul(a, b){ return (a === 0 || b === 0) ? 0 : GF_EXP[GF_LOG[a] + GF_LOG[b]]; }
+function rsGen(n){
+  var g = [1];
+  for (var i = 0; i < n; i++){
+    var ng = new Array(g.length + 1).fill(0);
+    for (var j = 0; j < g.length; j++){
+      ng[j] ^= gfMul(g[j], 1);
+      ng[j + 1] ^= gfMul(g[j], GF_EXP[i]);
+    }
+    g = ng;
+  }
+  return g;
+}
+function rsEcc(datos, n){
+  var g = rsGen(n), res = datos.slice().concat(new Array(n).fill(0));
+  for (var i = 0; i < datos.length; i++){
+    var c = res[i];
+    if (!c) continue;
+    for (var j = 0; j < g.length; j++) res[i + j] ^= gfMul(g[j], c);
+  }
+  return res.slice(datos.length);
+}
+function qrMatriz(texto){
+  var bytes = [];
+  var enc = unescape(encodeURIComponent(texto));            /* UTF-8 a bytes */
+  for (var i = 0; i < enc.length; i++) bytes.push(enc.charCodeAt(i) & 255);
+  var ver = -1;
+  for (var v = 0; v < 6; v++){ if (bytes.length + 2 <= QR_DATA[v]) { ver = v; break; } }
+  if (ver < 0) return null;                                  /* texto demasiado largo */
+  var V = ver + 1, size = 17 + 4 * V;
+  /* --- bits: modo 0100 + longitud 8 bits + datos + relleno --- */
+  var bits = [];
+  function push(val, n){ for (var k = n - 1; k >= 0; k--) bits.push((val >> k) & 1); }
+  push(4, 4); push(bytes.length, 8);
+  bytes.forEach(function(b){ push(b, 8); });
+  var cap = QR_DATA[ver] * 8;
+  for (var t = 0; t < 4 && bits.length < cap; t++) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+  var cw = [];
+  for (var p = 0; p < bits.length; p += 8){
+    var b8 = 0; for (var q = 0; q < 8; q++) b8 = (b8 << 1) | bits[p + q];
+    cw.push(b8);
+  }
+  var relleno = [0xEC, 0x11], r = 0;
+  while (cw.length < QR_DATA[ver]) cw.push(relleno[r++ % 2]);
+  var todo = cw.concat(rsEcc(cw, QR_ECCN[ver]));
+  /* --- matriz --- */
+  var m = [], reservado = [];
+  for (var y = 0; y < size; y++){ m.push(new Array(size).fill(0)); reservado.push(new Array(size).fill(0)); }
+  function poner(y, x, val){ if (y >= 0 && y < size && x >= 0 && x < size){ m[y][x] = val; reservado[y][x] = 1; } }
+  function finder(fy, fx){
+    for (var dy = -1; dy <= 7; dy++) for (var dx = -1; dx <= 7; dx++){
+      var yy = fy + dy, xx = fx + dx;
+      if (yy < 0 || yy >= size || xx < 0 || xx >= size) continue;
+      var dentro = (dy >= 0 && dy <= 6 && dx >= 0 && dx <= 6);
+      var oscuro = dentro && (dy === 0 || dy === 6 || dx === 0 || dx === 6 || (dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4));
+      poner(yy, xx, oscuro ? 1 : 0);
+    }
+  }
+  finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+  for (var i2 = 8; i2 < size - 8; i2++){ poner(6, i2, (i2 % 2 === 0) ? 1 : 0); poner(i2, 6, (i2 % 2 === 0) ? 1 : 0); }
+  if (V >= 2){
+    var c = QR_ALIN[ver];
+    for (var ay = -2; ay <= 2; ay++) for (var ax = -2; ax <= 2; ax++){
+      var borde = (Math.abs(ay) === 2 || Math.abs(ax) === 2), centro = (ay === 0 && ax === 0);
+      poner(c + ay, c + ax, (borde || centro) ? 1 : 0);
+    }
+  }
+  poner(size - 8, 8, 1);                                     /* modulo oscuro fijo */
+  for (var f = 0; f < 9; f++){                               /* zonas de formato reservadas */
+    if (f !== 6){ reservado[8][f] = 1; reservado[f][8] = 1; }
+  }
+  for (var f2 = 0; f2 < 8; f2++){ reservado[8][size - 1 - f2] = 1; reservado[size - 1 - f2][8] = 1; }
+  reservado[8][6] = 1; reservado[6][8] = 1;
+  /* --- datos en zigzag + mascara 0 --- */
+  var idx = 0, arriba = true;
+  for (var col = size - 1; col > 0; col -= 2){
+    if (col === 6) col--;
+    for (var paso = 0; paso < size; paso++){
+      var fila = arriba ? (size - 1 - paso) : paso;
+      for (var d2 = 0; d2 < 2; d2++){
+        var cx = col - d2;
+        if (reservado[fila][cx]) continue;
+        var bit = 0;
+        if (idx < todo.length * 8){ bit = (todo[idx >> 3] >> (7 - (idx & 7))) & 1; }
+        idx++;
+        if ((fila + cx) % 2 === 0) bit ^= 1;                  /* mascara 0 */
+        m[fila][cx] = bit;
+      }
+    }
+    arriba = !arriba;
+  }
+  /* --- informacion de formato (nivel L = 01, mascara 000) --- */
+  var fmt = 0x01 << 3, resto = fmt << 10;
+  for (var b = 14; b >= 10; b--){ if ((resto >> b) & 1) resto ^= 0x537 << (b - 10); }
+  var formato = ((fmt << 10) | resto) ^ 0x5412;
+  for (var k2 = 0; k2 < 15; k2++){
+    var bitf = (formato >> k2) & 1;
+    if (k2 < 6) m[8][k2] = bitf;
+    else if (k2 === 6) m[8][7] = bitf;
+    else if (k2 === 7) m[8][8] = bitf;
+    else if (k2 === 8) m[7][8] = bitf;
+    else m[14 - k2][8] = bitf;
+    if (k2 < 8) m[size - 1 - k2][8] = bitf;
+    else m[8][size - 15 + k2] = bitf;
+  }
+  return m;
+}
+function pintarQR(){
+  var texto = textoDatos();
+  if (!datos.nif) return false;
+  var m = qrMatriz(texto);
+  if (!m){ m = qrMatriz(datos.nom ? (datos.nom + '\nNIF: ' + datos.nif) : ('NIF: ' + datos.nif)); }
+  if (!m) return false;
+  var n = m.length, q = 4, esc = 6, lado = (n + q * 2) * esc;
+  var cv = $('qrCanvas'); cv.width = lado; cv.height = lado;
+  var ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, lado, lado);
+  ctx.fillStyle = '#000';
+  for (var y = 0; y < n; y++) for (var x = 0; x < n; x++){
+    if (m[y][x]) ctx.fillRect((x + q) * esc, (y + q) * esc, esc, esc);
+  }
+  return true;
+}
 /* v18: MODO EMPLEADO — token de empleado: solo camara (el servidor ademas le niega panel/chat/pago).
    v21: acepta el corto heredado (…CAM) y el largo nuevo (CAM… ). */
-if (/CAM$/.test(String(TOKEN || '')) || /^CAM/.test(String(TOKEN || ''))){
+var ES_EMPLEADO = /CAM$/.test(String(TOKEN || '')) || /^CAM/.test(String(TOKEN || ''));
+if (ES_EMPLEADO){
+  /* el empleado ve Mis datos (los necesita en el mostrador) pero NO el IVA del negocio */
+  var _iSec = $('dIvaSec'), _iBlo = $('dIvaBloque');
+  if (_iSec) _iSec.style.display = 'none';
+  if (_iBlo) _iBlo.style.display = 'none';
+}
+if (ES_EMPLEADO){
   $('tabPanel').style.display = 'none';
   $('tabChat').style.display = 'none';
   $('tabbar').style.gridTemplateColumns = '1fr';

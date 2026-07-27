@@ -169,6 +169,11 @@ input[type=file]{display:none}
 .prow.pg-tarjeta{border-left:4px solid #1971C2}
 .prow.pg-tarjeta .amt{color:#4DABF7}
 .pgtag{font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#FF6B6B}
+/* v18: tarjeta de deuda pendiente */
+.pcard.debe{border-color:rgba(229,72,77,0.55);margin-top:0.7rem;display:none}
+.pcard.debe.on{display:block}
+.pcard.debe .lbl{color:#FF6B6B}
+.pcard.debe .val2{color:#FF6B6B;font-size:1.15rem}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -275,6 +280,7 @@ input[type=file]{display:none}
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
   </div>
+  <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">IVA de tus facturas capturadas. No constituye asesoramiento fiscal.</p>
@@ -843,6 +849,15 @@ function renderPanel(data, cachedNote){
   $('pN').textContent = String(st.n || 0);
   $('pBase').textContent = fmtEur(st.base);
   $('pTotal').textContent = fmtEur(st.total);
+  /* v18: tarjeta de deuda — suma de filas marcadas pendiente */
+  var deben = (data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
+  if (deben.length){
+    var suma = deben.reduce(function(a, r){ return a + (r.total || 0); }, 0);
+    $('debeTxt').textContent = deben.length + (deben.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(suma);
+    $('cardDebe').classList.add('on');
+  } else {
+    $('cardDebe').classList.remove('on');
+  }
   renderLista();
   $('panelUpdated').textContent = cachedNote
     ? ('datos guardados ' + cachedNote)
@@ -1059,6 +1074,12 @@ $('tabChat').addEventListener('click', function(){
   show('screenChat');
   chatHello();
 });
+/* v18: MODO EMPLEADO — tokens terminados en CAM: solo camara (el servidor ademas les niega panel/chat/pago) */
+if (/CAM$/.test(String(TOKEN || ''))){
+  $('tabPanel').style.display = 'none';
+  $('tabChat').style.display = 'none';
+  $('tabbar').style.gridTemplateColumns = '1fr';
+}
 
 /* ================== MINI-FICHA DE FACTURA (v12) ================== */
 var fichaRow = null;

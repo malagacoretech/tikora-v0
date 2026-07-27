@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A1628">
+<title>Tikora — ficha fiscal</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+:root{--bg:#0A1628;--surface:#132340;--surface-2:#1B2D4F;--border:#25406B;--text:#EAF1FB;--text-muted:#8FA6C7;--accent:#F4C95D}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:calc(1.6rem + env(safe-area-inset-top)) 1.25rem calc(2rem + env(safe-area-inset-bottom))}
+.brand{font-size:1.35rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:1.1rem}
+.brand span{color:var(--accent)}
+.card{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border:1px solid rgba(244,201,93,0.35);border-radius:18px;padding:1.3rem 1.25rem;position:relative;overflow:hidden;margin-bottom:1rem}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.nom{font-size:1.2rem;font-weight:800;line-height:1.3;word-break:break-word}
+.nif{font-size:2.1rem;font-weight:800;color:var(--accent);letter-spacing:0.02em;margin:0.45rem 0 0.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nifl{font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.09em;font-weight:700}
+.dir{font-size:0.85rem;color:var(--text-muted);line-height:1.45;margin-top:0.6rem}
+.row{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.75rem 0.9rem;margin-bottom:0.55rem}
+.row .g{flex:1;min-width:0}
+.row .k{font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:700}
+.row .v{font-size:0.98rem;font-weight:700;word-break:break-word}
+.row a{color:var(--accent);text-decoration:none}
+.btn{width:100%;padding:0.9rem;border-radius:13px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.98rem;font-weight:800;cursor:pointer;margin-top:0.4rem;display:block;text-align:center;text-decoration:none}
+.btn.sec{background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-weight:700}
+.pie{font-size:0.7rem;color:var(--text-muted);text-align:center;margin-top:1.6rem;line-height:1.6}
+.pie a{color:var(--accent);text-decoration:none}
+.vacio{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;font-size:0.9rem;color:var(--text-muted);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Tikora<span>.</span></div>
+  <div id="cont"></div>
+  <p class="pie">Ficha compartida con <b>Tikora</b> — el bolsillo fiscal de tu negocio.<br>
+  <a href="/sp">tikora-v0.netlify.app</a></p>
+</div>
+<script>
+(function(){
+  function q(s){ return document.getElementById(s); }
+  function leer(){
+    var h = String(location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    var o = {}, partes = h.split('&');
+    for (var i = 0; i < partes.length; i++){
+      var kv = partes[i].split('=');
+      if (kv.length < 2) continue;
+      try { o[kv[0]] = decodeURIComponent(kv.slice(1).join('=').replace(/\+/g, ' ')); } catch(e){}
+    }
+    return (o.i || o.n) ? o : null;
+  }
+  var d = leer();
+  var c = q('cont');
+  if (!d){
+    c.innerHTML = '<div class="vacio">Esta p&aacute;gina muestra la ficha fiscal que alguien te comparte con Tikora.<br><br>Ped&iacute; que te vuelvan a ense&ntilde;ar el c&oacute;digo QR o te manden el enlace completo.</div>';
+    return;
+  }
+  function esc(s){ return String(s || '').replace(/[<>&"]/g, function(m){ return ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[m]; }); }
+  var html = '<div class="card">';
+  html += '<div class="nom">' + esc(d.n || 'Ficha fiscal') + '</div>';
+  if (d.i){ html += '<div class="nifl">NIF (el CIF de toda la vida)</div><div class="nif">' + esc(d.i) + '</div>'; }
+  if (d.d){ html += '<div class="dir">' + esc(d.d) + '</div>'; }
+  html += '</div>';
+  if (d.i) html += '<div class="row"><div class="g"><div class="k">NIF</div><div class="v">' + esc(d.i) + '</div></div><button class="btn sec" style="width:auto;margin:0;padding:0.6rem 0.9rem" id="cp">Copiar</button></div>';
+  if (d.t) html += '<div class="row"><div class="g"><div class="k">Tel&eacute;fono</div><div class="v"><a href="tel:' + esc(d.t) + '">' + esc(d.t) + '</a></div></div></div>';
+  if (d.e) html += '<div class="row"><div class="g"><div class="k">Email</div><div class="v"><a href="mailto:' + esc(d.e) + '">' + esc(d.e) + '</a></div></div></div>';
+  html += '<a class="btn" id="vc" href="#">&#128100; Guardar como contacto</a>';
+  c.innerHTML = html;
+  if (q('cp')) q('cp').addEventListener('click', function(){
+    var t = d.i;
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ q('cp').textContent = '&#10003;'; q('cp').textContent = '✓'; });
+    else { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); q('cp').textContent = '✓'; }
+  });
+  var v = ['BEGIN:VCARD','VERSION:3.0'];
+  v.push('FN:' + (d.n || d.i));
+  if (d.n) v.push('ORG:' + d.n);
+  if (d.t) v.push('TEL;TYPE=WORK,VOICE:' + d.t);
+  if (d.e) v.push('EMAIL;TYPE=WORK:' + d.e);
+  if (d.d) v.push('ADR;TYPE=WORK:;;' + d.d.replace(/,/g, ' ') + ';;;;');
+  if (d.i) v.push('NOTE:NIF ' + d.i);
+  v.push('END:VCARD');
+  var blobUrl = 'data:text/vcard;charset=utf-8,' + encodeURIComponent(v.join('\r\n'));
+  var a = q('vc');
+  a.setAttribute('href', blobUrl);
+  a.setAttribute('download', ((d.n || 'contacto').replace(/[^A-Za-z0-9]+/g, '_')) + '.vcf');
+})();
+</script>
+</body>
+</html>

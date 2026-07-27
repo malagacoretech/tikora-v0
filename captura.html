@@ -384,7 +384,7 @@ input[type=file]{display:none}
     <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
     <button class="dbtn sec" type="button" id="dShareBtn">&#128228; Compartir</button>
   </div>
-  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Toc&aacute; el c&oacute;digo para verlo en grande. Al escanearlo con la c&aacute;mara sale tu ficha de contacto con el NIF.</div></div>
+  <div id="qrBox"><canvas id="qrCanvas"></canvas><div class="qh">Toc&aacute; el c&oacute;digo para verlo en grande. Qui&eacute;n lo escanee abre tu ficha con el NIF, para copiarlo o guardarte como contacto.</div></div>
 
   <div id="dCopias"></div>
 
@@ -1275,13 +1275,15 @@ function payloadQR(){
   var n = limpiaMe(datos.nom), nif = limpiaMe(datos.nif), dir = limpiaMe(datos.dir),
       tel = limpiaMe(datos.tel), mail = limpiaMe(datos.mail);
   if (!nif) return null;
-  var nota = 'NIF ' + nif;
-  var completa = 'MECARD:N:' + (n || nif) + ';' + (tel ? ('TEL:' + tel + ';') : '') +
-                 (mail ? ('EMAIL:' + mail + ';') : '') + (dir ? ('ADR:' + dir + ';') : '') +
-                 'NOTE:' + nota + ';;';
-  var media   = 'MECARD:N:' + (n || nif) + ';' + (tel ? ('TEL:' + tel + ';') : '') + 'NOTE:' + nota + ';;';
-  var minima  = 'MECARD:N:' + (n || nif) + ';NOTE:' + nota + ';;';
-  return [completa, media, minima];
+  /* ENLACE (no ficha de contacto): TODOS los moviles reaccionan a un enlace.
+     Al escanearlo se abre la tarjeta Tikora con el NIF, copiar y guardar contacto. */
+  function enc(s){ return encodeURIComponent(s).replace(/%20/g, '+'); }   /* el + ocupa 1 y no 3 */
+  var base = 'https://tikora-v0.netlify.app/t#i=' + enc(nif);
+  var conNom  = base + (n ? ('&n=' + enc(n)) : '');
+  var conTel  = conNom + (tel ? ('&t=' + enc(tel)) : '');
+  var conMail = conTel + (mail ? ('&e=' + enc(mail)) : '');
+  var completa = conMail + (dir ? ('&d=' + enc(dir)) : '');
+  return [completa, conMail, conTel, conNom, base];   /* de la mas rica a la mas corta */
 }
 function renderDatos(){
   $('dNom').textContent = datos.nom || 'Tus datos fiscales';

@@ -152,6 +152,10 @@ input[type=file]{display:none}
 .chatctx{display:none;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid rgba(244,201,93,0.45);border-radius:10px;padding:0.45rem 0.7rem;font-size:0.8rem;margin-bottom:0.5rem}
 .chatctx.on{display:flex}
 .chatctx button{margin-left:auto;background:none;border:none;color:var(--text-muted);font-size:0.9rem;cursor:pointer;padding:0 0.2rem}
+/* v15: entro-hoy + tirar para actualizar */
+.nuevotag{color:var(--accent);font-weight:700}
+#ptrHint{display:none;text-align:center;color:var(--text-muted);font-size:0.8rem;padding:0.35rem 0}
+#ptrHint.on{display:block;color:var(--accent);font-weight:700}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem}
 .pcard.hero{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border-color:rgba(244,201,93,0.35);margin-bottom:0.7rem;position:relative;overflow:hidden}
 .pcard.hero::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -697,12 +701,26 @@ function panelBanner(msg, retry){
 }
 var panelData = null, panelModo = 'ultimas', panelProvSel = null;
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
+/* v15: "entro" viene como dd/mm/aaaa hh:mm:ss — devuelve hh:mm si fue HOY, si no null */
+function entroHoy(s){
+  var m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+  if (!m) return null;
+  var hoy = new Date();
+  function p(n){ return (n < 10 ? '0' : '') + n; }
+  if (m[3] + m[2] + m[1] === String(hoy.getFullYear()) + p(hoy.getMonth() + 1) + p(hoy.getDate())) return m[4] + ':' + m[5];
+  return null;
+}
 function renderFilas(cont, rowsArr){
   rowsArr.forEach(function(r){
     var row = document.createElement('div'); row.className = 'prow clickable';
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
+    var eh = entroHoy(r.entro);
+    if (eh){
+      var tag = document.createElement('span'); tag.className = 'nuevotag'; tag.textContent = ' · entró hoy ' + eh;
+      d1.appendChild(tag);
+    }
     who.appendChild(e1); who.appendChild(d1);
     var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
     row.appendChild(who); row.appendChild(amt);
@@ -848,6 +866,24 @@ setInterval(function(){
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden && $('screenPanel').classList.contains('on')) loadPanel(true);
 });
+/* v15: tirar hacia abajo en el panel para refrescar */
+(function(){
+  var sp = $('screenPanel');
+  var hint = document.createElement('div'); hint.id = 'ptrHint'; hint.textContent = '↓ Soltá para actualizar';
+  sp.insertBefore(hint, sp.firstChild);
+  var startY = 0, tirando = false;
+  sp.addEventListener('touchstart', function(e){
+    if (sp.scrollTop <= 0){ startY = e.touches[0].clientY; tirando = true; } else { tirando = false; }
+  }, { passive: true });
+  sp.addEventListener('touchmove', function(e){
+    if (!tirando) return;
+    hint.classList.toggle('on', (e.touches[0].clientY - startY) > 70);
+  }, { passive: true });
+  sp.addEventListener('touchend', function(){
+    if (hint.classList.contains('on')){ hint.classList.remove('on'); toast('Actualizando…', false); loadPanel(false); }
+    tirando = false;
+  });
+})();
 $('tabCam').addEventListener('click', function(){
   if ($('screenCam').classList.contains('on') || $('screenShot').classList.contains('on')) return;
   bootCameraScreen();

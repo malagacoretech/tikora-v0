@@ -68,7 +68,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #statusLine.on{display:block}
 
 /* ====== PANTALLAS ALTERNATIVAS (sin cámara / sin token) ====== */
-.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.5rem + env(safe-area-inset-bottom));overflow-y:auto;background:var(--bg)}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.5rem + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;background:var(--bg)}
 .screen.on{display:flex}
 .screen .brandbig{text-align:center;margin:1.5rem 0}
 .screen .brandbig h1{font-size:2.1rem;letter-spacing:-0.03em;font-weight:800}
@@ -134,9 +134,10 @@ input[type=file]{display:none}
 .nrow .nk{font-size:0.6rem;color:#7FE3DB;text-transform:uppercase;letter-spacing:0.08em;font-weight:800}
 .nrow .nv{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.02em;word-break:break-all;line-height:1.25}
 .dform{display:grid;gap:0.5rem;margin-bottom:0.5rem}
-.dform input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0.7rem 0.9rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
+/* v31: los campos NUNCA empujan el ancho de la pantalla (min-width:0 + minmax) */
+.dform input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0.7rem 0.9rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none;width:100%;min-width:0;box-sizing:border-box}
 .dform input:focus{border-color:var(--accent)}
-.dform .par{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}
+.dform .par{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.5rem}
 .dbtn{width:100%;padding:0.85rem;border-radius:12px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.95rem;font-weight:800;cursor:pointer}
 .dbtn.sec{background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-weight:700}
 #qrBox{display:none;text-align:center;margin:0.4rem 0 0.9rem}
@@ -160,7 +161,7 @@ input[type=file]{display:none}
 .neta .nsub{font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem;line-height:1.45}
 #tabbar .tab.active{color:var(--accent)}
 #tabbar .tab:active{transform:scale(0.97)}
-.screen.with-tabs{padding-bottom:calc(5rem + env(safe-area-inset-bottom))}
+.screen.with-tabs{padding-bottom:calc(5.4rem + env(safe-area-inset-bottom))}
 
 /* ====== MI PANEL ====== */
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}

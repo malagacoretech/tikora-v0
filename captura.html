@@ -397,6 +397,8 @@ button.capbadge:active{transform:scale(0.95)}
     <button type="button" data-f="nada"><span class="pf"></span>Sin asignar</button>
   </div>
   <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; para ver cu&aacute;les</div></div>
+  <div class="pcard debe" id="cardRehacer" style="display:none"><div class="lbl">&#9888;&#65039; Fotos para repetir</div><div class="val2" id="rehacerTxt">&mdash;</div><div class="debehint" id="rehacerHint">Toc&aacute; para verlas</div></div>
+  <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">El ahorro es una estimaci&oacute;n sobre el IVA identificado en tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
@@ -1158,7 +1160,24 @@ function consumirRehacer(){
   return f;
 }
 function renderPanel(data, cachedNote){
-  if (data && data.empleado){ renderPanelEmpleado(data, cachedNote); return; }
+  /* v39 (decision Matias): panel COMPLETO tambien para el empleado — misma vista para todos */
+  $('screenPanel').classList.remove('modo-empleado');
+  if (data && data.negocio){
+    /* precarga del negocio (empleados): Mis datos + Mis claves desde la pestaña Negocio */
+    try {
+      dCargar();
+      var nd = data.negocio.datos || {};
+      if (nd.nom) datos.nom = nd.nom;
+      if (nd.nif) datos.nif = nd.nif;
+      if (nd.dir) datos.dir = nd.dir;
+      if (nd.tel) datos.tel = nd.tel;
+      if (nd.mail) datos.mail = nd.mail;
+      if (data.negocio.claves && data.negocio.claves.length){
+        datos.nums = data.negocio.claves.map(function(k){ return { c: k.c, v: k.v }; });
+      }
+      dGuardar();
+    } catch(e){}
+  }
   panelData = data;
   var st = data.stats || {};
   $('pIva').textContent = fmtEur(st.iva);
@@ -1173,6 +1192,36 @@ function renderPanel(data, cachedNote){
     $('cardDebe').classList.add('on');
   } else {
     $('cardDebe').classList.remove('on');
+  }
+  /* v39: "Fotos para repetir" — las filas de Revisar sin rehacer, con ver-foto y rehacer enlazado */
+  var pend = data.pendientes || [];
+  if (pend.length){
+    $('rehacerTxt').textContent = pend.length + (pend.length === 1 ? ' foto' : ' fotos');
+    $('cardRehacer').style.display = 'block';
+    var rr = $('rehacerRows');
+    rr.innerHTML = '';
+    pend.forEach(function(c){
+      var row = document.createElement('div'); row.className = 'caprow rev';
+      var g = document.createElement('div'); g.className = 'cg';
+      var e1 = document.createElement('div'); e1.className = 'ce'; e1.textContent = c.emisor;
+      var h1 = document.createElement('div'); h1.className = 'ch';
+      h1.textContent = (c.entro ? ('entró ' + String(c.entro).slice(0, 16)) : '') + (c.motivo ? (' · ' + c.motivo) : '');
+      g.appendChild(e1); g.appendChild(h1);
+      row.appendChild(g);
+      if (c.f){
+        var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
+        vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); });
+        row.appendChild(vf);
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
+        b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
+        row.appendChild(b);
+      }
+      rr.appendChild(row);
+    });
+  } else {
+    $('cardRehacer').style.display = 'none';
+    $('rehacerRows').style.display = 'none';
+    $('rehacerRows').innerHTML = '';
   }
   renderLista();
   $('panelUpdated').textContent = cachedNote
@@ -1276,6 +1325,13 @@ document.querySelectorAll('#pagoFil button').forEach(function(b){
     if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
     renderLista();
   });
+});
+/* v39: la tarjeta "Fotos para repetir" despliega/pliega su lista */
+$('cardRehacer').addEventListener('click', function(){
+  var rr = $('rehacerRows');
+  var abierto = rr.style.display !== 'none';
+  rr.style.display = abierto ? 'none' : 'block';
+  $('rehacerHint').textContent = abierto ? 'Tocá para verlas' : 'Tocá para plegarlas';
 });
 /* v10: buscador — filtra sin acentos ni mayusculas, en las dos vistas */
 var panelQuery = '';
@@ -1693,6 +1749,9 @@ if (ES_EMPLEADO){
      El chat sigue fuera (y el servidor se lo niega igualmente). */
   $('tabChat').style.display = 'none';
   $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
+  /* v39: el chat de la ficha tambien fuera (el servidor se lo niega al empleado) */
+  var _fp = $('fichaPreg');
+  if (_fp) _fp.style.display = 'none';
   /* v37: al arrancar, buscar el panel en segundo plano → precarga Mis datos + Mis claves del negocio */
   setTimeout(function(){ try { loadPanel(true); } catch(e){} }, 800);
 }

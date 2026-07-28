@@ -274,6 +274,7 @@ input[type=file]{display:none}
 .caprow.rev{border-color:rgba(229,72,77,0.45)}
 .caprow .cg{flex:1;min-width:0}
 .caprow .ce{font-size:0.92rem;font-weight:700}
+.caprow .ce.grande{font-size:1.08rem;font-variant-numeric:tabular-nums}
 .caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
 .capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem;font-family:inherit}
 button.capbadge{cursor:pointer}
@@ -376,14 +377,14 @@ button.capbadge:active{transform:scale(0.95)}
   </div>
   <div class="pbanner" id="panelBanner" style="display:none"></div>
   <div class="pcard hero">
-    <div class="lbl">Tu ahorro estimado</div>
+    <div class="lbl">Tu IVA identificado este mes</div>
     <div class="val" id="pIva">&mdash;</div>
-    <div class="sub">IVA identificado en tus facturas &middot; estimaci&oacute;n &mdash; confirmalo con tu gestor</div>
+    <div class="sub">de tus facturas capturadas &middot; estimaci&oacute;n &mdash; confirmalo con tu gestor</div>
   </div>
   <div class="grid3">
     <div class="pcard"><div class="lbl">Facturas</div><div class="val2" id="pN">&mdash;</div></div>
     <div class="pcard"><div class="lbl">Base imponible</div><div class="val2" id="pBase">&mdash;</div></div>
-    <div class="pcard"><div class="lbl">Total</div><div class="val2" id="pTotal">&mdash;</div></div>
+    <div class="pcard"><div class="lbl">Proveedores</div><div class="val2" id="pProv">&mdash;</div></div>
   </div>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
@@ -606,6 +607,18 @@ function getToken(){
   } catch(e){ return ''; }
 }
 var TOKEN = getToken();
+/* v40: la caché del panel es POR TOKEN y se purgan las de otros tokens al arrancar —
+   nada de contabilidades ajenas durmiendo en el localStorage de un móvil compartido (criterio RGPD del proxy). */
+function panelCacheKey(){ return 'tikora_panel_cache_' + (TOKEN || ''); }
+(function(){
+  try {
+    var mia = panelCacheKey();
+    for (var i = localStorage.length - 1; i >= 0; i--){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('tikora_panel_cache') === 0 && k !== mia) localStorage.removeItem(k);
+    }
+  } catch(e){}
+})();
 
 /* ================== CONTADOR SEMANAL ================== */
 function weekKey(){
@@ -1087,68 +1100,16 @@ function renderFilas(cont, rowsArr){
     cont.appendChild(row);
   });
 }
-/* v36: panel de empleado — el SERVIDOR decide qué ve (sin importes); acá solo se pinta */
-function renderPanelEmpleado(data, cachedNote){
-  panelData = data;
-  $('screenPanel').classList.add('modo-empleado');
-  /* v37: PRECARGA del negocio — Mis datos y Mis claves del empleado llegan del Sheet (pestaña Negocio) */
-  if (data.negocio){
-    try {
-      dCargar();
-      var nd = data.negocio.datos || {};
-      if (nd.nom) datos.nom = nd.nom;
-      if (nd.nif) datos.nif = nd.nif;
-      if (nd.dir) datos.dir = nd.dir;
-      if (nd.tel) datos.tel = nd.tel;
-      if (nd.mail) datos.mail = nd.mail;
-      if (data.negocio.claves && data.negocio.claves.length){
-        datos.nums = data.negocio.claves.map(function(k){ return { c: k.c, v: k.v }; });
-      }
-      dGuardar();
-    } catch(e){}
-  }
-  var cont = $('panelRows');
-  cont.innerHTML = '';
-  var h = document.createElement('div'); h.className = 'caphead'; h.textContent = 'Tus capturas';
-  var s = document.createElement('div'); s.className = 'capsub'; s.textContent = 'Hoy y ayer. Si una dice "repetila", sacale otra foto a esa factura: la primera no se leyó bien.';
-  cont.appendChild(h); cont.appendChild(s);
-  var caps = data.capturas || [];
-  if (!caps.length){
-    var e = document.createElement('div'); e.className = 'pempty';
-    e.textContent = 'Sin capturas todavía hoy. Tocá Capturar y sacá la primera.';
-    cont.appendChild(e);
-  }
-  caps.forEach(function(c){
-    var row = document.createElement('div'); row.className = 'caprow' + (c.estado === 'revisar' ? ' rev' : '');
-    var g = document.createElement('div'); g.className = 'cg';
-    var e1 = document.createElement('div'); e1.className = 'ce'; e1.textContent = c.emisor;
-    var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = 'entró ' + String(c.entro || '').slice(0, 16);
-    g.appendChild(e1); g.appendChild(h1);
-    /* v38: "repetila" es un BOTON — abre la camara y la foto nueva viaja enlazada a esta fila */
-    var esRehacer = (c.estado === 'revisar' && c.f);
-    var b = document.createElement(esRehacer ? 'button' : 'span');
-    b.className = 'capbadge ' + (c.estado === 'revisar' ? 'rev' : 'ok');
-    b.textContent = (c.estado === 'revisar') ? '⚠ repetila' : '✓ entró';
-    if (esRehacer){
-      b.type = 'button';
-      b.addEventListener('click', function(){ iniciarRehacer(c); });
-    }
-    row.appendChild(g); row.appendChild(b);
-    cont.appendChild(row);
-  });
-  $('panelUpdated').textContent = cachedNote
-    ? ('datos guardados ' + cachedNote)
-    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : ''));
-}
 /* v38: rehacer enlazado — tocar "repetila" abre la camara; la proxima foto viaja con el fileId
    de la fila fallida y el servidor la marca como rehecha (desaparece del panel sola). */
 var rehacerDe = null;
 function iniciarRehacer(c){
   rehacerDe = { f: c.f, emisor: c.emisor };
+  var etiqueta = (c.emisor && c.emisor.charAt(0) !== '(') ? c.emisor : ('la de las ' + String(c.entro || '').slice(11, 16));
   $('tabCam').click();
   var s = $('statusLine');
-  if (s){ s.textContent = 'Rehaciendo: ' + c.emisor + ' — sacá la foto de nuevo'; s.classList.add('on'); }
-  toast('Sacale otra foto a la factura de ' + c.emisor, false);
+  if (s){ s.textContent = 'Rehaciendo ' + etiqueta + ' — sacá la foto de nuevo'; s.classList.add('on'); }
+  toast('Sacale otra foto a ' + etiqueta, false);
 }
 function consumirRehacer(){
   var f = (rehacerDe && rehacerDe.f) || '';
@@ -1180,10 +1141,14 @@ function renderPanel(data, cachedNote){
   }
   panelData = data;
   var st = data.stats || {};
-  $('pIva').textContent = fmtEur(st.iva);
+  /* v40: el hero promete "este mes" — se calcula el IVA del mes en curso; Proveedores ocupa el tercer fijo */
+  var ymHoy = (function(){ var d = new Date(); return d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1)); })();
+  var ivaMes = 0;
+  (data.rows || []).forEach(function(r){ if (String(r.fecha || '').slice(0, 7) === ymHoy) ivaMes += (r.iva || 0); });
+  $('pIva').textContent = fmtEur(Math.round(ivaMes * 100) / 100);
   $('pN').textContent = String(st.n || 0);
   $('pBase').textContent = fmtEur(st.base);
-  $('pTotal').textContent = fmtEur(st.total);
+  $('pProv').textContent = String(st.emisores || 0);
   /* v18: tarjeta de deuda — suma de filas marcadas pendiente */
   var deben = (data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
   if (deben.length){
@@ -1202,11 +1167,11 @@ function renderPanel(data, cachedNote){
     rr.innerHTML = '';
     pend.forEach(function(c){
       var row = document.createElement('div'); row.className = 'caprow rev';
+      /* v40 (pedido Matías): solo CUÁNDO entró, en grande — sin emisor a medias ni parrafada de campos */
       var g = document.createElement('div'); g.className = 'cg';
-      var e1 = document.createElement('div'); e1.className = 'ce'; e1.textContent = c.emisor;
-      var h1 = document.createElement('div'); h1.className = 'ch';
-      h1.textContent = (c.entro ? ('entró ' + String(c.entro).slice(0, 16)) : '') + (c.motivo ? (' · ' + c.motivo) : '');
-      g.appendChild(e1); g.appendChild(h1);
+      var e1 = document.createElement('div'); e1.className = 'ce grande';
+      e1.textContent = c.entro ? ('Entró ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
+      g.appendChild(e1);
       row.appendChild(g);
       if (c.f){
         var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
@@ -1342,7 +1307,7 @@ function loadPanel(silent){
   if (!TOKEN) return;
   /* cache primero: algo en pantalla al instante, incluso sin red */
   var cache = null;
-  try { cache = JSON.parse(localStorage.getItem('tikora_panel_cache') || 'null'); } catch(e){}
+  try { cache = JSON.parse(localStorage.getItem(panelCacheKey()) || 'null'); } catch(e){}
   if (cache && cache.data){
     var d = new Date(cache.ts);
     function p(n){ return (n<10?'0':'')+n; }
@@ -1361,7 +1326,7 @@ function loadPanel(silent){
       if (!data || !data.ok) throw { msg: 'Respuesta inesperada del servicio.' };
       renderPanel(data, null);
       panelBanner(null);
-      try { localStorage.setItem('tikora_panel_cache', JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
+      try { localStorage.setItem(panelCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
     })
     .catch(function(err){
       var hasCache = !!(cache && cache.data);
@@ -1586,7 +1551,7 @@ function renderNeta(){
   if (rep === null || isNaN(rep)){ box.style.display = 'none'; return; }
   var sop = 0, hay = false;
   try {
-    var cache = JSON.parse(localStorage.getItem('tikora_panel_cache') || 'null');
+    var cache = JSON.parse(localStorage.getItem(panelCacheKey()) || 'null');
     var rows = (cache && cache.data && cache.data.rows) || [];
     var ini = q.slice(0, 4) + '-' + ('0' + ((parseInt(q.slice(-1), 10) - 1) * 3 + 1)).slice(-2);
     rows.forEach(function(r){

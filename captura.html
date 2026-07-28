@@ -122,7 +122,9 @@ input[type=file]{display:none}
 .copybtn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer}
 .copybtn:active{background:var(--accent);color:#0A1628}
 .delbtn{flex-shrink:0;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0 0.2rem}
-.dsec{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin:1.3rem 0 0.6rem}
+/* v34: titulos de seccion grandes y en dorado, con barrita — que se vea donde empieza cada cosa */
+.dsec{font-size:0.95rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;font-weight:800;margin:1.5rem 0 0.7rem;display:flex;align-items:center;gap:0.5rem}
+.dsec::before{content:"";width:4px;height:1.05rem;border-radius:2px;background:var(--accent);flex-shrink:0}
 /* v29: Mis numeros de cliente — herramienta con identidad propia (verde agua, no dorado):
    que se vea que es OTRA cosa: el numero que te piden en el mostrador, grande y listo */
 .numzone{background:var(--surface);border:1px solid rgba(77,208,199,0.45);border-radius:16px;padding:1rem 1.05rem;margin:1.3rem 0 0.9rem;position:relative;overflow:hidden}
@@ -258,6 +260,22 @@ input[type=file]{display:none}
 .pg-pendiente .pgword{color:#FF6B6B}
 .pg-efectivo .pgword{color:#51CF66}
 .pg-tarjeta .pgword{color:#4DABF7}
+/* v32: sin forma de pago asignada — numero blanco y "sin asignar" debajo, que ninguna fila quede muda */
+.prow.pg-nada .amt{color:var(--text)}
+.prow.pg-nada .pgword{color:var(--text-muted)}
+/* v32: base + IVA en cada fila (la diferencia es la cuota, en dorado suave) */
+.baseline{font-size:0.66rem;color:var(--text-muted);margin-top:0.12rem;font-variant-numeric:tabular-nums}
+.baseline .bivaw{color:#F8D57E;font-weight:700}
+/* v33: chips de filtro por forma de pago — un toque y ves solo esas, sin buscar */
+.pagofil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.55rem;scrollbar-width:none}
+.pagofil::-webkit-scrollbar{display:none}
+.pagofil button{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
+.pagofil button .pf{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--text-muted)}
+.pagofil button[data-f="pendiente"] .pf{background:#E5484D}
+.pagofil button[data-f="efectivo"] .pf{background:#2F9E44}
+.pagofil button[data-f="tarjeta"] .pf{background:#1971C2}
+.pagofil button[data-f=""] .pf{background:var(--accent)}
+.pagofil button.on{border-color:var(--accent);color:var(--text);background:var(--surface-2)}
 /* v28: la tarjeta Sin pagar se toca y muestra solo las pendientes */
 .pcard.debe{cursor:pointer}
 .pcard.debe:active{background:rgba(229,72,77,0.10)}
@@ -356,6 +374,13 @@ input[type=file]{display:none}
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
+  </div>
+  <div class="pagofil" id="pagoFil">
+    <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
+    <button type="button" data-f="pendiente"><span class="pf"></span>Sin pagar</button>
+    <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo</button>
+    <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta</button>
+    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar</button>
   </div>
   <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; para ver cu&aacute;les</div></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
@@ -989,7 +1014,7 @@ function panelBanner(msg, retry){
   }
   b.style.display = 'block';
 }
-var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPend = false;
+var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPago = '';
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
 /* v19 (RGPD): la foto se abre via el proxy con token — el enlace directo de Drive no llega al cliente */
 function fotoSegura(url){
@@ -1012,6 +1037,7 @@ function renderFilas(cont, rowsArr){
     if (pg === 'pendiente') row.classList.add('pg-pendiente');
     else if (pg === 'efectivo') row.classList.add('pg-efectivo');
     else if (pg === 'tarjeta') row.classList.add('pg-tarjeta');
+    else row.classList.add('pg-nada');
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
@@ -1021,15 +1047,19 @@ function renderFilas(cont, rowsArr){
       d1.appendChild(tag);
     }
     who.appendChild(e1); who.appendChild(d1);
+    /* v32: base imponible, total y la diferencia (el IVA) en cada fila */
+    if (r.total && r.iva){
+      var bl = document.createElement('div'); bl.className = 'baseline';
+      bl.innerHTML = 'Base ' + fmtEur(r.total - r.iva) + ' · <span class="bivaw">IVA ' + fmtEur(r.iva) + '</span>';
+      who.appendChild(bl);
+    }
     /* v28: la palabra del pago debajo del importe — no hace falta saberse los colores */
     var amtc = document.createElement('div'); amtc.className = 'amtc';
     var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
     amtc.appendChild(amt);
-    if (pg === 'pendiente' || pg === 'efectivo' || pg === 'tarjeta'){
-      var pw = document.createElement('div'); pw.className = 'pgword';
-      pw.textContent = (pg === 'pendiente') ? 'sin pagar' : pg;
-      amtc.appendChild(pw);
-    }
+    var pw = document.createElement('div'); pw.className = 'pgword';
+    pw.textContent = (pg === 'pendiente') ? 'sin pagar' : ((pg === 'efectivo' || pg === 'tarjeta') ? pg : 'sin asignar');
+    amtc.appendChild(pw);
     row.appendChild(who); row.appendChild(amtc);
     if (r.foto){
       var a = document.createElement('a'); a.className = 'foto'; a.href = fotoSegura(r.foto); a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
@@ -1067,9 +1097,10 @@ function renderLista(){
   cont.innerHTML = '';
   $('segUltimas').classList.toggle('on', panelModo === 'ultimas');
   $('segProv').classList.toggle('on', panelModo === 'prov');
-  /* v28: estado visual del filtro de pendientes, en cualquier vista */
-  $('cardDebe').classList.toggle('filtro', panelFiltroPend);
-  $('debeHint').textContent = panelFiltroPend ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
+  /* v33: estado visual de los filtros de pago, en cualquier vista */
+  document.querySelectorAll('#pagoFil button').forEach(function(b){ b.classList.toggle('on', (b.getAttribute('data-f') || '') === panelFiltroPago); });
+  $('cardDebe').classList.toggle('filtro', panelFiltroPago === 'pendiente');
+  $('debeHint').textContent = panelFiltroPago === 'pendiente' ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
   if (panelModo === 'prov'){
     var provs = (data.proveedores || []);
     if (panelQuery && !panelProvSel){
@@ -1113,12 +1144,16 @@ function renderLista(){
     return;
   }
   var rows = (data.rows || []);          /* todas las que manda el API */
-  /* v28: filtro "solo sin pagar" al tocar la tarjeta roja */
-  if (panelFiltroPend){
-    rows = rows.filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
+  /* v33: filtro por forma de pago (chips o tarjeta roja) */
+  if (panelFiltroPago){
+    rows = rows.filter(function(r){
+      var pgf = String(r.pago || '').toLowerCase();
+      if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta';
+      return pgf === panelFiltroPago;
+    });
     var backP = document.createElement('div'); backP.className = 'backprov';
-    backP.textContent = '← Todas las facturas · viendo solo SIN PAGAR';
-    backP.addEventListener('click', function(){ panelFiltroPend = false; renderLista(); });
+    backP.textContent = '← Todas las facturas · viendo solo ' + ({ pendiente: 'SIN PAGAR', efectivo: 'EFECTIVO', tarjeta: 'TARJETA', nada: 'SIN ASIGNAR' })[panelFiltroPago];
+    backP.addEventListener('click', function(){ panelFiltroPago = ''; renderLista(); });
     cont.appendChild(backP);
   }
   if (panelQuery){
@@ -1127,11 +1162,11 @@ function renderLista(){
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
-    e.textContent = panelFiltroPend ? 'Nada sin pagar — todo al día.' : (panelQuery ? 'Nada que coincida con la búsqueda.' : 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.');
+    e.textContent = panelFiltroPago ? (panelFiltroPago === 'pendiente' ? 'Nada sin pagar — todo al día.' : 'Ninguna factura con ese pago.') : (panelQuery ? 'Nada que coincida con la búsqueda.' : 'Todavía no hay facturas capturadas. Tocá Capturar y sacá la primera.');
     cont.appendChild(e);
   } else {
     renderFilas(cont, rows);
-    if (!panelQuery && !panelFiltroPend && (data.stats && data.stats.n || 0) > rows.length){
+    if (!panelQuery && !panelFiltroPago && (data.stats && data.stats.n || 0) > rows.length){
       var more = document.createElement('div');
       more.className = 'pempty';
       more.textContent = 'Mostrando las últimas ' + rows.length + ' de ' + data.stats.n + ' facturas.';
@@ -1139,13 +1174,20 @@ function renderLista(){
     }
   }
 }
-$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPend = false; renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPend = false; renderLista(); });
-/* v28: tocar la tarjeta roja alterna el filtro de pendientes */
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; renderLista(); });
+/* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
-  panelFiltroPend = !panelFiltroPend;
-  if (panelFiltroPend){ panelModo = 'ultimas'; panelProvSel = null; }
+  panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
+  if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
   renderLista();
+});
+document.querySelectorAll('#pagoFil button').forEach(function(b){
+  b.addEventListener('click', function(){
+    panelFiltroPago = b.getAttribute('data-f') || '';
+    if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
+    renderLista();
+  });
 });
 /* v10: buscador — filtra sin acentos ni mayusculas, en las dos vistas */
 var panelQuery = '';

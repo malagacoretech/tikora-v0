@@ -275,7 +275,9 @@ input[type=file]{display:none}
 .caprow .cg{flex:1;min-width:0}
 .caprow .ce{font-size:0.92rem;font-weight:700}
 .caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
-.capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem}
+.capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem;font-family:inherit}
+button.capbadge{cursor:pointer}
+button.capbadge:active{transform:scale(0.95)}
 .capbadge.ok{background:rgba(34,197,94,0.15);color:#51CF66;border:1px solid rgba(34,197,94,0.4)}
 .capbadge.rev{background:rgba(229,72,77,0.15);color:#FF6B6B;border:1px solid rgba(229,72,77,0.45)}
 /* v33: chips de filtro por forma de pago — un toque y ves solo esas, sin buscar */
@@ -694,7 +696,7 @@ function sendItem(item, onProgress){
       };
       xhr.onerror = function(){ res({ ok:false, dead:false, why:'red' }); };
       xhr.ontimeout = function(){ res({ ok:false, dead:false, why:'timeout' }); };
-      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64 }));
+      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '' }));
     });
   });
 }
@@ -766,7 +768,7 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
     return Promise.resolve(false);
   }
   if (blob.size < 1024){ toast('Captura vacía, probá otra vez.', true); return Promise.resolve(false); }
-  return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false })
+  return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false, redo: consumirRehacer() })
     .then(function(id){
       if (markThumb) thumbItemId = id;   /* la miniatura sigue a ESTA captura */
       refreshQueueUI();
@@ -1120,14 +1122,40 @@ function renderPanelEmpleado(data, cachedNote){
     var e1 = document.createElement('div'); e1.className = 'ce'; e1.textContent = c.emisor;
     var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = 'entró ' + String(c.entro || '').slice(0, 16);
     g.appendChild(e1); g.appendChild(h1);
-    var b = document.createElement('span'); b.className = 'capbadge ' + (c.estado === 'revisar' ? 'rev' : 'ok');
+    /* v38: "repetila" es un BOTON — abre la camara y la foto nueva viaja enlazada a esta fila */
+    var esRehacer = (c.estado === 'revisar' && c.f);
+    var b = document.createElement(esRehacer ? 'button' : 'span');
+    b.className = 'capbadge ' + (c.estado === 'revisar' ? 'rev' : 'ok');
     b.textContent = (c.estado === 'revisar') ? '⚠ repetila' : '✓ entró';
+    if (esRehacer){
+      b.type = 'button';
+      b.addEventListener('click', function(){ iniciarRehacer(c); });
+    }
     row.appendChild(g); row.appendChild(b);
     cont.appendChild(row);
   });
   $('panelUpdated').textContent = cachedNote
     ? ('datos guardados ' + cachedNote)
     : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : ''));
+}
+/* v38: rehacer enlazado — tocar "repetila" abre la camara; la proxima foto viaja con el fileId
+   de la fila fallida y el servidor la marca como rehecha (desaparece del panel sola). */
+var rehacerDe = null;
+function iniciarRehacer(c){
+  rehacerDe = { f: c.f, emisor: c.emisor };
+  $('tabCam').click();
+  var s = $('statusLine');
+  if (s){ s.textContent = 'Rehaciendo: ' + c.emisor + ' — sacá la foto de nuevo'; s.classList.add('on'); }
+  toast('Sacale otra foto a la factura de ' + c.emisor, false);
+}
+function consumirRehacer(){
+  var f = (rehacerDe && rehacerDe.f) || '';
+  if (f){
+    rehacerDe = null;
+    var s = $('statusLine');
+    if (s){ s.textContent = ''; s.classList.remove('on'); }
+  }
+  return f;
 }
 function renderPanel(data, cachedNote){
   if (data && data.empleado){ renderPanelEmpleado(data, cachedNote); return; }

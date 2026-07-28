@@ -266,6 +266,18 @@ input[type=file]{display:none}
 /* v32: base + IVA en cada fila (la diferencia es la cuota, en dorado suave) */
 .baseline{font-size:0.66rem;color:var(--text-muted);margin-top:0.12rem;font-variant-numeric:tabular-nums}
 .baseline .bivaw{color:#F8D57E;font-weight:700}
+/* v36: panel de EMPLEADO — sin un solo importe; solo sus capturas con estado accionable */
+#screenPanel.modo-empleado .pcard.hero,#screenPanel.modo-empleado .grid3,#screenPanel.modo-empleado .seg,#screenPanel.modo-empleado .pagofil,#screenPanel.modo-empleado .pcard.debe,#screenPanel.modo-empleado .psearch,#screenPanel.modo-empleado .legal{display:none}
+.caphead{font-size:0.95rem;font-weight:800;margin:0.2rem 0}
+.capsub{font-size:0.74rem;color:var(--text-muted);margin-bottom:0.8rem;line-height:1.45}
+.caprow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
+.caprow.rev{border-color:rgba(229,72,77,0.45)}
+.caprow .cg{flex:1;min-width:0}
+.caprow .ce{font-size:0.92rem;font-weight:700}
+.caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
+.capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem}
+.capbadge.ok{background:rgba(34,197,94,0.15);color:#51CF66;border:1px solid rgba(34,197,94,0.4)}
+.capbadge.rev{background:rgba(229,72,77,0.15);color:#FF6B6B;border:1px solid rgba(229,72,77,0.45)}
 /* v33: chips de filtro por forma de pago — un toque y ves solo esas, sin buscar */
 .pagofil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.55rem;scrollbar-width:none}
 .pagofil::-webkit-scrollbar{display:none}
@@ -1071,7 +1083,38 @@ function renderFilas(cont, rowsArr){
     cont.appendChild(row);
   });
 }
+/* v36: panel de empleado — el SERVIDOR decide qué ve (sin importes); acá solo se pinta */
+function renderPanelEmpleado(data, cachedNote){
+  panelData = data;
+  $('screenPanel').classList.add('modo-empleado');
+  var cont = $('panelRows');
+  cont.innerHTML = '';
+  var h = document.createElement('div'); h.className = 'caphead'; h.textContent = 'Tus capturas';
+  var s = document.createElement('div'); s.className = 'capsub'; s.textContent = 'Hoy y ayer. Si una dice "repetila", sacale otra foto a esa factura: la primera no se leyó bien.';
+  cont.appendChild(h); cont.appendChild(s);
+  var caps = data.capturas || [];
+  if (!caps.length){
+    var e = document.createElement('div'); e.className = 'pempty';
+    e.textContent = 'Sin capturas todavía hoy. Tocá Capturar y sacá la primera.';
+    cont.appendChild(e);
+  }
+  caps.forEach(function(c){
+    var row = document.createElement('div'); row.className = 'caprow' + (c.estado === 'revisar' ? ' rev' : '');
+    var g = document.createElement('div'); g.className = 'cg';
+    var e1 = document.createElement('div'); e1.className = 'ce'; e1.textContent = c.emisor;
+    var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = 'entró ' + String(c.entro || '').slice(0, 16);
+    g.appendChild(e1); g.appendChild(h1);
+    var b = document.createElement('span'); b.className = 'capbadge ' + (c.estado === 'revisar' ? 'rev' : 'ok');
+    b.textContent = (c.estado === 'revisar') ? '⚠ repetila' : '✓ entró';
+    row.appendChild(g); row.appendChild(b);
+    cont.appendChild(row);
+  });
+  $('panelUpdated').textContent = cachedNote
+    ? ('datos guardados ' + cachedNote)
+    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : ''));
+}
 function renderPanel(data, cachedNote){
+  if (data && data.empleado){ renderPanelEmpleado(data, cachedNote); return; }
   panelData = data;
   var st = data.stats || {};
   $('pIva').textContent = fmtEur(st.iva);
@@ -1602,10 +1645,10 @@ if (ES_EMPLEADO){
   if (_iBlo) _iBlo.style.display = 'none';
 }
 if (ES_EMPLEADO){
-  /* v30: el empleado ve Capturar + Mis claves + Mis datos (lo que se usa en el mostrador) */
-  $('tabPanel').style.display = 'none';
+  /* v36: el empleado SÍ ve el Panel — pero RECORTADO POR EL SERVIDOR (solo sus capturas, sin importes).
+     El chat sigue fuera (y el servidor se lo niega igualmente). */
   $('tabChat').style.display = 'none';
-  $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr';
+  $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
 }
 
 /* ================== MINI-FICHA DE FACTURA (v12) ================== */

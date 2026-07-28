@@ -973,19 +973,20 @@ function handleIncomingFiles(files){
   if (!files || !files.length) return;
   var okTypes = ['image/jpeg','image/png','image/webp','application/pdf'];
   var enviados = 0;
+  var enCam = $('screenCam').classList.contains('on');
+  var unico = files.length === 1;
+  var conVentana = enCam && unico;   /* v35: un solo fichero desde la cámara → misma ventana de 4 s que el disparador */
   for (var i = 0; i < files.length; i++){
     var f = files[i];
     var mime = f.type || 'image/jpeg';
     if (okTypes.indexOf(mime) < 0){ toast('Formato no soportado ('+mime+'). Usá JPG, PNG, WEBP o PDF.', true); continue; }
     var ext = mime === 'application/pdf' ? 'pdf' : (mime.split('/')[1]||'jpg').replace('jpeg','jpg');
     var esFoto = mime.indexOf('image/') === 0;
-    var enCam = $('screenCam').classList.contains('on');
-    var unico = files.length === 1;
     if (enCam && esFoto && unico) setThumb(f);
-    enqueue(f, mime, f.name || tsName(ext), 'archivo', enCam && esFoto && unico);
+    enqueue(f, mime, f.name || tsName(ext), 'archivo', enCam && esFoto && unico, conVentana ? 4000 : 0);
     enviados++;
   }
-  var s = $('shotStatus'); if (s) s.textContent = 'Enviando…';
+  var s = $('shotStatus'); if (s) s.textContent = (conVentana && enviados === 1) ? 'Guardada' : 'Enviando…';
   if (enviados > 1) toast(enviados + ' archivos en cola de envío', false);
 }
 $('fileInput').addEventListener('change', function(){ handleIncomingFiles(this.files); });

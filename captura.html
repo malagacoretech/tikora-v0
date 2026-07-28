@@ -252,8 +252,8 @@ input[type=file]{display:none}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
 .grid3 .pcard{padding:0.8rem 0.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-/* v28: el contador de facturas llena su tarjeta */
-#pN{font-size:clamp(1.5rem,7.5vw,2.1rem);font-weight:800;line-height:1.05}
+/* v28/v43: los contadores de Facturas y Proveedores llenan su tarjeta */
+#pN,#pProv{font-size:clamp(1.5rem,7.5vw,2.1rem);font-weight:800;line-height:1.05}
 /* v28: etiqueta escrita de pago bajo el importe — el color ayuda, la palabra manda */
 .amtc{display:flex;flex-direction:column;align-items:flex-end;gap:0.12rem;flex-shrink:0}
 .pgword{font-size:0.56rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)}
@@ -389,10 +389,10 @@ button.capbadge:active{transform:scale(0.95)}
   </div>
   <div class="pbanner" id="panelBanner" style="display:none"></div>
   <div class="pcard hero">
-    <div class="lbl">Tu IVA identificado este mes</div>
+    <div class="lbl" id="pIvaLbl">Tu IVA identificado este mes</div>
     <div class="val" id="pIva">&mdash;</div>
-    <div class="ivatot">Total identificado: <span id="pIvaTot">&mdash;</span></div>
-    <div class="sub">de tus facturas capturadas &middot; estimaci&oacute;n &mdash; confirmalo con tu gestor</div>
+    <div class="ivatot">Total identificado de todas tus facturas capturadas: <span id="pIvaTot">&mdash;</span></div>
+    <div class="sub">estimaci&oacute;n &mdash; confirmalo con tu gestor</div>
   </div>
   <div class="grid3">
     <div class="pcard clickable" id="cardN"><div class="lbl">Facturas</div><div class="val2" id="pN">&mdash;</div></div>
@@ -1167,6 +1167,11 @@ function renderPanel(data, cachedNote){
   var ymHoy = (function(){ var d = new Date(); return d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1)); })();
   var ivaMes = 0;
   (data.rows || []).forEach(function(r){ if (String(r.fecha || '').slice(0, 7) === ymHoy) ivaMes += (r.iva || 0); });
+  /* v43: el mes con su nombre — "de julio", "de agosto"... (pedido Matías) */
+  try {
+    var nomMes = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', month: 'long' }).format(new Date());
+    $('pIvaLbl').textContent = 'Tu IVA identificado de ' + nomMes;
+  } catch(e){}
   $('pIva').textContent = fmtEur(Math.round(ivaMes * 100) / 100);
   $('pIvaTot').textContent = fmtEur(st.iva);
   $('pN').textContent = String(st.n || 0);

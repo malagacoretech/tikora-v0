@@ -102,10 +102,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 input[type=file]{display:none}
 
 /* ====== PESTAÑAS (📷 Capturar | 📊 Mi panel) ====== */
-#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(4,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(5,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
 #tabbar.solo3{grid-template-columns:repeat(3,1fr)}
 #tabbar.on{display:grid}
-#tabbar .tab{height:3.6rem;background:none;border:none;color:var(--text-muted);font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:0}
+/* v30: 5 pestañas — icono arriba y texto abajo para que entren comodas */
+#tabbar .tab{height:3.7rem;background:none;border:none;color:var(--text-muted);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.18rem;padding:0}
+#tabbar .tab .ti{font-size:1.12rem;line-height:1}
+#tabbar .tab .tl{font-size:0.58rem;font-weight:700;letter-spacing:0.03em}
 /* ====== v22: CAPA 1 — MIS DATOS ====== */
 .dcard{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border:1px solid rgba(244,201,93,0.35);border-radius:16px;padding:1.1rem 1.15rem;margin-bottom:0.9rem;position:relative;overflow:hidden}
 .dcard::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
@@ -360,6 +363,23 @@ input[type=file]{display:none}
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
 </div>
 
+<!-- Pestaña Mis claves (v30): los numeros que te piden en cada mostrador, con pantalla propia -->
+<div class="screen with-tabs" id="screenClaves">
+  <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+  <div class="numzone">
+    <div class="nzt">&#127915; Mis claves para clientes</div>
+    <div class="nzs">Los n&uacute;meros que te piden en cada mostrador (Mercadona, el cash, el mayorista&hellip;), grandes y listos para ense&ntilde;ar o copiar. Para el due&ntilde;o y para quien haga la compra.</div>
+    <div id="dNums"></div>
+    <div class="dform">
+      <div class="par">
+        <input id="dNumComercio" type="text" placeholder="Comercio (ej: Mercadona)" maxlength="40">
+        <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
+      </div>
+      <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir clave</button>
+    </div>
+  </div>
+</div>
+
 <!-- Pantalla 5: Chat "preguntale a tus facturas" -->
 <div class="screen with-tabs" id="screenChat">
   <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
@@ -424,19 +444,6 @@ input[type=file]{display:none}
 
   <div id="dCopias"></div>
 
-  <div class="numzone">
-    <div class="nzt">&#127915; Mis n&uacute;meros de cliente</div>
-    <div class="nzs">Otra herramienta, para el mostrador: el n&uacute;mero que te piden en cada sitio (Mercadona, el cash, el mayorista&hellip;), grande y listo para ense&ntilde;ar o copiar.</div>
-    <div id="dNums"></div>
-    <div class="dform">
-      <div class="par">
-        <input id="dNumComercio" type="text" placeholder="Comercio (ej: Mercadona)" maxlength="40">
-        <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
-      </div>
-      <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir n&uacute;mero</button>
-    </div>
-  </div>
-
   <div class="dsec" id="dIvaSec">Mi IVA del trimestre</div>
   <div id="dIvaBloque">
     <div class="dform">
@@ -489,10 +496,11 @@ input[type=file]{display:none}
 </div>
 
 <nav id="tabbar">
-  <button class="tab active" id="tabCam" type="button">📷 Capturar</button>
-  <button class="tab" id="tabPanel" type="button">📊 Panel</button>
-  <button class="tab" id="tabChat" type="button">💬 Preguntar</button>
-  <button class="tab" id="tabDatos" type="button">🪪 Mis datos</button>
+  <button class="tab active" id="tabCam" type="button"><span class="ti">📷</span><span class="tl">Capturar</span></button>
+  <button class="tab" id="tabPanel" type="button"><span class="ti">📊</span><span class="tl">Panel</span></button>
+  <button class="tab" id="tabClaves" type="button"><span class="ti">🎫</span><span class="tl">Mis claves</span></button>
+  <button class="tab" id="tabChat" type="button"><span class="ti">💬</span><span class="tl">Preguntar</span></button>
+  <button class="tab" id="tabDatos" type="button"><span class="ti">🪪</span><span class="tl">Mis datos</span></button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -530,12 +538,13 @@ var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
 function show(id){
-  ['screenCam','screenShot','screenToken','screenPanel','screenChat','screenDatos'].forEach(function(s){ $(s).classList.remove('on'); });
+  ['screenCam','screenShot','screenToken','screenPanel','screenClaves','screenChat','screenDatos'].forEach(function(s){ $(s).classList.remove('on'); });
   $(id).classList.add('on');
   var tb = $('tabbar');
   if (TOKEN && id !== 'screenToken'){ tb.classList.add('on'); } else { tb.classList.remove('on'); }
   $('tabCam').classList.toggle('active', id === 'screenCam' || id === 'screenShot');
   $('tabPanel').classList.toggle('active', id === 'screenPanel');
+  $('tabClaves').classList.toggle('active', id === 'screenClaves');
   $('tabChat').classList.toggle('active', id === 'screenChat');
   $('tabDatos').classList.toggle('active', id === 'screenDatos');
 }
@@ -1378,26 +1387,6 @@ function renderDatos(){
   if (datos.dir) c.appendChild(filaCopia('Dirección', datos.dir));
   if (datos.tel) c.appendChild(filaCopia('Teléfono', datos.tel));
   if (datos.mail) c.appendChild(filaCopia('Email', datos.mail));
-  var n = $('dNums'); n.innerHTML = '';
-  /* v29: cada numero de cliente con su comercio arriba y el NUMERO en grande — es lo que se enseña en el mostrador */
-  (datos.nums || []).forEach(function(item, i){
-    var row = document.createElement('div'); row.className = 'nrow';
-    var g = document.createElement('div'); g.className = 'ng';
-    var k = document.createElement('div'); k.className = 'nk'; k.textContent = item.c;
-    var v = document.createElement('div'); v.className = 'nv'; v.textContent = item.v;
-    g.appendChild(k); g.appendChild(v);
-    var b = document.createElement('button'); b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copiar';
-    b.addEventListener('click', function(){ copiar(item.v, b); });
-    var del = document.createElement('button'); del.className = 'delbtn'; del.type = 'button'; del.textContent = '✕';
-    del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderDatos(); });
-    row.appendChild(g); row.appendChild(b); row.appendChild(del);
-    n.appendChild(row);
-  });
-  if (!(datos.nums || []).length){
-    var e = document.createElement('div'); e.className = 'pempty';
-    e.textContent = 'Todavía no guardaste ninguno — añadí el primero acá abajo.';
-    n.appendChild(e);
-  }
   $('dInNom').value = datos.nom || ''; $('dInNif').value = datos.nif || '';
   $('dInDir').value = datos.dir || ''; $('dInTel').value = datos.tel || ''; $('dInMail').value = datos.mail || '';
   renderNeta();
@@ -1435,13 +1424,42 @@ $('dSave').addEventListener('click', function(){
   dGuardar(); renderDatos(); pintarQR();
   toast('Datos guardados ✓', false);
 });
+/* v30: Mis claves — pestaña propia; cada clave con su comercio arriba y el NUMERO en grande */
+function renderClaves(){
+  var n = $('dNums'); n.innerHTML = '';
+  (datos.nums || []).forEach(function(item, i){
+    var row = document.createElement('div'); row.className = 'nrow';
+    var g = document.createElement('div'); g.className = 'ng';
+    var k = document.createElement('div'); k.className = 'nk'; k.textContent = item.c;
+    var v = document.createElement('div'); v.className = 'nv'; v.textContent = item.v;
+    g.appendChild(k); g.appendChild(v);
+    var b = document.createElement('button'); b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copiar';
+    b.addEventListener('click', function(){ copiar(item.v, b); });
+    var del = document.createElement('button'); del.className = 'delbtn'; del.type = 'button'; del.textContent = '✕';
+    del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderClaves(); });
+    row.appendChild(g); row.appendChild(b); row.appendChild(del);
+    n.appendChild(row);
+  });
+  if (!(datos.nums || []).length){
+    var e = document.createElement('div'); e.className = 'pempty';
+    e.textContent = 'Todavía no guardaste ninguna — añadí la primera acá abajo.';
+    n.appendChild(e);
+  }
+}
+$('tabClaves').addEventListener('click', function(){
+  if ($('screenClaves').classList.contains('on')) return;
+  stopCamera();
+  dCargar();                 /* por si el token se activo despues de cargar la pagina */
+  show('screenClaves');
+  renderClaves();
+});
 $('dNumAdd').addEventListener('click', function(){
   var c = $('dNumComercio').value.trim(), v = $('dNumValor').value.trim();
   if (!c || !v){ toast('Poné el comercio y el número', true); return; }
   datos.nums = datos.nums || [];
   datos.nums.push({ c: c, v: v });
   $('dNumComercio').value = ''; $('dNumValor').value = '';
-  dGuardar(); renderDatos();
+  dGuardar(); renderClaves();
 });
 $('dIvaSave').addEventListener('click', function(){
   var raw = $('dIvaRep').value.trim().replace(/\./g, '').replace(',', '.');
@@ -1540,9 +1558,10 @@ if (ES_EMPLEADO){
   if (_iBlo) _iBlo.style.display = 'none';
 }
 if (ES_EMPLEADO){
+  /* v30: el empleado ve Capturar + Mis claves + Mis datos (lo que se usa en el mostrador) */
   $('tabPanel').style.display = 'none';
   $('tabChat').style.display = 'none';
-  $('tabbar').style.gridTemplateColumns = '1fr';
+  $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr';
 }
 
 /* ================== MINI-FICHA DE FACTURA (v12) ================== */

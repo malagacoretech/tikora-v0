@@ -1087,6 +1087,22 @@ function renderFilas(cont, rowsArr){
 function renderPanelEmpleado(data, cachedNote){
   panelData = data;
   $('screenPanel').classList.add('modo-empleado');
+  /* v37: PRECARGA del negocio — Mis datos y Mis claves del empleado llegan del Sheet (pestaña Negocio) */
+  if (data.negocio){
+    try {
+      dCargar();
+      var nd = data.negocio.datos || {};
+      if (nd.nom) datos.nom = nd.nom;
+      if (nd.nif) datos.nif = nd.nif;
+      if (nd.dir) datos.dir = nd.dir;
+      if (nd.tel) datos.tel = nd.tel;
+      if (nd.mail) datos.mail = nd.mail;
+      if (data.negocio.claves && data.negocio.claves.length){
+        datos.nums = data.negocio.claves.map(function(k){ return { c: k.c, v: k.v }; });
+      }
+      dGuardar();
+    } catch(e){}
+  }
   var cont = $('panelRows');
   cont.innerHTML = '';
   var h = document.createElement('div'); h.className = 'caphead'; h.textContent = 'Tus capturas';
@@ -1649,6 +1665,8 @@ if (ES_EMPLEADO){
      El chat sigue fuera (y el servidor se lo niega igualmente). */
   $('tabChat').style.display = 'none';
   $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
+  /* v37: al arrancar, buscar el panel en segundo plano → precarga Mis datos + Mis claves del negocio */
+  setTimeout(function(){ try { loadPanel(true); } catch(e){} }, 800);
 }
 
 /* ================== MINI-FICHA DE FACTURA (v12) ================== */

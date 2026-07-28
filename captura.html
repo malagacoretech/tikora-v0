@@ -120,6 +120,16 @@ input[type=file]{display:none}
 .copybtn:active{background:var(--accent);color:#0A1628}
 .delbtn{flex-shrink:0;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0 0.2rem}
 .dsec{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin:1.3rem 0 0.6rem}
+/* v29: Mis numeros de cliente — herramienta con identidad propia (verde agua, no dorado):
+   que se vea que es OTRA cosa: el numero que te piden en el mostrador, grande y listo */
+.numzone{background:var(--surface);border:1px solid rgba(77,208,199,0.45);border-radius:16px;padding:1rem 1.05rem;margin:1.3rem 0 0.9rem;position:relative;overflow:hidden}
+.numzone::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#4DD0C7}
+.numzone .nzt{font-size:0.95rem;font-weight:800;display:flex;align-items:center;gap:0.45rem}
+.numzone .nzs{font-size:0.74rem;color:var(--text-muted);margin:0.3rem 0 0.8rem;line-height:1.45}
+.nrow{display:flex;align-items:center;gap:0.55rem;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:0.65rem 0.8rem;margin-bottom:0.5rem}
+.nrow .ng{flex:1;min-width:0}
+.nrow .nk{font-size:0.6rem;color:#7FE3DB;text-transform:uppercase;letter-spacing:0.08em;font-weight:800}
+.nrow .nv{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.02em;word-break:break-all;line-height:1.25}
 .dform{display:grid;gap:0.5rem;margin-bottom:0.5rem}
 .dform input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0.7rem 0.9rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
 .dform input:focus{border-color:var(--accent)}
@@ -414,14 +424,17 @@ input[type=file]{display:none}
 
   <div id="dCopias"></div>
 
-  <div class="dsec">Mis n&uacute;meros de cliente</div>
-  <div id="dNums"></div>
-  <div class="dform">
-    <div class="par">
-      <input id="dNumComercio" type="text" placeholder="Comercio (ej: Mercadona)" maxlength="40">
-      <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
+  <div class="numzone">
+    <div class="nzt">&#127915; Mis n&uacute;meros de cliente</div>
+    <div class="nzs">Otra herramienta, para el mostrador: el n&uacute;mero que te piden en cada sitio (Mercadona, el cash, el mayorista&hellip;), grande y listo para ense&ntilde;ar o copiar.</div>
+    <div id="dNums"></div>
+    <div class="dform">
+      <div class="par">
+        <input id="dNumComercio" type="text" placeholder="Comercio (ej: Mercadona)" maxlength="40">
+        <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
+      </div>
+      <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir n&uacute;mero</button>
     </div>
-    <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir n&uacute;mero</button>
   </div>
 
   <div class="dsec" id="dIvaSec">Mi IVA del trimestre</div>
@@ -1366,16 +1379,23 @@ function renderDatos(){
   if (datos.tel) c.appendChild(filaCopia('Teléfono', datos.tel));
   if (datos.mail) c.appendChild(filaCopia('Email', datos.mail));
   var n = $('dNums'); n.innerHTML = '';
+  /* v29: cada numero de cliente con su comercio arriba y el NUMERO en grande — es lo que se enseña en el mostrador */
   (datos.nums || []).forEach(function(item, i){
-    var row = filaCopia(item.c, item.v);
+    var row = document.createElement('div'); row.className = 'nrow';
+    var g = document.createElement('div'); g.className = 'ng';
+    var k = document.createElement('div'); k.className = 'nk'; k.textContent = item.c;
+    var v = document.createElement('div'); v.className = 'nv'; v.textContent = item.v;
+    g.appendChild(k); g.appendChild(v);
+    var b = document.createElement('button'); b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copiar';
+    b.addEventListener('click', function(){ copiar(item.v, b); });
     var del = document.createElement('button'); del.className = 'delbtn'; del.type = 'button'; del.textContent = '✕';
     del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderDatos(); });
-    row.appendChild(del);
+    row.appendChild(g); row.appendChild(b); row.appendChild(del);
     n.appendChild(row);
   });
   if (!(datos.nums || []).length){
     var e = document.createElement('div'); e.className = 'pempty';
-    e.textContent = 'Guardá acá los números que te piden en cada sitio (Mercadona, el cash, el mayorista…).';
+    e.textContent = 'Todavía no guardaste ninguno — añadí el primero acá abajo.';
     n.appendChild(e);
   }
   $('dInNom').value = datos.nom || ''; $('dInNif').value = datos.nif || '';

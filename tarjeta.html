@@ -74,18 +74,42 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
     if (navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ q('cp').textContent = '&#10003;'; q('cp').textContent = '✓'; });
     else { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); q('cp').textContent = '✓'; }
   });
+  var nom = d.n || ('NIF ' + d.i);
   var v = ['BEGIN:VCARD','VERSION:3.0'];
-  v.push('FN:' + (d.n || d.i));
+  v.push('N:;' + nom + ';;;');
+  v.push('FN:' + nom);
   if (d.n) v.push('ORG:' + d.n);
   if (d.t) v.push('TEL;TYPE=WORK,VOICE:' + d.t);
   if (d.e) v.push('EMAIL;TYPE=WORK:' + d.e);
   if (d.d) v.push('ADR;TYPE=WORK:;;' + d.d.replace(/,/g, ' ') + ';;;;');
   if (d.i) v.push('NOTE:NIF ' + d.i);
   v.push('END:VCARD');
-  var blobUrl = 'data:text/vcard;charset=utf-8,' + encodeURIComponent(v.join('\r\n'));
-  var a = q('vc');
-  a.setAttribute('href', blobUrl);
-  a.setAttribute('download', ((d.n || 'contacto').replace(/[^A-Za-z0-9]+/g, '_')) + '.vcf');
+  var vcf = v.join('\r\n') + '\r\n';
+  var fich = nom.replace(/[^A-Za-z0-9]+/g, '_') + '.vcf';
+  /* El truco viejo (data: + download) NO funciona en Safari de iPhone. Cascada:
+     1) hoja de compartir nativa con el fichero de contacto — un toque y el movil
+        ofrece guardarlo en Contactos o mandarlo por donde sea (iPhone y Android modernos);
+     2) descarga clasica (Android viejo / ordenador; en iPhone queda en Archivos y
+        al tocarla se abre Contactos);
+     3) ultimo recurso: el data: de siempre. */
+  q('vc').addEventListener('click', function(ev){
+    ev.preventDefault();
+    try {
+      if (navigator.canShare && window.File){
+        var f = new File([vcf], fich, { type: 'text/vcard' });
+        if (navigator.canShare({ files: [f] })){ navigator.share({ files: [f] }); return; }
+      }
+    } catch(e){}
+    try {
+      var b = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
+      var u = URL.createObjectURL(b);
+      var a2 = document.createElement('a'); a2.href = u; a2.download = fich;
+      document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+      setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+    } catch(e2){
+      location.href = 'data:text/vcard;charset=utf-8,' + encodeURIComponent(vcf);
+    }
+  });
 })();
 </script>
 </body>

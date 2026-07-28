@@ -291,7 +291,9 @@ button.capbadge:active{transform:scale(0.95)}
 .capbadge.ok{background:rgba(34,197,94,0.15);color:#51CF66;border:1px solid rgba(34,197,94,0.4)}
 .capbadge.rev{background:rgba(229,72,77,0.15);color:#FF6B6B;border:1px solid rgba(229,72,77,0.45)}
 /* v33: chips de filtro por forma de pago — un toque y ves solo esas, sin buscar */
-/* v41: flex-shrink:0 — sin el, flexbox APLASTA a 0 el unico hijo con overflow cuando la columna desborda (los chips llevaban invisibles desde v33) */
+/* v41/v42: flexbox APLASTA a los hijos con overflow cuando la columna desborda (chips invisibles desde v33;
+   el HERO perdia su numero en iPhone). Regla estructural: NADA dentro del panel se encoge — el panel entero scrollea. */
+#screenPanel > *{flex-shrink:0}
 .pagofil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.55rem;scrollbar-width:none;flex-shrink:0}
 .pagofil::-webkit-scrollbar{display:none}
 .pagofil button{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
@@ -1174,7 +1176,7 @@ function renderPanel(data, cachedNote){
   var deben = (data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
   if (deben.length){
     var suma = deben.reduce(function(a, r){ return a + (r.total || 0); }, 0);
-    $('debeTxt').textContent = deben.length + ' · ' + fmtEur(suma);
+    $('debeTxt').textContent = deben.length + (deben.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(suma);
     $('cardDebe').classList.add('on');
   } else {
     $('cardDebe').classList.remove('on');
@@ -1188,11 +1190,15 @@ function renderPanel(data, cachedNote){
     rr.innerHTML = '';
     pend.forEach(function(c){
       var row = document.createElement('div'); row.className = 'caprow rev';
-      /* v40 (pedido Matías): solo CUÁNDO entró, en grande — sin emisor a medias ni parrafada de campos */
+      /* v40: la hora EN GRANDE, sin parrafada de campos. v42: el nombre vuelve debajo, chiquito (pedido Matías) */
       var g = document.createElement('div'); g.className = 'cg';
       var e1 = document.createElement('div'); e1.className = 'ce grande';
       e1.textContent = c.entro ? ('Entró ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
       g.appendChild(e1);
+      if (c.emisor && c.emisor.charAt(0) !== '('){
+        var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
+        g.appendChild(h1);
+      }
       row.appendChild(g);
       if (c.f){
         var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
@@ -1303,21 +1309,31 @@ $('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProv
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
   if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
+  cerrarListaRehacer();   /* v42: exclusión mutua con la lista de repetir */
   renderLista();
 });
 document.querySelectorAll('#pagoFil button').forEach(function(b){
   b.addEventListener('click', function(){
     panelFiltroPago = b.getAttribute('data-f') || '';
     if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
+    cerrarListaRehacer();   /* v42: elegir un pago pliega la lista de repetir */
     renderLista();
   });
 });
-/* v39: la tarjeta "Fotos para repetir" despliega/pliega su lista */
+/* v39/v42: la tarjeta "Fotos para repetir" despliega su lista; al abrirla limpia el filtro de pago,
+   y cualquier chip o "Sin pagar" la pliega — exclusión mutua, como pidió Matías */
+function cerrarListaRehacer(){
+  $('rehacerRows').style.display = 'none';
+  $('rehacerHint').textContent = 'Tocá y velas';
+}
 $('cardRehacer').addEventListener('click', function(){
   var rr = $('rehacerRows');
   var abierto = rr.style.display !== 'none';
-  rr.style.display = abierto ? 'none' : 'block';
-  $('rehacerHint').textContent = abierto ? 'Tocá y velas' : 'Tocá y se pliegan';
+  if (abierto){ cerrarListaRehacer(); return; }
+  panelFiltroPago = '';
+  renderLista();
+  rr.style.display = 'block';
+  $('rehacerHint').textContent = 'Tocá y se pliegan';
 });
 /* v41: los recuadros fijos y el contador de la semana LLEVAN a su lista */
 function irPanel(modo){

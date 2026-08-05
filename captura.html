@@ -502,6 +502,14 @@ button.capbadge:active{transform:scale(0.95)}
 
   <div id="dCopias"></div>
 
+  <div class="dsec" id="gestSec">Para tu gestor&iacute;a</div>
+  <div id="gestBloque">
+    <div class="muted" style="font-size:0.78rem;margin-bottom:0.5rem;line-height:1.45">El paquete del mes &mdash; desglose de IVA y CSV con todas tus facturas &mdash; directo a <b>tikora.facturas@gmail.com</b>, listo para reenviar a tu gestor&iacute;a. Los datos, no la declaraci&oacute;n: esa la presenta tu gestor.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:1rem">
+      <button class="dbtn sec" type="button" id="gestMesActual">&#128230; Este mes</button>
+      <button class="dbtn sec" type="button" id="gestMesPasado">&#128230; Mes pasado</button>
+    </div>
+  </div>
   <div class="dsec" id="dIvaSec">Mi IVA del trimestre</div>
   <div id="dIvaBloque">
     <div class="dform">
@@ -1066,7 +1074,7 @@ function panelBanner(msg, retry){
   }
   b.style.display = 'block';
 }
-var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPago = '';
+var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPago = '', panelFiltroSemana = false;
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
 /* v19 (RGPD): la foto se abre via el proxy con token — el enlace directo de Drive no llega al cliente */
 function fotoSegura(url){
@@ -1278,6 +1286,14 @@ function renderLista(){
     return;
   }
   var rows = (data.rows || []);          /* todas las que manda el API */
+  /* v44: filtro "las que entraron esta semana" (desde el contador de la cámara) */
+  if (panelFiltroSemana){
+    rows = rows.filter(function(r){ return esDeEstaSemana(r.entro); });
+    var backS = document.createElement('div'); backS.className = 'backprov';
+    backS.textContent = '← Todas las facturas · las que ENTRARON esta semana';
+    backS.addEventListener('click', function(){ panelFiltroSemana = false; renderLista(); });
+    cont.appendChild(backS);
+  }
   /* v33: filtro por forma de pago (chips o tarjeta roja) */
   if (panelFiltroPago){
     rows = rows.filter(function(r){
@@ -1308,8 +1324,8 @@ function renderLista(){
     }
   }
 }
-$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; renderLista(); });
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
@@ -1320,6 +1336,7 @@ $('cardDebe').addEventListener('click', function(){
 document.querySelectorAll('#pagoFil button').forEach(function(b){
   b.addEventListener('click', function(){
     panelFiltroPago = b.getAttribute('data-f') || '';
+    panelFiltroSemana = false;
     if (panelFiltroPago){ panelModo = 'ultimas'; panelProvSel = null; }
     cerrarListaRehacer();   /* v42: elegir un pago pliega la lista de repetir */
     renderLista();
@@ -1342,14 +1359,40 @@ $('cardRehacer').addEventListener('click', function(){
 });
 /* v41: los recuadros fijos y el contador de la semana LLEVAN a su lista */
 function irPanel(modo){
-  panelModo = modo; panelProvSel = null; panelFiltroPago = ''; panelQuery = '';
+  panelModo = modo; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; panelQuery = '';
   var b = $('panelSearch'); if (b) b.value = '';
   if (!$('screenPanel').classList.contains('on')){ $('tabPanel').click(); } else { renderLista(); }
 }
 $('cardN').addEventListener('click', function(){ irPanel('ultimas'); });
 $('cardBase').addEventListener('click', function(){ irPanel('ultimas'); });
 $('cardProv').addEventListener('click', function(){ irPanel('prov'); });
-$('weekPill').addEventListener('click', function(){ if (!$('screenPanel').classList.contains('on')) $('tabPanel').click(); });
+/* v44: el contador semanal FILTRA de verdad — muestra solo las que ENTRARON esta semana */
+function esDeEstaSemana(entro){
+  var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return false;
+  var f = new Date(+m[3], +m[2] - 1, +m[1]);
+  var hoy = new Date(); var dow = (hoy.getDay() + 6) % 7;
+  var lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dow);
+  return f >= lunes;
+}
+$('weekPill').addEventListener('click', function(){
+  panelFiltroSemana = true; panelFiltroPago = ''; panelModo = 'ultimas'; panelProvSel = null;
+  cerrarListaRehacer();
+  if (!$('screenPanel').classList.contains('on')){ $('tabPanel').click(); } else { renderLista(); }
+});
+/* v44: Para tu gestoría — el paquete del mes por email (solo dueño; el servidor también lo exige) */
+var GEST_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-gestapp-5e8b2f9c4a7d';
+function mesStr(off){ var d = new Date(); var m = new Date(d.getFullYear(), d.getMonth() + off, 1); return m.getFullYear() + '-' + ((m.getMonth() < 9 ? '0' : '') + (m.getMonth() + 1)); }
+function pedirPaquete(mes, btn){
+  btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Enviando…';
+  fetch(GEST_URL + '?u=' + encodeURIComponent(TOKEN) + '&mes=' + mes, { headers: { 'x-tikora-app': APP_SECRET } })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(){ toast('Paquete enviado a tikora.facturas@gmail.com — llega en un minuto con el CSV', false); })
+    .catch(function(){ toast('No se pudo enviar ahora. Probá en un momento.', true); })
+    .then(function(){ btn.disabled = false; btn.textContent = txt; });
+}
+$('gestMesActual').addEventListener('click', function(){ pedirPaquete(mesStr(0), this); });
+$('gestMesPasado').addEventListener('click', function(){ pedirPaquete(mesStr(-1), this); });
 /* v41: AUTO-ACTUALIZACIÓN — la app detecta versión nueva publicada y se recarga sola
    (nunca con fotos pendientes de enviar ni con la ventana post-disparo abierta). */
 var appVerBase = null;
@@ -1792,6 +1835,10 @@ if (ES_EMPLEADO){
   /* v39: el chat de la ficha tambien fuera (el servidor se lo niega al empleado) */
   var _fp = $('fichaPreg');
   if (_fp) _fp.style.display = 'none';
+  /* v44: el paquete de gestoria es cosa del dueño (el servidor tambien lo exige) */
+  var _gs = $('gestSec'), _gb = $('gestBloque');
+  if (_gs) _gs.style.display = 'none';
+  if (_gb) _gb.style.display = 'none';
   /* v37: al arrancar, buscar el panel en segundo plano → precarga Mis datos + Mis claves del negocio */
   setTimeout(function(){ try { loadPanel(true); } catch(e){} }, 800);
 }

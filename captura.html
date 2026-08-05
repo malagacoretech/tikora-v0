@@ -263,6 +263,10 @@ input[type=file]{display:none}
 /* v32: sin forma de pago asignada — numero blanco y "sin asignar" debajo, que ninguna fila quede muda */
 .prow.pg-nada .amt{color:var(--text)}
 .prow.pg-nada .pgword{color:var(--text-muted)}
+/* v45: ficha del proveedor en el drill-down */
+.provficha{margin-bottom:0.6rem}
+.provficha .pfr{font-size:0.86rem;margin-top:0.4rem;line-height:1.45;word-break:break-word}
+.provficha .pfr a{color:var(--accent);text-decoration:none;font-weight:700}
 /* v41: pedidos de Matías con la app en la mano */
 .ivatot{font-size:0.78rem;color:#F8D57E;font-weight:700;margin-top:0.15rem}
 .alertas{display:flex;gap:0.5rem;flex-shrink:0}
@@ -1261,6 +1265,29 @@ function renderLista(){
       back.textContent = '← Proveedores' + (sel ? (' · ' + sel.nombre) : '');
       back.addEventListener('click', function(){ panelProvSel = null; renderLista(); });
       cont.appendChild(back);
+      /* v45: FICHA del proveedor — la agenda minada (tel/email/dir/web) + buscar en internet */
+      if (sel){
+        var ag = (data.agenda || {})[panelProvSel] || {};
+        var fp = document.createElement('div'); fp.className = 'pcard provficha';
+        var tt = document.createElement('div'); tt.className = 'lbl';
+        tt.textContent = sel.nombre + (sel.nif ? (' · ' + sel.nif) : '');
+        fp.appendChild(tt);
+        function pfr(emoji, nodo){ var d = document.createElement('div'); d.className = 'pfr'; d.appendChild(document.createTextNode(emoji + ' ')); d.appendChild(nodo); fp.appendChild(d); }
+        function enlace(href, texto){ var a = document.createElement('a'); a.href = href; a.textContent = texto; a.rel = 'noopener'; return a; }
+        if (ag.tel) pfr('📞', enlace('tel:' + String(ag.tel).replace(/[^+\d]/g, ''), ag.tel));
+        if (ag.email) pfr('✉️', enlace('mailto:' + ag.email, ag.email));
+        if (ag.dir) pfr('📍', document.createTextNode(ag.dir));
+        if (ag.web){ var wurl = /^https?:/i.test(ag.web) ? ag.web : ('https://' + ag.web); var aw = enlace(wurl, ag.web); aw.target = '_blank'; pfr('🌐', aw); }
+        if (!ag.tel && !ag.email && !ag.dir && !ag.web){
+          var sn = document.createElement('div'); sn.className = 'pfr'; sn.style.color = 'var(--text-muted)';
+          sn.textContent = 'Ficha en camino — se completa sola con las próximas facturas.';
+          fp.appendChild(sn);
+        }
+        var bg = document.createElement('button'); bg.type = 'button'; bg.className = 'dbtn sec'; bg.style.marginTop = '0.55rem'; bg.textContent = '🔎 Buscar en internet';
+        bg.addEventListener('click', function(){ try { window.open('https://www.google.com/search?q=' + encodeURIComponent(sel.nombre + ' ' + (sel.nif || '')), '_blank', 'noopener'); } catch(e){} });
+        fp.appendChild(bg);
+        cont.appendChild(fp);
+      }
       var suyas = (data.rows || []).filter(function(r){ return r.clave === panelProvSel; });
       if (!suyas.length){
         var v = document.createElement('div'); v.className = 'pempty';

@@ -1274,7 +1274,17 @@ function renderLista(){
         fp.appendChild(tt);
         function pfr(emoji, nodo){ var d = document.createElement('div'); d.className = 'pfr'; d.appendChild(document.createTextNode(emoji + ' ')); d.appendChild(nodo); fp.appendChild(d); }
         function enlace(href, texto){ var a = document.createElement('a'); a.href = href; a.textContent = texto; a.rel = 'noopener'; return a; }
-        if (ag.tel) pfr('📞', enlace('tel:' + String(ag.tel).replace(/[^+\d]/g, ''), ag.tel));
+        if (ag.tel){
+          pfr('📞', enlace('tel:' + String(ag.tel).replace(/[^+\d]/g, ''), ag.tel));
+          /* v46: chat de WhatsApp directo con el proveedor (numero normalizado a +34) */
+          var dig = String(ag.tel).replace(/\D/g, '');
+          if (dig.length === 9) dig = '34' + dig;
+          if (dig.length >= 11){
+            var wa = enlace('https://wa.me/' + dig, 'Abrir chat de WhatsApp');
+            wa.target = '_blank';
+            pfr('💬', wa);
+          }
+        }
         if (ag.email) pfr('✉️', enlace('mailto:' + ag.email, ag.email));
         if (ag.dir) pfr('📍', document.createTextNode(ag.dir));
         if (ag.web){ var wurl = /^https?:/i.test(ag.web) ? ag.web : ('https://' + ag.web); var aw = enlace(wurl, ag.web); aw.target = '_blank'; pfr('🌐', aw); }

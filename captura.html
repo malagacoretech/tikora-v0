@@ -1501,7 +1501,7 @@ setInterval(function(){
   if (document.hidden) return;
   if (!$('screenPanel').classList.contains('on')) return;
   loadPanel(true);
-}, 60000);
+}, 180000);   /* v47: 3 min — cada refresco es una ejecución de n8n; a 60s se comía el cupo del plan */
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden && $('screenPanel').classList.contains('on')) loadPanel(true);
 });

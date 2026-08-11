@@ -186,6 +186,7 @@ input[type=file]{display:none}
 .cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
 .cmsg.bot b{color:#F8D57E;font-weight:700}
 .cmsg.bot a.cfoto{color:var(--accent);font-weight:700;text-decoration:none;border-bottom:1px dotted var(--accent)}
+.refreshbtn.vozon{border-color:var(--accent);color:var(--accent);font-weight:700}
 .cmsg.pend{opacity:0.65;font-style:italic}
 /* v27: sugerencias plegadas bajo un titulo fino — no tapan la conversacion */
 .chatsug{margin:0 0 0.45rem}
@@ -393,6 +394,7 @@ button.capbadge:active{transform:scale(0.95)}
 <div class="screen with-tabs" id="screenPanel">
   <div class="panel-head">
     <div class="brand">Tikora<span>.</span></div>
+    <button class="refreshbtn" id="vozBtn" type="button" title="Avisos por voz de cada factura nueva">&#128266; Voz</button>
     <button class="refreshbtn" id="panelRefresh" type="button">&#8635; Actualizar</button>
   </div>
   <div class="pbanner" id="panelBanner" style="display:none"></div>
@@ -1512,6 +1514,7 @@ function loadPanel(silent){
       if (!data || !data.ok) throw { msg: 'Respuesta inesperada del servicio.' };
       renderPanel(data, null);
       panelBanner(null);
+      try { vozAnunciar(data.rows || []); } catch(e){}
       try { localStorage.setItem(panelCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
     })
     .catch(function(err){
@@ -1526,6 +1529,46 @@ function loadPanel(silent){
     .then(function(){ panelLoading = false; });
 }
 $('panelRefresh').addEventListener('click', function(){ loadPanel(false); });
+/* v49: avisos por voz — la app canta cada factura nueva mientras está abierta.
+   La primera carga es línea base (no canta el histórico); después solo lo nuevo, máx 3 frases por tanda. */
+var VOZ_KEY = 'tikora_voz_avisos';
+var vozOn = false; try { vozOn = localStorage.getItem(VOZ_KEY) === '1'; } catch(e){}
+function vozPinta(){ var b = $('vozBtn'); if (b) b.classList.toggle('vozon', vozOn); }
+function vozDecir(txt){
+  try { var u = new SpeechSynthesisUtterance(txt); u.lang = 'es-ES'; u.rate = 1.02; window.speechSynthesis.speak(u); } catch(e){}
+}
+function vozVistasKey(){ return 'tikora_voz_vistas_' + (TOKEN || ''); }
+function vozKeyRow(r){ return String(r.entro || '') + '|' + String(r.nfac || r.emisor || '') + '|' + String(r.total || ''); }
+function vozImporte(imp){
+  var e = Math.floor(imp), c = Math.round((imp - e) * 100);
+  return e + (c ? (' euros con ' + c) : ' euros');
+}
+function vozAnunciar(rows){
+  if (!rows || !rows.length) return;
+  var vistas = null;
+  try { vistas = JSON.parse(localStorage.getItem(vozVistasKey()) || 'null'); } catch(e){}
+  var esBase = !vistas;
+  var set = {}; (vistas || []).forEach(function(k){ set[k] = 1; });
+  var nuevas = [];
+  rows.forEach(function(r){ var k = vozKeyRow(r); if (!set[k]) { set[k] = 1; nuevas.push(r); } });
+  try { localStorage.setItem(vozVistasKey(), JSON.stringify(Object.keys(set).slice(-900))); } catch(e){}
+  if (esBase || !vozOn || document.hidden || !nuevas.length) return;
+  nuevas.slice(0, 3).forEach(function(r){
+    var imp = Number(r.total || 0);
+    var hhmm = (String(r.entro || '').match(/(\d{1,2}:\d{2})/) || [])[1] || '';
+    vozDecir('Factura nueva de ' + (r.emisor || 'emisor sin leer') + ': ' + (imp ? vozImporte(imp) : 'importe por confirmar') + (hhmm ? (', entró a las ' + hhmm) : ''));
+  });
+  if (nuevas.length > 3) vozDecir('Y ' + (nuevas.length - 3) + ' facturas más.');
+  toast('🔊 ' + nuevas.length + ' factura' + (nuevas.length > 1 ? 's' : '') + ' nueva' + (nuevas.length > 1 ? 's' : ''));
+}
+$('vozBtn').addEventListener('click', function(){
+  vozOn = !vozOn;
+  try { localStorage.setItem(VOZ_KEY, vozOn ? '1' : '0'); } catch(e){}
+  vozPinta();
+  if (vozOn) vozDecir('Avisos por voz activados. Te canto cada factura que entre.');
+  else { try { window.speechSynthesis.cancel(); } catch(e){} }
+});
+vozPinta();
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
    y siempre que se vuelve a la app — sin tocar nada */
 setInterval(function(){

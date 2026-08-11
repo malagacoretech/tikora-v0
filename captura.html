@@ -193,6 +193,11 @@ input[type=file]{display:none}
 #vozBtn.vozon,#pushBtn.vozon{border-color:var(--accent);color:var(--accent)}
 .panel-head{gap:0.5rem;flex-wrap:wrap}
 .panel-head .brand{margin-right:auto}
+/* v56: version a la vista. Sin esto solo se puede adivinar que version corre un telefono
+   mirando que botones se ven — y eso ya nos hizo perder una noche buscando una cache que no existia. */
+.vertag{margin-left:0.45rem;vertical-align:middle;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:0.14rem 0.45rem;font-family:inherit;font-size:0.6rem;font-weight:700;cursor:pointer;line-height:1.35}
+.vertag:active{transform:scale(0.94)}
+.vertag.buscando{opacity:0.5}
 .pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
 .pushask span{flex:1}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
@@ -433,7 +438,7 @@ button.capbadge:active{transform:scale(0.95)}
 <!-- Pestaña 2: Mi panel (lee el Sheet vía n8n) -->
 <div class="screen with-tabs" id="screenPanel">
   <div class="panel-head">
-    <div class="brand">Tikora<span>.</span></div>
+    <div class="brand">Tikora<span>.</span><button type="button" id="verBtn" class="vertag" title="Versi&oacute;n de la app en este tel&eacute;fono &mdash; tocala para buscar actualizaci&oacute;n">&nbsp;</button></div>
     <button class="refreshbtn" id="pushBtn" type="button" title="Notificaci&oacute;n en este tel&eacute;fono por cada factura nueva, con la app cerrada">&#128276; Avisos</button>
     <button class="refreshbtn" id="vozBtn" type="button" title="Avisos por voz de cada factura nueva">&#128266; Voz</button>
     <button class="refreshbtn" id="panelRefresh" type="button">&#8635; Actualizar</button>
@@ -2237,6 +2242,72 @@ wakeLock();
 if ('serviceWorker' in navigator){
   navigator.serviceWorker.register('/captura-sw.js', { updateViaCache: 'none' }).catch(function(){});
 }
+
+/* ============ ACTUALIZACION SOLA (v56) ============
+   El problema: el navegador solo mira si hay version nueva cuando NAVEGAS. Si volves
+   a la app desde el multitarea no navega nunca, asi que se quedaba clavada en la
+   version vieja hasta cerrarla del todo dos veces. Nadie va a hacer eso en un bar.
+   Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
+   Cuando entra la version nueva, el service worker toma el control (skipWaiting +
+   clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
+var APP_VER = 'v56';
+var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
+var reinicioPedido = false;
+var ultimaBusqueda = 0;
+
+/* recargar a media captura seria peor que no actualizar */
+function seguroReiniciar(){
+  var ps = $('postShot'); if (ps && ps.classList.contains('on')) return false;   /* eligiendo forma de pago */
+  var fv = $('fotoVis');  if (fv && fv.classList.contains('on')) return false;   /* mirando una foto */
+  var a = document.activeElement;
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return false;    /* escribiendo */
+  if (processing) return false;                                                  /* subiendo una foto */
+  return true;
+}
+function reiniciarCuandoSePueda(){
+  if (reinicioPedido) return;
+  reinicioPedido = true;
+  (function intenta(){
+    if (!seguroReiniciar()) { setTimeout(intenta, 1500); return; }
+    if (document.hidden) { location.reload(); return; }        /* en segundo plano: sin ruido, ya la encuentra nueva */
+    toast('Versión nueva — actualizando…');
+    setTimeout(function(){ location.reload(); }, 1200);        /* delante: que sepa por que parpadeo */
+  })();
+}
+function buscarActualizacion(manual){
+  if (!('serviceWorker' in navigator)) return;
+  var ahora = Date.now();
+  if (!manual && ahora - ultimaBusqueda < 60000) return;   /* no machacar: una vez por minuto como mucho */
+  ultimaBusqueda = ahora;
+  navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return;
+    return reg.update().then(function(){
+      if (manual && !reg.installing && !reg.waiting) toast('Ya tenés la última versión (' + APP_VER + ')');
+    });
+  }).catch(function(){ if (manual) toast('No se pudo comprobar — ¿hay red?', true); });
+}
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (!swHabiaControlador) return;   /* primera instalacion de todas: no hay nada que recargar */
+    reiniciarCuandoSePueda();
+  });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) buscarActualizacion(false); });
+  window.addEventListener('online', function(){ buscarActualizacion(false); });
+  setInterval(function(){ buscarActualizacion(false); }, 900000);   /* 15 min */
+}
+
+/* el numero de version, a la vista y tocable */
+(function(){
+  var vb = $('verBtn');
+  if (!vb) return;
+  vb.textContent = APP_VER;
+  vb.addEventListener('click', function(){
+    vb.classList.add('buscando');
+    toast('Buscando actualización…');
+    buscarActualizacion(true);
+    setTimeout(function(){ vb.classList.remove('buscando'); }, 2500);
+  });
+})();
 
 /* hooks de diagnóstico (usados por los tests; no afectan al uso normal) */
 window.__tikora = { enqueue: enqueue, processQueue: processQueue, dbAll: dbAll, state: function(){ return { token: TOKEN, cam: !!track, ic: usingImageCapture }; } };

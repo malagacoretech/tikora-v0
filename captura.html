@@ -54,7 +54,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #okOverlay .sub{font-size:0.85rem;color:var(--text-muted)}
 
 /* miniatura flotante de la última captura: estado de subida sin tapar el visor */
-#thumb{position:absolute;left:1rem;bottom:calc(12.8rem + env(safe-area-inset-bottom));z-index:7;width:72px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s}
+#thumb{position:absolute;left:1rem;bottom:calc(16.6rem + env(safe-area-inset-bottom));z-index:7;width:72px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s;cursor:pointer}
+/* v52: visor de fotos de la sesión — tocá la miniatura y repasá en grande lo que sacaste */
+#fotoVis{position:fixed;inset:0;z-index:60;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
+#fotoVis.on{display:flex}
+#fotoVis img{max-width:96vw;max-height:76vh;object-fit:contain;border-radius:10px}
+#fotoVis .fvTop{position:absolute;top:calc(0.8rem + env(safe-area-inset-top));left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
+#fotoVis .fvN{color:var(--text-muted);font-size:0.92rem;font-weight:700}
+#fotoVis .fvX{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;min-width:44px;min-height:44px;font-size:1.1rem;font-family:inherit;cursor:pointer}
+#fotoVis .fvNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,34,56,0.85);border:1px solid var(--border);color:#fff;border-radius:14px;min-width:48px;min-height:56px;font-size:1.4rem;font-family:inherit;cursor:pointer}
+#fotoVis .fvPrev{left:0.6rem}
+#fotoVis .fvNext{right:0.6rem}
+#fotoVis .fvHint{position:absolute;bottom:calc(1.2rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
 #thumb.on{display:block}
 #thumb img{display:block;width:100%;height:72px;object-fit:cover}
 #thumb .st{display:block;font-size:0.6rem;font-weight:700;text-align:center;padding:0.22rem 0.2rem;background:rgba(10,22,40,0.92);color:var(--text-muted);letter-spacing:0.02em}
@@ -354,6 +365,13 @@ button.capbadge:active{transform:scale(0.95)}
   <div id="statusLine"></div>
   <div id="thumb"><img id="thumbImg" alt=""><span class="bar"><i id="thumbBar"></i></span><span class="st" id="thumbSt"></span></div>
   <div id="queueBar"><span class="n" id="queueN">0</span><span class="msg" id="queueMsg">pendientes de enviar</span><button id="retryBtn" type="button">Reintentar</button></div>
+  <div id="fotoVis">
+    <div class="fvTop"><span class="fvN" id="fvN"></span><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div>
+    <img id="fvImg" alt="Foto de la sesi&oacute;n">
+    <button type="button" class="fvNav fvPrev" id="fvPrev" aria-label="Anterior">&#8249;</button>
+    <button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
+    <div class="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
+  </div>
   <div id="postShot">
     <button type="button" id="psRehacer">&#8635;</button>
     <button type="button" id="psEfectivo">&#128181; Efectivo</button>
@@ -905,12 +923,31 @@ setTimeout(procesarPagosPend, 8000);
 /* Miniatura flotante: la última captura con su estado (subiendo % → Enviada ✓).
    Nunca tapa el visor: modo cadena de verdad. */
 var thumbItemId = null, thumbUrl = null, okTimer = null;
+/* v52: visor de fotos de la sesión (máx 25 en memoria; al cerrar la app se liberan — las facturas ya viajaron) */
+var sesionFotos = [], fvIdx = 0;
+function fvPinta(){
+  if (!sesionFotos.length) return;
+  if (fvIdx < 0) fvIdx = 0;
+  if (fvIdx >= sesionFotos.length) fvIdx = sesionFotos.length - 1;
+  $('fvImg').src = sesionFotos[fvIdx];
+  $('fvN').textContent = 'Foto ' + (fvIdx + 1) + ' de ' + sesionFotos.length;
+  $('fvPrev').style.visibility = fvIdx > 0 ? 'visible' : 'hidden';
+  $('fvNext').style.visibility = fvIdx < sesionFotos.length - 1 ? 'visible' : 'hidden';
+}
+function fvAbrir(){ if (!sesionFotos.length) return; fvIdx = sesionFotos.length - 1; fvPinta(); $('fotoVis').classList.add('on'); }
+$('thumb').addEventListener('click', fvAbrir);
+$('fvX').addEventListener('click', function(){ $('fotoVis').classList.remove('on'); });
+$('fvPrev').addEventListener('click', function(){ fvIdx--; fvPinta(); });
+$('fvNext').addEventListener('click', function(){ fvIdx++; fvPinta(); });
+$('fotoVis').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
 function setThumb(blob){
   var t = $('thumb');
   if (!t) return;
-  if (thumbUrl){ try { URL.revokeObjectURL(thumbUrl); } catch(e){} }
   thumbUrl = URL.createObjectURL(blob);
   $('thumbImg').src = thumbUrl;
+  /* v52: cada foto queda en el visor de la sesión; se libera la más vieja pasadas 25 */
+  sesionFotos.push(thumbUrl);
+  if (sesionFotos.length > 25){ var vieja = sesionFotos.shift(); try { URL.revokeObjectURL(vieja); } catch(e){} if (fvIdx > 0) fvIdx--; }
   thumbItemId = null;                     /* enqueue lo fija al id real */
   t.classList.remove('done','err');
   $('thumbBar').style.width = '0%';

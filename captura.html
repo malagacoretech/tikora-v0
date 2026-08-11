@@ -1227,9 +1227,30 @@ function renderPanel(data, cachedNote){
         var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
         vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); });
         row.appendChild(vf);
-        var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
-        b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
-        row.appendChild(b);
+        /* v50: 'corregir' = la foto estaba bien, falta un dato -> se arregla en la hoja, no con otra foto */
+        if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
+          var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'capbadge'; b2.textContent = '✏️ corregir';
+          b2.title = 'La foto está bien: falta un dato. Se corrige en la hoja.';
+          b2.addEventListener('click', function(ev){ ev.stopPropagation(); window.open(HOJA_REVISAR + '&range=A' + c.fila, '_blank', 'noopener'); });
+          row.appendChild(b2);
+        } else {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
+          b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
+          row.appendChild(b);
+        }
+        if (!ES_EMPLEADO){
+          var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn'; bx.textContent = '🗑';
+          bx.title = 'Descartar esta pendiente (la foto queda en Drive)';
+          bx.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            if (!confirm('¿Descartar esta pendiente? Desaparece de la lista (la foto queda guardada en Drive).')) return;
+            fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
+              .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+              .then(function(){ row.remove(); toast('Descartada'); loadPanel(true); })
+              .catch(function(){ toast('No se pudo descartar'); });
+          });
+          row.appendChild(bx);
+        }
       }
       rr.appendChild(row);
     });
@@ -1452,6 +1473,10 @@ $('weekPill').addEventListener('click', function(){
 });
 /* v44: Para tu gestoría — el paquete del mes por email (solo dueño; el servidor también lo exige) */
 var GEST_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-gestapp-5e8b2f9c4a7d';
+/* v50: descartar pendiente (motor del Cowork paralelo) + correccion directa en la hoja.
+   HOJA_REVISAR por ahora apunta al Sheet de SP (unico cliente operativo); multi-cliente pasara por el Panel API. */
+var DESCARTAR_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-descartar-4f8e21a7c063';
+var HOJA_REVISAR = 'https://docs.google.com/spreadsheets/d/1QsVGPnYvvjv39lzFjd9PfQgW3dgvlxOF0o-xYuiazkQ/edit#gid=83482685';
 function mesStr(off){ var d = new Date(); var m = new Date(d.getFullYear(), d.getMonth() + off, 1); return m.getFullYear() + '-' + ((m.getMonth() < 9 ? '0' : '') + (m.getMonth() + 1)); }
 function pedirPaquete(mes, btn){
   btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Enviando…';

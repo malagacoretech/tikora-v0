@@ -188,6 +188,15 @@ input[type=file]{display:none}
 .panel-head .brand span{color:var(--accent)}
 /* v8: el panel se refresca solo — el boton Actualizar sobra (se oculta, no se borra: el JS lo referencia) */
 .refreshbtn{display:none}
+/* v55: Voz y Avisos SÍ se muestran (heredaban el display:none de arriba y nacieron invisibles) — compactos para caber junto a la marca */
+#vozBtn,#pushBtn{display:inline-flex;align-items:center;gap:0.25rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0.45rem 0.6rem;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;min-height:40px}
+#vozBtn.vozon,#pushBtn.vozon{border-color:var(--accent);color:var(--accent)}
+.panel-head{gap:0.5rem;flex-wrap:wrap}
+.panel-head .brand{margin-right:auto}
+.pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
+.pushask span{flex:1}
+.pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
+.pushask button.no{background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);font-weight:600}
 /* v9: adjuntar desde galeria/archivos */
 .clipbtn{width:2.15rem;height:2.15rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .clipbtn:active{transform:scale(0.94)}
@@ -1671,20 +1680,45 @@ if ('serviceWorker' in navigator && 'PushManager' in window){
   navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); })
     .then(function(s){ pushPinta(!!s); }).catch(function(){});
 }
+function suscribirPush(cb){
+  navigator.serviceWorker.ready.then(function(reg){
+    return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(VAPID_PUB) });
+  }).then(function(sub){
+    return fetch(PUSH_ALTA_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, sub: sub.toJSON() }) });
+  }).then(function(r){
+    if (!r.ok) throw 0;
+    pushPinta(true); if (cb) cb(true);
+  }).catch(function(){ if (cb) cb(false); });
+}
 $('pushBtn').addEventListener('click', function(){
   if (!('serviceWorker' in navigator) || !('PushManager' in window)){ toast('Este navegador no soporta avisos'); return; }
   Notification.requestPermission().then(function(perm){
     if (perm !== 'granted'){ toast('Permiso de notificaciones denegado'); return; }
-    navigator.serviceWorker.ready.then(function(reg){
-      return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(VAPID_PUB) });
-    }).then(function(sub){
-      return fetch(PUSH_ALTA_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, sub: sub.toJSON() }) });
-    }).then(function(r){
-      if (!r.ok) throw 0;
-      pushPinta(true); toast('🔔 Avisos activados en este teléfono');
-    }).catch(function(){ toast('No se pudo activar los avisos'); });
+    suscribirPush(function(ok){ toast(ok ? '🔔 Avisos activados en este teléfono' : 'No se pudo activar los avisos'); });
   });
 });
+/* v55 (idea de Matías): el permiso se ofrece directamente en Capturar, junto al de la cámara */
+if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && TOKEN){
+  if (Notification.permission === 'granted'){
+    navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); })
+      .then(function(s){ if (!s) suscribirPush(); }).catch(function(){});
+  } else if (Notification.permission === 'default'){
+    var pAsk = document.createElement('div');
+    pAsk.className = 'pushask';
+    var pTxt = document.createElement('span'); pTxt.textContent = '🔔 ¿Te aviso en este teléfono cada factura nueva?';
+    var pSi = document.createElement('button'); pSi.type = 'button'; pSi.textContent = 'Activar';
+    var pNo = document.createElement('button'); pNo.type = 'button'; pNo.className = 'no'; pNo.textContent = 'Ahora no';
+    pAsk.appendChild(pTxt); pAsk.appendChild(pSi); pAsk.appendChild(pNo);
+    $('screenCam').appendChild(pAsk);
+    pNo.addEventListener('click', function(){ pAsk.remove(); });
+    pSi.addEventListener('click', function(){
+      Notification.requestPermission().then(function(p){
+        if (p !== 'granted'){ toast('Permiso denegado'); pAsk.remove(); return; }
+        suscribirPush(function(ok){ toast(ok ? '🔔 Avisos activados' : 'No se pudo activar'); pAsk.remove(); });
+      });
+    });
+  }
+}
 /* v53: la notificación tocada abre el chat con esa factura en contexto */
 try {
   var qsChat = new URLSearchParams(location.search).get('chat');

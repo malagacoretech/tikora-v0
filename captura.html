@@ -185,6 +185,7 @@ input[type=file]{display:none}
 .cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600;border-bottom-right-radius:6px}
 .cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
 .cmsg.bot b{color:#F8D57E;font-weight:700}
+.cmsg.bot a.cfoto{color:var(--accent);font-weight:700;text-decoration:none;border-bottom:1px dotted var(--accent)}
 .cmsg.pend{opacity:0.65;font-style:italic}
 /* v27: sugerencias plegadas bajo un titulo fino — no tapan la conversacion */
 .chatsug{margin:0 0 0.45rem}
@@ -302,6 +303,9 @@ button.capbadge:active{transform:scale(0.95)}
 .pagofil::-webkit-scrollbar{display:none}
 .pagofil button{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
 .pagofil button .pf{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--text-muted)}
+/* v48: cuantas facturas y cuanto dinero hay en cada forma de pago, dentro del propio chip */
+.pagofil button .pn{font-size:0.66rem;font-weight:800;color:var(--text);opacity:0.62;letter-spacing:0.01em}
+.pagofil button.on .pn{opacity:0.9}
 .pagofil button[data-f="pendiente"] .pf{background:#E5484D}
 .pagofil button[data-f="efectivo"] .pf{background:#2F9E44}
 .pagofil button[data-f="tarjeta"] .pf{background:#1971C2}
@@ -408,11 +412,11 @@ button.capbadge:active{transform:scale(0.95)}
     <button type="button" id="segProv">Por proveedor</button>
   </div>
   <div class="pagofil" id="pagoFil">
-    <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
-    <button type="button" data-f="pendiente"><span class="pf"></span>Sin pagar</button>
-    <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo</button>
-    <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta</button>
-    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar</button>
+    <button type="button" data-f="" class="on"><span class="pf"></span>Todas<span class="pn" data-n=""></span></button>
+    <button type="button" data-f="pendiente"><span class="pf"></span>Sin pagar<span class="pn" data-n="pendiente"></span></button>
+    <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo<span class="pn" data-n="efectivo"></span></button>
+    <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta<span class="pn" data-n="tarjeta"></span></button>
+    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar<span class="pn" data-n="nada"></span></button>
   </div>
   <div class="alertas">
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
@@ -1237,6 +1241,32 @@ function renderPanel(data, cachedNote){
     ? ('datos guardados ' + cachedNote)
     : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
 }
+/* v48: cuantas facturas y cuanto dinero hay en cada forma de pago, dentro del propio chip.
+   Se calcula sobre TODAS las filas que devuelve el panel (verificado: no vienen recortadas),
+   no sobre lo que se esta viendo — asi el numero no cambia al filtrar o al buscar. */
+function fmtEurCorto(n){
+  /* separador de miles a mano: toLocaleString se salta el punto con 4 cifras (7498 vs 27.955)
+     y no se comporta igual en todos los moviles. Asi sale siempre igual. */
+  var v = Math.round(Number(n) || 0);
+  var s = String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (v < 0 ? '-' : '') + s + ' €';
+}
+function pintarContadoresPago(){
+  var filas = (panelData && panelData.rows) || [];
+  var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
+  filas.forEach(function(r){
+    var p = String(r.pago || '').toLowerCase();
+    var k = (p === 'pendiente' || p === 'efectivo' || p === 'tarjeta') ? p : 'nada';
+    var t = Number(r.total) || 0;
+    acc[k].n++; acc[k].s += t;
+    acc[''].n++; acc[''].s += t;
+  });
+  document.querySelectorAll('#pagoFil .pn').forEach(function(sp){
+    var k = sp.getAttribute('data-n') || '';
+    var a = acc[k];
+    sp.textContent = (a && a.n) ? (a.n + ' · ' + fmtEurCorto(a.s)) : '';
+  });
+}
 function renderLista(){
   var data = panelData || {};
   var cont = $('panelRows');
@@ -1245,6 +1275,7 @@ function renderLista(){
   $('segProv').classList.toggle('on', panelModo === 'prov');
   /* v33: estado visual de los filtros de pago, en cualquier vista */
   document.querySelectorAll('#pagoFil button').forEach(function(b){ b.classList.toggle('on', (b.getAttribute('data-f') || '') === panelFiltroPago); });
+  pintarContadoresPago();
   $('cardDebe').classList.toggle('filtro', panelFiltroPago === 'pendiente');
   $('debeHint').textContent = panelFiltroPago === 'pendiente' ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
   if (panelModo === 'prov'){
@@ -1556,6 +1587,10 @@ function chatFmt(t){
   var e = String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   e = e.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
   e = e.replace(/^\s*[-*] /gm, '· ');
+  /* v48: enlaces del proxy de fotos -> "ver foto" tocable (solo nuestro dominio, tras el escape) */
+  e = e.replace(/https:\/\/malagacoretech\.app\.n8n\.cloud\/webhook\/tikora-foto-[A-Za-z0-9]+\?u=[A-Za-z0-9%]+&amp;f=[A-Za-z0-9_-]+/g, function(u){
+    return '<a class="cfoto" href="' + u + '" target="_blank" rel="noopener">&#128206; ver foto</a>';
+  });
   return e;
 }
 function chatMsg(texto, cls){

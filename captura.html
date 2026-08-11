@@ -293,6 +293,9 @@ input[type=file]{display:none}
 .caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
 .capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem;font-family:inherit}
 button.capbadge{cursor:pointer}
+/* v51: objetivos táctiles dignos en las filas (mín ~40px, revisión del Cowork paralelo) + el destructivo separado y marcado */
+.caprow .capbadge,.caprow .copybtn{min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+.caprow .peligro{margin-left:0.55rem;border-color:rgba(255,107,107,0.55);color:#FF6B6B}
 button.capbadge:active{transform:scale(0.95)}
 .capbadge.ok{background:rgba(34,197,94,0.15);color:#51CF66;border:1px solid rgba(34,197,94,0.4)}
 .capbadge.rev{background:rgba(229,72,77,0.15);color:#FF6B6B;border:1px solid rgba(229,72,77,0.45)}
@@ -414,11 +417,12 @@ button.capbadge:active{transform:scale(0.95)}
     <button type="button" id="segProv">Por proveedor</button>
   </div>
   <div class="pagofil" id="pagoFil">
-    <button type="button" data-f="" class="on"><span class="pf"></span>Todas<span class="pn" data-n=""></span></button>
+    <!-- v51: "Todas" sin cifras (ya están en los recuadros de arriba) y los accionables primero — así "Sin asignar" entra en pantalla -->
+    <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
     <button type="button" data-f="pendiente"><span class="pf"></span>Sin pagar<span class="pn" data-n="pendiente"></span></button>
+    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar<span class="pn" data-n="nada"></span></button>
     <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo<span class="pn" data-n="efectivo"></span></button>
     <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta<span class="pn" data-n="tarjeta"></span></button>
-    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar<span class="pn" data-n="nada"></span></button>
   </div>
   <div class="alertas">
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
@@ -427,7 +431,7 @@ button.capbadge:active{transform:scale(0.95)}
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
-  <p class="legal">El ahorro es una estimaci&oacute;n sobre el IVA identificado en tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
+  <p class="legal">El IVA identificado es una estimaci&oacute;n sobre tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
 </div>
 
@@ -1239,7 +1243,7 @@ function renderPanel(data, cachedNote){
           row.appendChild(b);
         }
         if (!ES_EMPLEADO){
-          var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn'; bx.textContent = '🗑';
+          var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn peligro'; bx.textContent = '🗑';
           bx.title = 'Descartar esta pendiente (la foto queda en Drive)';
           bx.addEventListener('click', function(ev){
             ev.stopPropagation();

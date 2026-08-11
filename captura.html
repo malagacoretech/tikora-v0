@@ -54,7 +54,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #okOverlay .sub{font-size:0.85rem;color:var(--text-muted)}
 
 /* miniatura flotante de la última captura: estado de subida sin tapar el visor */
-#thumb{position:absolute;left:1rem;bottom:calc(16.6rem + env(safe-area-inset-bottom));z-index:7;width:72px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s;cursor:pointer}
+/* v54: una sola columna anclada abajo para miniatura + cola + botones de pago.
+   Antes cada uno llevaba su propio bottom fijo en rem y se superponian. */
+#zonaInferior{position:absolute;left:1rem;right:1rem;bottom:calc(9.6rem + env(safe-area-inset-bottom));z-index:7;display:flex;flex-direction:column;align-items:stretch;gap:0.55rem;pointer-events:none}
+#zonaInferior > *{pointer-events:auto}
+/* v54: recien sacada la foto, el bloque sube al centro. Pegado al disparador se dispara otra vez sin querer. */
+#zonaInferior:has(#postShot.on){top:50%;bottom:auto;transform:translateY(-50%)}
+#thumb{align-self:flex-start;width:78px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s;cursor:pointer;flex-shrink:0}
 /* v52: visor de fotos de la sesión — tocá la miniatura y repasá en grande lo que sacaste */
 #fotoVis{position:fixed;inset:0;z-index:60;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
 #fotoVis.on{display:flex}
@@ -67,7 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvNext{right:0.6rem}
 #fotoVis .fvHint{position:absolute;bottom:calc(1.2rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
 #thumb.on{display:block}
-#thumb img{display:block;width:100%;height:72px;object-fit:cover}
+#thumb img{display:block;width:100%;height:78px;object-fit:cover}
 #thumb .st{display:block;font-size:0.6rem;font-weight:700;text-align:center;padding:0.22rem 0.2rem;background:rgba(10,22,40,0.92);color:var(--text-muted);letter-spacing:0.02em}
 #thumb .bar{display:block;height:4px;background:var(--surface-2)}
 #thumb .bar i{display:block;height:100%;width:0%;background:var(--accent);transition:width 0.2s}
@@ -102,11 +108,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
 
 /* ====== COLA PENDIENTES ====== */
-#queueBar{position:absolute;left:1rem;right:1rem;bottom:calc(12.2rem + env(safe-area-inset-bottom));z-index:6;display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
+#queueBar{display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
 #queueBar.on{display:flex}
 #queueBar .n{background:var(--accent);color:#0A1628;font-weight:800;border-radius:10px;padding:0.1rem 0.5rem}
 #queueBar .msg{flex:1;color:var(--text-muted)}
-#queueBar button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:0.45rem 0.8rem;font-size:0.8rem;font-family:inherit;cursor:pointer;font-weight:600}
+#queueBar button{min-height:40px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:0.45rem 0.8rem;font-size:0.8rem;font-family:inherit;cursor:pointer;font-weight:600}
 .toast{position:fixed;bottom:calc(10.6rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.75rem 1.4rem;border-radius:26px;font-size:0.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s;z-index:40;pointer-events:none;max-width:88vw;text-align:center}
 .toast.show{opacity:1}
 .toast.err{background:var(--danger);border-color:var(--danger);color:#fff}
@@ -236,9 +242,9 @@ input[type=file]{display:none}
 #ptrHint{display:none;text-align:center;color:var(--text-muted);font-size:0.8rem;padding:0.35rem 0}
 #ptrHint.on{display:block;color:var(--accent);font-weight:700}
 /* v16: ventana post-disparo (rehacer / efectivo / tarjeta) */
-#postShot{position:absolute;left:1rem;right:1rem;bottom:calc(8.7rem + env(safe-area-inset-bottom));z-index:6;display:none;gap:0.45rem}
+#postShot{display:none;gap:0.45rem}
 #postShot.on{display:flex}
-#postShot button{flex:1;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
+#postShot button{flex:1;min-height:44px;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
 #postShot button.sel{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 /* v17: semaforo de pagos */
 .prow.pg-pendiente{border-left:4px solid #E5484D}
@@ -363,20 +369,24 @@ button.capbadge:active{transform:scale(0.95)}
   </div>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
-  <div id="thumb"><img id="thumbImg" alt=""><span class="bar"><i id="thumbBar"></i></span><span class="st" id="thumbSt"></span></div>
-  <div id="queueBar"><span class="n" id="queueN">0</span><span class="msg" id="queueMsg">pendientes de enviar</span><button id="retryBtn" type="button">Reintentar</button></div>
+  <!-- v54: los tres se apilan en UNA columna anclada abajo. Antes cada uno tenia su propio
+       "bottom" fijo en rem y se pisaban en cuanto uno crecia (la miniatura tapaba la barra). -->
+  <div id="zonaInferior">
+    <div id="thumb"><img id="thumbImg" alt=""><span class="bar"><i id="thumbBar"></i></span><span class="st" id="thumbSt"></span></div>
+    <div id="queueBar"><span class="n" id="queueN">0</span><span class="msg" id="queueMsg">pendientes de enviar</span><button id="retryBtn" type="button">Reintentar</button></div>
+    <div id="postShot">
+      <button type="button" id="psRehacer">&#8635;</button>
+      <button type="button" id="psEfectivo">&#128181; Efectivo</button>
+      <button type="button" id="psTarjeta">&#128179; Tarjeta</button>
+      <button type="button" id="psPendiente">&#128337; Sin pagar</button>
+    </div>
+  </div>
   <div id="fotoVis">
     <div class="fvTop"><span class="fvN" id="fvN"></span><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div>
     <img id="fvImg" alt="Foto de la sesi&oacute;n">
     <button type="button" class="fvNav fvPrev" id="fvPrev" aria-label="Anterior">&#8249;</button>
     <button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
     <div class="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
-  </div>
-  <div id="postShot">
-    <button type="button" id="psRehacer">&#8635;</button>
-    <button type="button" id="psEfectivo">&#128181; Efectivo</button>
-    <button type="button" id="psTarjeta">&#128179; Tarjeta</button>
-    <button type="button" id="psPendiente">&#128337; Sin pagar</button>
   </div>
   <div class="bottombar">
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
@@ -879,7 +889,7 @@ $('psRehacer').addEventListener('click', function(){
   clearTimeout(postTimer);
   dbDel(id).then(function(){ refreshQueueUI(); });
   $('thumb').classList.remove('on');
-  toast('Foto descartada — sacá otra', false);
+  toast('Foto descartada, no llegó a enviarse — sacá otra', false);
 });
 function elegirPago(pago){
   if (!holdItem) return;
@@ -1282,13 +1292,13 @@ function renderPanel(data, cachedNote){
         }
         if (!ES_EMPLEADO){
           var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn peligro'; bx.textContent = '🗑';
-          bx.title = 'Descartar esta pendiente (la foto queda en Drive)';
+          bx.title = 'Quitar de la lista (la foto se conserva guardada en el sistema)';
           bx.addEventListener('click', function(ev){
             ev.stopPropagation();
-            if (!confirm('¿Descartar esta pendiente? Desaparece de la lista (la foto queda guardada en Drive).')) return;
+            if (!confirm('¿Quitar esta factura de la lista?\n\nDesaparece de la app, pero la foto NO se borra: se conserva guardada en el sistema. Se puede recuperar.')) return;
             fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
               .then(function(r){ if (!r.ok) throw 0; return r.json(); })
-              .then(function(){ row.remove(); toast('Descartada'); loadPanel(true); })
+              .then(function(){ row.remove(); toast('Quitada de la lista — la foto sigue guardada en el sistema'); loadPanel(true); })
               .catch(function(){ toast('No se pudo descartar'); });
           });
           row.appendChild(bx);

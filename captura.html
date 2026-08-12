@@ -382,6 +382,12 @@ input[type=file]{display:none}
 .caprow .ce{font-size:0.92rem;font-weight:700}
 .caprow .ce.grande{font-size:1.08rem;font-variant-numeric:tabular-nums}
 .caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
+/* v95: el motivo, en una frase y en la propia fila — antes había que abrir la hoja para saber por qué */
+.caprow .cm{font-size:0.78rem;font-weight:700;color:#ff8f93;margin-top:0.15rem}
+.caprow.ok .cm{color:var(--accent)}
+.revhead{font-size:0.78rem;font-weight:800;letter-spacing:0.02em;color:var(--text-muted);margin:0.7rem 0 0.4rem;text-transform:uppercase}
+.revhead:first-child{margin-top:0}
+.revcalma{font-size:0.8rem;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.8rem;margin-bottom:0.5rem;line-height:1.35}
 .capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem;font-family:inherit}
 button.capbadge{cursor:pointer}
 /* v51: objetivos táctiles dignos en las filas (mín ~40px, revisión del Cowork paralelo) + el destructivo separado y marcado */
@@ -1790,6 +1796,77 @@ function consumirRehacer(){
   }
   return f;
 }
+/* v95: el motivo, en cristiano. La hoja guarda jerga ("emisor_nif; fecha_emision; numero_factura")
+   y eso no le dice nada a nadie: hasta hoy había que abrir Google Sheets para saber por qué una foto
+   estaba en Revisar. Esto lo traduce a UNA frase. Si el Panel API todavía no manda el campo, cae al
+   motivo de familia — así funciona hoy y mejora sola el día que el campo viaje, sin tocar la app. */
+function motivoHumano(c){
+  var t = String(c.campos || c.campos_dudosos || c.motivo || c.dudosos || '').toLowerCase();
+  if (t){
+    if (/no_es_factura|no es una factura|no contiene una factura|no es factura/.test(t)) return 'No es una factura';
+    if (/formato no soportado|zip|mp4|video|audio/.test(t))         return 'Ese archivo no es una foto';
+    if (/negro|ilegible|borros|no_hay_datos|sin_contenido/.test(t)) return 'Salió oscura o movida';
+    if (/nif|cif/.test(t) && /d[ií]gito de control|no v[áa]lid/.test(t)) return 'El NIF no cuadra';
+    /* si faltan cuatro campos o más, no tiene sentido señalar uno: la foto no se lee y punto */
+    if (t.split(';').filter(function(x){ return x.indexOf('_') >= 0; }).length >= 4) return 'Se lee a medias — mejor repetirla';
+    if (/nif|cif/.test(t))                                        return 'No se lee el NIF';
+    if (/fuera de rango/.test(t))                                 return 'La fecha parece de otro año';
+    if (/fecha/.test(t))                                          return 'No se lee la fecha';
+    if (/base_imponible|total|importe|precio/.test(t))            return 'No se lee el importe';
+    if (/cuota_iva|tipo_iva|iva/.test(t))                         return 'Falta el IVA';
+    if (/numero_factura/.test(t))                                 return 'Falta el número de factura';
+    if (/emisor|proveedor/.test(t))                               return 'No se lee quién la emite';
+    if (/forma_pago/.test(t))                                     return 'Falta cómo se pagó';
+  }
+  return c.tipo === 'corregir' ? 'Falta confirmar un dato' : 'La foto no se lee entera';
+}
+/* v95: una fila de Revisar. Sale del cuerpo del forEach de la v39 sin cambiarle un botón —
+   lo único nuevo es la línea del motivo. Mismos handlers: Foto, corregir/repetila, quitar. */
+function filaRevisar(c){
+  var row = document.createElement('div'); row.className = 'caprow rev';
+  /* v40: la hora EN GRANDE, sin parrafada de campos. v42: el nombre vuelve debajo, chiquito (pedido Matías) */
+  var g = document.createElement('div'); g.className = 'cg';
+  var e1 = document.createElement('div'); e1.className = 'ce grande';
+  e1.textContent = c.entro ? ('Ingresó ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
+  g.appendChild(e1);
+  if (c.emisor && c.emisor.charAt(0) !== '('){
+    var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
+    g.appendChild(h1);
+  }
+  var m = document.createElement('div'); m.className = 'cm'; m.textContent = motivoHumano(c);
+  g.appendChild(m);
+  row.appendChild(g);
+  if (c.f){
+    var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
+    vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); });
+    row.appendChild(vf);
+    /* v50: 'corregir' = la foto estaba bien, falta un dato -> se arregla en la hoja, no con otra foto */
+    if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
+      var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'capbadge'; b2.textContent = '✏️ corregir';
+      b2.title = 'La foto está bien: falta un dato. Se corrige en la hoja.';
+      b2.addEventListener('click', function(ev){ ev.stopPropagation(); window.open(HOJA_REVISAR + '&range=A' + c.fila, '_blank', 'noopener'); });
+      row.appendChild(b2);
+    } else {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
+      b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
+      row.appendChild(b);
+    }
+    if (!ES_EMPLEADO){
+      var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn peligro'; bx.textContent = '🗑';
+      bx.title = 'Quitar de la lista (la foto se conserva guardada en el sistema)';
+      bx.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if (!confirm('¿Quitar esta factura de la lista?\n\nDesaparece de la app, pero la foto NO se borra: se conserva guardada en el sistema. Se puede recuperar.')) return;
+        fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
+          .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+          .then(function(){ row.remove(); toast('Quitada de la lista — la foto sigue guardada en el sistema'); loadPanel(true); })
+          .catch(function(){ toast('No se pudo descartar'); });
+      });
+      row.appendChild(bx);
+    }
+  }
+  return row;
+}
 function renderPanel(data, cachedNote){
   /* v39 (decision Matias): panel COMPLETO tambien para el empleado — misma vista para todos */
   $('screenPanel').classList.remove('modo-empleado');
@@ -1826,56 +1903,40 @@ function renderPanel(data, cachedNote){
   } else {
     $('cardDebe').classList.remove('on');
   }
-  /* v39: "Fotos para repetir" — las filas de Revisar sin rehacer, con ver-foto y rehacer enlazado */
+  /* v39: "Fotos para repetir" — las filas de Revisar sin rehacer, con ver-foto y rehacer enlazado.
+     v95: deja de ser una lista plana. Matías miró la pestaña Revisar entera y no la entendió:
+     "quiero un medio que me informe qué tengo que revisar, qué faltó". El problema no era el volumen,
+     era que la hoja MEZCLA TRES FAMILIAS que no se parecen en nada — papeles que no eran facturas
+     (nada que hacer), fotos ilegibles (hay que repetirlas) y facturas buenas con un dato dudoso
+     (la foto está bien, solo falta confirmar). Ahora van separadas, y cada fila dice POR QUÉ. */
   var pend = data.pendientes || [];
+  var nOtros = (data.otros || []).length;
   if (pend.length){
-    $('rehacerTxt').textContent = pend.length + ' para repetir';   /* v89: "fotos" a secas no decia que */
+    $('rehacerTxt').textContent = pend.length + (pend.length === 1 ? ' para revisar' : ' para revisar');
     $('cardRehacer').style.display = 'block';
     var rr = $('rehacerRows');
     rr.innerHTML = '';
-    pend.forEach(function(c){
-      var row = document.createElement('div'); row.className = 'caprow rev';
-      /* v40: la hora EN GRANDE, sin parrafada de campos. v42: el nombre vuelve debajo, chiquito (pedido Matías) */
-      var g = document.createElement('div'); g.className = 'cg';
-      var e1 = document.createElement('div'); e1.className = 'ce grande';
-      e1.textContent = c.entro ? ('Ingresó ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
-      g.appendChild(e1);
-      if (c.emisor && c.emisor.charAt(0) !== '('){
-        var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
-        g.appendChild(h1);
-      }
-      row.appendChild(g);
-      if (c.f){
-        var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
-        vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); });
-        row.appendChild(vf);
-        /* v50: 'corregir' = la foto estaba bien, falta un dato -> se arregla en la hoja, no con otra foto */
-        if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
-          var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'capbadge'; b2.textContent = '✏️ corregir';
-          b2.title = 'La foto está bien: falta un dato. Se corrige en la hoja.';
-          b2.addEventListener('click', function(ev){ ev.stopPropagation(); window.open(HOJA_REVISAR + '&range=A' + c.fila, '_blank', 'noopener'); });
-          row.appendChild(b2);
-        } else {
-          var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
-          b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
-          row.appendChild(b);
-        }
-        if (!ES_EMPLEADO){
-          var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn peligro'; bx.textContent = '🗑';
-          bx.title = 'Quitar de la lista (la foto se conserva guardada en el sistema)';
-          bx.addEventListener('click', function(ev){
-            ev.stopPropagation();
-            if (!confirm('¿Quitar esta factura de la lista?\n\nDesaparece de la app, pero la foto NO se borra: se conserva guardada en el sistema. Se puede recuperar.')) return;
-            fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
-              .then(function(r){ if (!r.ok) throw 0; return r.json(); })
-              .then(function(){ row.remove(); toast('Quitada de la lista — la foto sigue guardada en el sistema'); loadPanel(true); })
-              .catch(function(){ toast('No se pudo descartar'); });
-          });
-          row.appendChild(bx);
-        }
-      }
-      rr.appendChild(row);
-    });
+    /* el reparto: 'corregir' = la foto está bien y falta un dato · el resto = hay que repetir la foto.
+       Al empleado no se le parte (no puede tocar la hoja: para él todo se resuelve repitiendo). */
+    var gCorr = ES_EMPLEADO ? [] : pend.filter(function(c){ return c.tipo === 'corregir' && c.fila; });
+    var gRep  = pend.filter(function(c){ return gCorr.indexOf(c) < 0; });
+    /* lo primero que se lee: cuántos papeles quedaron archivados SIN que haya nada que hacer.
+       Es la mitad de la respuesta a "qué tengo que revisar" — saber qué NO hay que revisar. */
+    if (nOtros){
+      var calma = document.createElement('div'); calma.className = 'revcalma';
+      calma.textContent = 'Además hay ' + nOtros + (nOtros === 1
+        ? ' papel archivado que no era una factura. No hay nada que hacer con él.'
+        : ' papeles archivados que no eran facturas. No hay nada que hacer con ellos.');
+      rr.appendChild(calma);
+    }
+    var pintar = function(lista, titulo){
+      if (!lista.length) return;
+      var h = document.createElement('div'); h.className = 'revhead'; h.textContent = titulo;
+      rr.appendChild(h);
+      lista.forEach(function(c){ rr.appendChild(filaRevisar(c)); });
+    };
+    pintar(gCorr, gCorr.length + (gCorr.length === 1 ? ' espera que confirmes un dato' : ' esperan que confirmes un dato'));
+    pintar(gRep,  gRep.length  + (gRep.length  === 1 ? ' foto hay que repetirla'      : ' fotos hay que repetirlas'));
   } else {
     $('cardRehacer').style.display = 'none';
     $('rehacerRows').style.display = 'none';
@@ -3069,7 +3130,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v94';
+var APP_VER = 'v95';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

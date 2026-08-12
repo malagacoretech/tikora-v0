@@ -201,6 +201,7 @@ input[type=file]{display:none}
 /* v73: selector de ritmo en Capturar, bajo la marca. Mismo sitio que ocupaba el boton de voz. */
 .ritmo{position:absolute;top:calc(5.7rem + env(safe-area-inset-top));left:1rem;z-index:8;display:inline-flex;align-items:center;gap:0.35rem;min-height:40px;background:rgba(10,22,40,0.72);border:1px solid var(--border);color:#fff;border-radius:999px;padding:0.4rem 0.85rem;font-family:inherit;font-size:0.76rem;font-weight:700;cursor:pointer}
 .ritmo.rapido{border-color:var(--accent);color:var(--accent);background:rgba(20,34,56,0.92)}
+.ritmo.lento{border-color:#5B8DEF;color:#9CC0FF;background:rgba(20,34,56,0.92)}
 .ritmo:active{transform:scale(0.96)}
 .pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
 .pushask span{flex:1}
@@ -978,14 +979,22 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
    pero la foto salia a los 4,0 s: elegir en ese medio segundo podia no aplicarse. */
 /* v73: dos ritmos. Detras de una barra no siempre se tiene el mismo tiempo:
    tranquilo para marcar el pago con calma, rapido para disparar y seguir. */
-var RITMO_RAPIDO_MS = 3000, RITMO_TRANQUILO_MS = 6000;
-var VENTANA_PAGO_MS = RITMO_TRANQUILO_MS;
-try { if (localStorage.getItem('tikora_ritmo') === 'rapido') VENTANA_PAGO_MS = RITMO_RAPIDO_MS; } catch(e){}
-function esRapido(){ return VENTANA_PAGO_MS === RITMO_RAPIDO_MS; }
+var RITMOS = [
+  { ms: 3000,  clave: 'rapido',    txt: '⚡ Rápido · 3 s' },
+  { ms: 6000,  clave: 'tranquilo', txt: '⏱️ Tranquilo · 6 s' },
+  { ms: 10000, clave: 'lento',     txt: '🐢 Lento · 10 s' }
+];
+var ritmoIdx = 1;   /* tranquilo por defecto: 3 s es poco para quien lo usa por primera vez */
+try {
+  var _g = localStorage.getItem('tikora_ritmo');
+  for (var _i = 0; _i < RITMOS.length; _i++) if (RITMOS[_i].clave === _g) ritmoIdx = _i;
+} catch(e){}
+var VENTANA_PAGO_MS = RITMOS[ritmoIdx].ms;
 function pintarRitmo(){
   var b = $('ritmoBtn'); if (!b) return;
-  b.textContent = esRapido() ? '⚡ Rápido · 3 s' : '⏱️ Tranquilo · 6 s';
-  b.classList.toggle('rapido', esRapido());
+  b.textContent = RITMOS[ritmoIdx].txt;
+  b.classList.toggle('rapido', ritmoIdx === 0);
+  b.classList.toggle('lento', ritmoIdx === 2);
 }
 var holdItem = null, postTimer = null, postTick = null, pagosPend = [];
 try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]'); } catch(e){}
@@ -1014,10 +1023,11 @@ function mostrarPostShot(id){
   var b = $('ritmoBtn'); if (!b) return;
   pintarRitmo();
   b.addEventListener('click', function(){
-    VENTANA_PAGO_MS = esRapido() ? RITMO_TRANQUILO_MS : RITMO_RAPIDO_MS;
-    try { localStorage.setItem('tikora_ritmo', esRapido() ? 'rapido' : 'tranquilo'); } catch(e){}
+    ritmoIdx = (ritmoIdx + 1) % RITMOS.length;      /* rapido -> tranquilo -> lento -> rapido */
+    VENTANA_PAGO_MS = RITMOS[ritmoIdx].ms;
+    try { localStorage.setItem('tikora_ritmo', RITMOS[ritmoIdx].clave); } catch(e){}
     pintarRitmo();
-    toast(esRapido() ? '⚡ Rápido: 3 s para marcar el pago' : '⏱️ Tranquilo: 6 s para marcar el pago');
+    toast(RITMOS[ritmoIdx].txt + ' para marcar el pago');
     if (holdItem && $('postShot').classList.contains('on')) mostrarPostShot(holdItem.id);
   });
 })();
@@ -2543,7 +2553,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v73';
+var APP_VER = 'v74';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

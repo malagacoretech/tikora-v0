@@ -348,6 +348,13 @@ button.capbadge:active{transform:scale(0.95)}
 /* v41/v42: flexbox APLASTA a los hijos con overflow cuando la columna desborda (chips invisibles desde v33;
    el HERO perdia su numero en iPhone). Regla estructural: NADA dentro del panel se encoge — el panel entero scrollea. */
 #screenPanel > *{flex-shrink:0}
+.pagowrap{position:relative;flex-shrink:0;margin:0 0 0.55rem}
+.pagowrap .pagofil{margin:0}
+.pgflecha{position:absolute;top:50%;transform:translateY(-50%);z-index:3;display:none;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:1.15rem;font-weight:800;line-height:1;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.55)}
+.pgflecha.on{display:flex}
+.pgflecha.izq{left:0}
+.pgflecha.der{right:0}
+.pgflecha:active{transform:translateY(-50%) scale(0.92)}
 .pagofil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.55rem;scrollbar-width:none;flex-shrink:0}
 .pagofil::-webkit-scrollbar{display:none}
 .pagofil button{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
@@ -491,13 +498,20 @@ div:has(> #segProv) > button{min-height:44px}
   </div>
   <div class="grid3">
     <div class="pcard clickable" id="cardN"><div class="lbl">Facturas</div><div class="val2" id="pN">&mdash;</div></div>
-    <div class="pcard clickable" id="cardBase"><div class="lbl">Base imponible</div><div class="val2" id="pBase">&mdash;</div></div>
+    <!-- v65: idioma de bar — "Base imponible" es de asesor; en la gestoría sigue el término oficial -->
+    <div class="pcard clickable" id="cardBase"><div class="lbl">Gastado sin IVA</div><div class="val2" id="pBase">&mdash;</div></div>
     <div class="pcard clickable" id="cardProv"><div class="lbl">Proveedores</div><div class="val2" id="pProv">&mdash;</div></div>
   </div>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
   </div>
+  <!-- v63: el carril se deslizaba de lado pero nada lo indicaba, asi que "Efectivo" y
+       "Tarjeta" no existian para quien no adivinara el gesto. Flechas que solo salen
+       cuando de verdad queda algo hacia ese lado. -->
+  <div class="pagowrap">
+  <button type="button" class="pgflecha izq" id="pagoIzq" aria-label="Ver filtros anteriores">&#8249;</button>
+  <button type="button" class="pgflecha der" id="pagoDer" aria-label="Ver m&aacute;s filtros">&#8250;</button>
   <div class="pagofil" id="pagoFil">
     <!-- v51: "Todas" sin cifras (ya están en los recuadros de arriba) y los accionables primero — así "Sin asignar" entra en pantalla -->
     <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
@@ -505,6 +519,7 @@ div:has(> #segProv) > button{min-height:44px}
     <button type="button" data-f="nada"><span class="pf"></span>Sin asignar<span class="pn" data-n="nada"></span></button>
     <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo<span class="pn" data-n="efectivo"></span></button>
     <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta<span class="pn" data-n="tarjeta"></span></button>
+  </div>
   </div>
   <div class="alertas">
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
@@ -1233,7 +1248,7 @@ function renderFilas(cont, rowsArr){
     else if (pg === 'tarjeta') row.classList.add('pg-tarjeta');
     else row.classList.add('pg-nada');
     var who = document.createElement('div'); who.className = 'who';
-    var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(sin emisor)';
+    var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(proveedor sin leer)';
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
     var eh = entroHoy(r.entro);
     if (eh){
@@ -1244,7 +1259,7 @@ function renderFilas(cont, rowsArr){
     /* v32: base imponible, total y la diferencia (el IVA) en cada fila */
     if (r.total && r.iva){
       var bl = document.createElement('div'); bl.className = 'baseline';
-      bl.innerHTML = 'Base ' + fmtEur(r.total - r.iva) + ' · <span class="bivaw">IVA ' + fmtEur(r.iva) + '</span>';
+      bl.innerHTML = 'Sin IVA ' + fmtEur(r.total - r.iva) + ' · <span class="bivaw">IVA ' + fmtEur(r.iva) + '</span>';
       who.appendChild(bl);
     }
     /* v28: la palabra del pago debajo del importe — no hace falta saberse los colores */
@@ -1413,7 +1428,35 @@ function pintarContadoresPago(){
     var a = acc[k];
     sp.textContent = (a && a.n) ? (a.n + ' · ' + fmtEurCorto(a.s)) : '';
   });
+  pagoFlechas();   /* v63: al meter importes las pastillas crecen — hay que recalcular las flechas */
 }
+
+/* v63: flechas del carril de filtros. Solo se muestran si de verdad queda algo hacia ese lado. */
+function pagoFlechas(){
+  var rail = $('pagoFil'), izq = $('pagoIzq'), der = $('pagoDer');
+  if (!rail || !izq || !der) return;
+  var tope = rail.scrollWidth - rail.clientWidth - 1;
+  izq.classList.toggle('on', tope > 0 && rail.scrollLeft > 2);
+  der.classList.toggle('on', tope > 0 && rail.scrollLeft < tope);
+}
+(function(){
+  var rail = $('pagoFil'), izq = $('pagoIzq'), der = $('pagoDer');
+  if (!rail || !izq || !der) return;
+  function paso(){
+    var b = rail.querySelector('button');
+    return b ? (b.getBoundingClientRect().width + 7) : 110;   /* una pastilla y su hueco */
+  }
+  function mover(d){
+    try { rail.scrollBy({ left: d, behavior: 'smooth' }); }
+    catch(e){ rail.scrollLeft += d; }                          /* navegador viejo: sin animacion */
+    setTimeout(pagoFlechas, 420);
+  }
+  izq.addEventListener('click', function(){ mover(-paso()); });
+  der.addEventListener('click', function(){ mover(paso()); });
+  rail.addEventListener('scroll', pagoFlechas);
+  window.addEventListener('resize', pagoFlechas);
+  setTimeout(pagoFlechas, 400);
+})();
 function renderLista(){
   var data = panelData || {};
   var cont = $('panelRows');
@@ -2231,7 +2274,7 @@ if (ES_EMPLEADO){
 var fichaRow = null;
 function abrirFicha(r){
   fichaRow = r;
-  $('fichaEmisor').textContent = r.emisor || '(sin emisor)';
+  $('fichaEmisor').textContent = r.emisor || '(proveedor sin leer)';
   $('fichaDetalle').textContent = fmtFecha(r.fecha) + (r.nfac ? (' · Nº ' + r.nfac) : '') + ' · IVA ' + fmtEur(r.iva);
   $('fichaTotal').textContent = fmtEur(r.total);
   $('fichaFoto').style.display = r.foto ? '' : 'none';
@@ -2363,7 +2406,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v64';
+var APP_VER = 'v65';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -236,10 +236,15 @@ input[type=file]{display:none}
 .psearch::placeholder{color:var(--text-muted)}
 .psearch:focus{border-color:var(--accent)}
 /* v84: selector de orden. Compacto: una linea, sin comerse pantalla. */
-.ordfil{display:flex;align-items:center;gap:0.5rem;margin:0 0 0.7rem}
-.ordfil label{color:var(--text-muted);font-size:0.78rem;font-weight:600;flex-shrink:0}
-.ordfil select{flex:1;min-width:0;min-height:44px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:0.86rem;font-weight:600;padding:0.4rem 0.7rem}
-.ordfil select:focus{border-color:var(--accent);outline:none}
+/* v86: periodo + orden en una sola fila, pegados a la lista */
+.filarow{display:flex;align-items:center;gap:0.45rem;margin:0 0 0.6rem}
+.filarow .mesfil{flex:1;min-width:0;margin:0}
+.ordbtn{flex-shrink:0;width:44px;height:44px;padding:0;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:1.25rem;font-weight:800;line-height:1;cursor:pointer}
+.ordbtn.on{border-color:var(--accent);color:var(--accent)}
+.ordmenu{display:none;flex-direction:column;gap:0.3rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.4rem;margin:0 0 0.7rem}
+.ordmenu.on{display:flex}
+.ordmenu button{text-align:left;min-height:44px;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:0.88rem;font-weight:600;border-radius:10px;padding:0.5rem 0.7rem;cursor:pointer}
+.ordmenu button.on{background:var(--accent);color:#0A1628;font-weight:800}
 /* v78: la X de borrar la busqueda era la nativa del navegador, diminuta y gris — se perdia.
    Ahora es un boton redondo de 36px con la X dorada: se ve y se acierta con el dedo. */
 .psearch::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:36px;height:36px;margin-left:0.3rem;border-radius:50%;background-color:var(--surface-2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F4C95D' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E");background-size:17px 17px;background-position:center;background-repeat:no-repeat;cursor:pointer}
@@ -558,7 +563,6 @@ div:has(> #segProv) > button{min-height:44px}
   <div class="pbanner" id="panelBanner" style="display:none"></div>
   <!-- v71: un mes por vez. Ver 174 facturas juntas no le sirve a nadie, y menos a una
        gestoria, que trabaja por trimestres. El mes elegido manda sobre TODA la pantalla. -->
-  <div class="mesfil" id="mesFil"></div>
   <!-- v71: el hero deja de decir "IVA identificado" (jerga que nos inventamos y que la
        gente no entiende) y pasa a decir lo que es: el IVA que pagaste en tus compras.
        Debajo, el termino que si entiende un gestor. -->
@@ -603,15 +607,15 @@ div:has(> #segProv) > button{min-height:44px}
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
-  <div class="ordfil">
-    <label for="panelOrden">Ordenar por</label>
-    <select id="panelOrden">
-      <option value="fecha">Fecha de la factura</option>
-      <option value="llegada">Cu&aacute;ndo entr&oacute;</option>
-      <option value="importe">Importe, de mayor a menor</option>
-      <option value="nombre">Proveedor, de la A a la Z</option>
-    </select>
+  <!-- v86: periodo y orden JUNTOS y pegados a la lista, en UNA sola fila. El "Ordenar por"
+       ocupaba un renglón entero para algo que se toca una vez cada mucho: ahora vive detrás
+       de los tres puntos. Menos pantalla comida, y las dos preguntas ("¿de cuándo?" y
+       "¿en qué orden?") una al lado de la otra, justo encima de lo que afectan. -->
+  <div class="filarow">
+    <div class="mesfil" id="mesFil"></div>
+    <button type="button" class="ordbtn" id="ordBtn" aria-label="Ordenar la lista" title="Ordenar">&#8942;</button>
   </div>
+  <div class="ordmenu" id="ordMenu"></div>
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">El IVA identificado es una estimaci&oacute;n sobre tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
@@ -1976,14 +1980,41 @@ function renderLista(){
     }
   }
 }
-/* v84: cambiar el orden repinta lo que estés viendo, sea facturas o proveedores */
+/* v86: el orden vive detrás de los tres puntos. Se toca una vez cada mucho — no merece
+   un renglón fijo en una pantalla que ya tiene ocho cosas. */
+var ORDENES_PANEL = [
+  { v: 'fecha',   t: 'Fecha de la factura' },
+  { v: 'llegada', t: 'Cuándo entró' },
+  { v: 'importe', t: 'Importe, de mayor a menor' },
+  { v: 'nombre',  t: 'Proveedor, de la A a la Z' }
+];
+function pintarMenuOrden(){
+  var m = $('ordMenu'); if (!m) return;
+  m.innerHTML = '';
+  ORDENES_PANEL.forEach(function(o){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = o.t;
+    b.classList.toggle('on', panelOrden === o.v);
+    b.addEventListener('click', function(){
+      panelOrden = o.v;
+      try { localStorage.setItem('tikora_orden', panelOrden); } catch(e){}
+      m.classList.remove('on');
+      $('ordBtn').classList.remove('on');
+      pintarMenuOrden();
+      renderLista();
+    });
+    m.appendChild(b);
+  });
+}
 (function(){
-  var s = $('panelOrden'); if (!s) return;
-  s.value = panelOrden;
-  s.addEventListener('change', function(){
-    panelOrden = s.value;
-    try { localStorage.setItem('tikora_orden', panelOrden); } catch(e){}
-    renderLista();
+  var b = $('ordBtn'), m = $('ordMenu');
+  if (!b || !m) return;
+  pintarMenuOrden();
+  b.addEventListener('click', function(){
+    var abrir = !m.classList.contains('on');
+    m.classList.toggle('on', abrir);
+    b.classList.toggle('on', abrir);
   });
 })();
 $('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
@@ -2868,7 +2899,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v85';
+var APP_VER = 'v86';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

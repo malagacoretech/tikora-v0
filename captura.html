@@ -424,6 +424,9 @@ button.capbadge:active{transform:scale(0.95)}
 .prow .who .e{font-size:1.06rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* v41: nombres grandes (pedido Matias) */
 .prow .who .d{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
 .prow .amt{font-size:0.95rem;font-weight:700;white-space:nowrap}
+/* v85: sello de albaran y forma de pago impresa */
+.albtag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(91,141,239,0.18);border:1px solid #5B8DEF;color:#9CC0FF;border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em}
+.pgleida{font-size:0.66rem;color:var(--text-muted);white-space:nowrap;margin-top:0.1rem}
 .prow a.foto{color:var(--accent);text-decoration:none;font-size:1.1rem;flex-shrink:0;padding:0.2rem}
 .pbanner{background:rgba(244,201,93,0.08);border:1px solid rgba(244,201,93,0.3);color:var(--accent);border-radius:12px;padding:0.7rem 1rem;font-size:0.82rem;margin-bottom:0.9rem;text-align:center}
 .pbanner button{margin-left:0.6rem;background:var(--accent);color:#0A1628;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-family:inherit;font-weight:700;font-size:0.78rem;cursor:pointer}
@@ -590,10 +593,13 @@ div:has(> #segProv) > button{min-height:44px}
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
     <div class="pcard debe" id="cardRehacer" style="display:none"><div class="lbl">&#9888;&#65039; Para repetir</div><div class="val2" id="rehacerTxt">&mdash;</div><div class="debehint" id="rehacerHint">Toc&aacute; y velas</div></div>
   </div>
-  <!-- v83: la tarjeta "Tus fotos de hoy" se RETIRA. Cantaba como "sin rastro" fotos que el
-       motor había archivado bien en la pestaña Otros (albaranes, notas de entrega), porque el
-       Panel API no devuelve Otros y yo no tenía forma de verlas. Una alarma que se equivoca es
-       peor que no tener alarma. Vuelve cuando el API exponga Otros. -->
+  <!-- v85: vuelve, y ahora mira en los TRES sitios (Facturas, Revisar y Otros). En la v81
+       cantaba perdidas las que estaban archivadas como papel; ese dato ya llega del API. -->
+  <div class="pcard debe" id="cardSinRastro" style="display:none">
+    <div class="lbl">&#128248; Tus fotos de hoy</div>
+    <div class="val2" id="sinRastroTxt">&mdash;</div>
+    <div class="debehint" id="sinRastroHint"></div>
+  </div>
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
@@ -1522,9 +1528,47 @@ function pintarMeses(){
     cont.appendChild(b);
   });
 }
-/* v83: la conciliacion se retiro (ver comentario en el HTML). El registro de envios de abajo
-   SE QUEDA: no cuesta nada, no guarda datos y es la base para volver a hacerla bien cuando el
-   Panel API devuelva tambien la pestana Otros. Lo que falto no fue la idea, fue el dato. */
+/* v85: LA CONCILIACION VUELVE, y ahora dice la verdad. En la v81 cantaba como "sin rastro"
+   fotos que el motor habia archivado bien en Otros, porque el Panel API no las devolvia.
+   Ya las devuelve (array `otros`), asi que se cruza contra los TRES sitios donde puede
+   acabar una foto: Facturas, Revisar y Otros. Si no esta en ninguno, entonces si falta. */
+function pintarSinRastro(){
+  var caja = $('cardSinRastro'); if (!caja) return;
+  var hoy = enviadasLeer().filter(function(x){ return esDeHoyTs(x.ts); });
+  if (!hoy.length){ caja.style.display = 'none'; return; }
+
+  var visto = {};
+  ((panelData && panelData.rows) || []).forEach(function(r){ var f = fotoId(r.foto); if (f) visto[f] = 'factura'; });
+  ((panelData && panelData.pendientes) || []).forEach(function(c){ var f = fotoId(c.foto); if (f) visto[f] = 'revisar'; });
+  ((panelData && panelData.otros) || []).forEach(function(o){ if (o.fid) visto[o.fid] = 'otros'; });
+
+  var margen = Date.now() - 6 * 60 * 1000;   /* menos de 6 min: todavia puede estar en camino */
+  var enFactura = 0, enRevisar = 0, enOtros = 0, perdidas = [], enCamino = 0;
+  hoy.forEach(function(x){
+    var d = visto[x.id];
+    if (d === 'factura') enFactura++;
+    else if (d === 'revisar') enRevisar++;
+    else if (d === 'otros') enOtros++;
+    else if (x.ts < margen) perdidas.push(x);
+    else enCamino++;
+  });
+
+  /* solo se enseña si hay algo que hacer: perdidas o cosas que mirar */
+  if (!perdidas.length && !enRevisar){ caja.style.display = 'none'; return; }
+
+  caja.style.display = 'block';
+  var partes = [enFactura + ' en facturas'];
+  if (enOtros)   partes.push(enOtros + ' como papel');
+  if (enRevisar) partes.push(enRevisar + ' a revisar');
+  if (perdidas.length) partes.push(perdidas.length + ' sin rastro');
+  $('sinRastroTxt').textContent = hoy.length + (hoy.length === 1 ? ' foto: ' : ' fotos: ') + partes.join(' · ');
+
+  var pistas = [];
+  if (perdidas.length) pistas.push('Sin rastro desde las ' + perdidas.map(function(x){ return hhmm(x.ts); }).join(', ') + '. Volvé a sacarlas.');
+  if (enRevisar) pistas.push(enRevisar + (enRevisar === 1 ? ' necesita' : ' necesitan') + ' que la mires.');
+  if (enCamino)  pistas.push(enCamino + (enCamino === 1 ? ' va' : ' van') + ' en camino.');
+  $('sinRastroHint').textContent = pistas.join(' ');
+}
 function pintarHero(){
   var rows = filasDelMes((panelData && panelData.rows) || []);
   var iva = 0, base = 0;
@@ -1570,6 +1614,14 @@ function renderFilas(cont, rowsArr){
     else row.classList.add('pg-nada');
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(proveedor sin leer)';
+    /* v85: si el papel es un albarán o nota de entrega, se dice. Lleva los mismos datos
+       fiscales que una factura y por eso cuenta, pero conviene saberlo antes de que lo
+       pregunte un gestor — no después. */
+    if (String(r.deducible || '').toLowerCase() === 'albaran'){
+      var ab = document.createElement('span'); ab.className = 'albtag'; ab.textContent = 'ALBARÁN';
+      ab.title = 'Nota de entrega con desglose de IVA completo. Cuenta como IVA identificado; el deducible definitivo llega con la factura.';
+      e1.appendChild(ab);
+    }
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
     var eh = entroHoy(r.entro);
     if (eh){
@@ -1593,6 +1645,14 @@ function renderFilas(cont, rowsArr){
     var pw = document.createElement('div'); pw.className = 'pgword';
     pw.textContent = (pg === 'pendiente') ? 'sin pagar' : ((pg === 'efectivo' || pg === 'tarjeta') ? pg : 'sin asignar');
     amtc.appendChild(pw);
+    /* v85: si no hay pago asignado pero el papel DICE cómo se pagó, se enseña lo que pone.
+       Mejor "pone: CREDITO" que un "sin asignar" mudo — y la decisión sigue siendo suya. */
+    if (!pg && r.pagoLeida){
+      var pl = document.createElement('div'); pl.className = 'pgleida';
+      pl.textContent = 'pone: ' + String(r.pagoLeida).slice(0, 22);
+      pl.title = 'Forma de pago impresa en la factura: ' + r.pagoLeida;
+      amtc.appendChild(pl);
+    }
     row.appendChild(who); row.appendChild(amtc);
     if (r.foto){
       var a = document.createElement('a'); a.className = 'foto'; a.href = fotoSegura(r.foto); a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
@@ -1647,6 +1707,7 @@ function renderPanel(data, cachedNote){
   if (panelMes === null) panelMes = mesDeHoy();
   pintarMeses();
   pintarHero();
+  pintarSinRastro();   /* v85: ¿entraron todas las de hoy? ahora mirando tambien en Otros */
 
   /* v18: tarjeta de deuda — suma de filas marcadas pendiente (v71: del mes que estas viendo) */
   var deben = filasDelMes(data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
@@ -2807,7 +2868,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v84';
+var APP_VER = 'v85';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

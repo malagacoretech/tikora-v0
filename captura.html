@@ -306,7 +306,8 @@ input[type=file]{display:none}
 .mesfil::-webkit-scrollbar{display:none}
 .mesfil button{flex-shrink:0;min-height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.95rem;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .mesfil button.on{border-color:var(--accent);color:#0A1628;background:var(--accent)}
-.heroPie{font-size:0.72rem;color:var(--text-muted);margin-top:0.45rem}
+/* v72: la linea que sustituyo a los 3 recuadros llevaba letra de nota al pie. Es informacion real: se lee. */
+.heroPie{font-size:0.92rem;font-weight:700;color:var(--text);margin-top:0.5rem}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* v28/v43: los contadores de Facturas y Proveedores llenan su tarjeta */
 #pN,#pProv{font-size:clamp(1.5rem,7.5vw,2.1rem);font-weight:800;line-height:1.05}
@@ -403,7 +404,7 @@ button.capbadge:active{transform:scale(0.95)}
 .lbl{font-size:0.82rem}
 .alertas .lbl{font-size:0.75rem;letter-spacing:0.04em}
 .ivatot{font-size:0.9rem}
-.pcard .sub{font-size:0.8rem}
+.pcard .sub{font-size:0.86rem;line-height:1.45}
 .debehint{font-size:0.75rem}
 .prow .who .d{font-size:0.82rem}
 .baseline{font-size:0.8rem}
@@ -524,7 +525,9 @@ div:has(> #segProv) > button{min-height:44px}
   <div class="pcard hero">
     <div class="lbl" id="pIvaLbl">IVA de tus compras</div>
     <div class="val" id="pIva">&mdash;</div>
-    <div class="sub" id="pIvaSub">IVA soportado &mdash; estimaci&oacute;n, confirmalo con tu gestor</div>
+    <!-- v72: fuera "IVA soportado". Es el termino del gestor, y esta pantalla la mira el
+         dueno de un bar. El termino tecnico va en el export a la gestoria, no aqui. -->
+    <div class="sub" id="pIvaSub">El IVA que ya pagaste en estas facturas &mdash; estimaci&oacute;n, confirmalo con tu gestor</div>
     <div class="heroPie" id="pHeroPie">&nbsp;</div>
   </div>
   <div class="seg">
@@ -1302,7 +1305,9 @@ function pintarMeses(){
   /* el mes en curso sale siempre, tenga facturas o no: es el que uno espera encontrar */
   if (meses.indexOf(hoy) < 0) meses.unshift(hoy);
   var ops = meses.map(function(m){ return { v: m, t: nombreMes(m) }; });
-  if (meses.length > 1) ops.push({ v: '', t: 'Todo' });
+  /* v72: "Todo" delante, no al final. Al final habia que deslizar para encontrarlo,
+     que es el mismo error que teniamos con Efectivo y Tarjeta. */
+  if (meses.length > 1) ops.unshift({ v: '', t: 'Todo' });
   cont.innerHTML = '';
   ops.forEach(function(o){
     var b = document.createElement('button');
@@ -2510,7 +2515,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v71';
+var APP_VER = 'v72';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

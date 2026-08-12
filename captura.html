@@ -406,8 +406,8 @@ button.capbadge:active{transform:scale(0.95)}
 .pagofil button{flex-shrink:0;min-height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
 .pagofil button .pf{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--text-muted)}
 /* v48: cuantas facturas y cuanto dinero hay en cada forma de pago, dentro del propio chip */
-.pagofil button .pn{font-size:0.66rem;font-weight:800;color:var(--text);opacity:0.62;letter-spacing:0.01em}
-.pagofil button.on .pn{opacity:0.9}
+.pagofil button .pn{font-size:inherit;font-weight:inherit;color:inherit;opacity:1;letter-spacing:inherit}   /* v92: el span ahora lleva TODO el texto del chip */
+.pagofil button.on .pn{opacity:1}
 .pagofil button[data-f="pendiente"] .pf{background:#E5484D}
 .pagofil button[data-f="efectivo"] .pf{background:#2F9E44}
 .pagofil button[data-f="tarjeta"] .pf{background:#1971C2}
@@ -461,7 +461,7 @@ button.capbadge:active{transform:scale(0.95)}
 .muted{font-size:0.78rem}
 .nzs{font-size:0.84rem}
 .ddir{font-size:0.875rem}
-.pagofil button .pn{font-size:0.775rem}
+.pagofil button .pn{font-size:inherit}   /* v92: el span lleva todo el texto del chip */
 .capbadge{font-size:0.7rem}
 .sugtoggle{font-size:0.82rem;min-height:40px;display:inline-flex;align-items:center}
 div:has(> #segProv) > button{min-height:44px}
@@ -602,10 +602,12 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
   <div class="pagofil" id="pagoFil">
     <!-- v51: "Todas" sin cifras (ya están en los recuadros de arriba) y los accionables primero — así "Sin asignar" entra en pantalla -->
     <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
-    <button type="button" data-f="pendiente"><span class="pf"></span>Sin pagar<span class="pn" data-n="pendiente"></span></button>
-    <button type="button" data-f="nada"><span class="pf"></span>Sin asignar<span class="pn" data-n="nada"></span></button>
-    <button type="button" data-f="efectivo"><span class="pf"></span>Efectivo<span class="pn" data-n="efectivo"></span></button>
-    <button type="button" data-f="tarjeta"><span class="pf"></span>Tarjeta<span class="pn" data-n="tarjeta"></span></button>
+    <!-- v92: el numero PRIMERO, luego que es, luego el total ("24 en efectivo · 4.982 €") —
+         "Efectivo 24 · 4982" eran muchos numeros pegados y Matias se confundia (06:4x) -->
+    <button type="button" data-f="pendiente"><span class="pf"></span><span class="pn" data-n="pendiente">Sin pagar</span></button>
+    <button type="button" data-f="nada"><span class="pf"></span><span class="pn" data-n="nada">Sin asignar</span></button>
+    <button type="button" data-f="efectivo"><span class="pf"></span><span class="pn" data-n="efectivo">Efectivo</span></button>
+    <button type="button" data-f="tarjeta"><span class="pf"></span><span class="pn" data-n="tarjeta">Tarjeta</span></button>
   </div>
   </div>
   <div class="alertas">
@@ -1901,10 +1903,17 @@ function pintarContadoresPago(){
     acc[k].n++; acc[k].s += t;
     acc[''].n++; acc[''].s += t;
   });
+  /* v92: numero PRIMERO, luego que es, luego el total — sin numeros pegados */
+  var ETIQ = {
+    'pendiente': { con: 'sin pagar', sola: 'Sin pagar' },
+    'nada': { con: 'sin asignar', sola: 'Sin asignar' },
+    'efectivo': { con: 'en efectivo', sola: 'Efectivo' },
+    'tarjeta': { con: 'con tarjeta', sola: 'Tarjeta' }
+  };
   document.querySelectorAll('#pagoFil .pn').forEach(function(sp){
     var k = sp.getAttribute('data-n') || '';
-    var a = acc[k];
-    sp.textContent = (a && a.n) ? (a.n + ' · ' + fmtEurCorto(a.s)) : '';
+    var a = acc[k], et = ETIQ[k] || { con: k, sola: k };
+    sp.textContent = (a && a.n) ? (a.n + ' ' + et.con + ' · ' + fmtEurCorto(a.s)) : et.sola;
   });
   pagoFlechas();   /* v63: al meter importes las pastillas crecen — hay que recalcular las flechas */
 }
@@ -3050,7 +3059,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v91';
+var APP_VER = 'v92';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

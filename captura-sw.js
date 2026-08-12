@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v67'; /* v67: chequeo a fondo - las pastillas de filtro y el clip pasan a tamano tactil real */
+var VERSION = 'tikora-captura-v68'; /* v68: icono nuevo (el ticket con TIKORA) en todos los tamanos + favicon de pestana */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

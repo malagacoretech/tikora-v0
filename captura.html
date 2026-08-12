@@ -11,7 +11,7 @@
 <title>TIKORA — Captura de facturas</title>
 <link rel="manifest" href="/captura.webmanifest">
 <link rel="apple-touch-icon" href="/favicons/apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='38' fill='%23F4C95D'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Cpath d='M18 10h28a4 4 0 0 1 4 4v36l-6-5-5 5-6-5-5 5-6-5-4 4V14a4 4 0 0 1 4-4z' fill='%23fff'/%3E%3Crect x='18' y='32' width='28' height='7' fill='%23F4C95D'/%3E%3C/svg%3E">
 <style>
 :root{--bg:#0A1628;--surface:#142238;--surface-2:#1E2D45;--accent:#F4C95D;--text:#FFFFFF;--text-muted:#93A3B8;--border:#2A3A55;--success:#22C55E;--danger:#EF4444}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -2434,7 +2434,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v67';
+var APP_VER = 'v68';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

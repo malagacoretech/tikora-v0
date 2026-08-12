@@ -1084,10 +1084,16 @@ function initCamera(){
            Si el usuario la apaga a mano, se queda apagada la proxima vez. */
         var quiereLuz = true;
         try { quiereLuz = localStorage.getItem('tikora_linterna') !== '0'; } catch(e){}
-        if (quiereLuz && !torchOn){
-          track.applyConstraints({ advanced: [{ torch: true }] })
-            .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
-            .catch(function(){});
+        /* v64: al VOLVER a Capturar muchos Android rechazan el torch recién abierto el stream y el
+           intento único moría en silencio — ahora insiste a 0/600/1500ms. Capturar prende, el resto apaga. */
+        if (quiereLuz){
+          var intentaLuz = function(){
+            if (torchOn || !track) return;
+            track.applyConstraints({ advanced: [{ torch: true }] })
+              .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
+              .catch(function(){});
+          };
+          intentaLuz(); setTimeout(intentaLuz, 600); setTimeout(intentaLuz, 1500);
         }
       }
       if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
@@ -2357,7 +2363,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v63';
+var APP_VER = 'v64';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

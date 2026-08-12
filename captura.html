@@ -2124,8 +2124,10 @@ function pintarMenuOrden(){
     b.classList.toggle('on', abrir);
   });
 })();
-$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
+/* v93: las vistas APAGAN "para repetir" solas — desde que es pastilla hermana (v91), tocar
+   "Últimas facturas" o "Por proveedor" debe sacarte de la lista de repetir sin segundo toque. */
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; cerrarListaRehacer(); renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; cerrarListaRehacer(); pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
@@ -3059,7 +3061,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v92';
+var APP_VER = 'v93';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

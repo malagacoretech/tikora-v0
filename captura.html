@@ -1686,7 +1686,11 @@ function renderLista(){
     });
     return;
   }
-  var rows = filasDelMes(data.rows || []);   /* v71: primero el mes elegido, manda sobre todo */
+  /* v76: BUSCAR ES GLOBAL. Antes el buscador miraba solo dentro del mes elegido, asi que
+     buscar una factura de mayo estando en agosto devolvia "nada que coincida" — y parecia
+     que la factura no existia. Quien busca un numero de factura la quiere encontrar, este
+     donde este. El filtro de mes manda sobre TODO menos sobre la busqueda. */
+  var rows = panelQuery ? (data.rows || []) : filasDelMes(data.rows || []);
   /* v44: filtro "las que entraron esta semana" (desde el contador de la cámara) */
   if (panelFiltroSemana){
     rows = rows.filter(function(r){ return esDeEstaSemana(r.entro); });
@@ -1709,6 +1713,12 @@ function renderLista(){
   }
   if (panelQuery){
     rows = rows.filter(function(r){ return normTxt(r.emisor + ' ' + (r.nfac || '') + ' ' + (r.fecha || '')).indexOf(panelQuery) >= 0; });
+    /* v76: decir en voz alta que la busqueda se sale del mes, o el resultado desconcierta */
+    if (panelMes){
+      var avisoB = document.createElement('div'); avisoB.className = 'backprov';
+      avisoB.textContent = '🔎 Buscando en TODOS los meses, no solo en ' + nombreMes(panelMes);
+      cont.appendChild(avisoB);
+    }
   }
   if (!rows.length){
     var e = document.createElement('div');
@@ -2599,7 +2609,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v75';
+var APP_VER = 'v76';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

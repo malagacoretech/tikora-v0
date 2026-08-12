@@ -202,6 +202,14 @@ input[type=file]{display:none}
 .pushask span{flex:1}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
 .pushask button.no{background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);font-weight:600}
+/* v61: entrada de marca (1,2s y se desvanece; luego el JS la retira del DOM) */
+#intro{position:fixed;inset:0;z-index:99;background:#0A1628;display:flex;align-items:center;justify-content:center;animation:introOut 0.45s ease 1.15s forwards;pointer-events:none}
+#intro .w{font-size:3rem;font-weight:800;letter-spacing:-0.03em;color:#fff;opacity:0;transform:translateY(10px) scale(0.96);animation:introIn 0.55s cubic-bezier(0.2,0.7,0.3,1) 0.1s forwards}
+#intro .w span{color:var(--accent);display:inline-block;animation:introDot 0.9s ease 0.55s}
+#intro .t{position:absolute;bottom:18%;left:0;right:0;text-align:center;color:var(--text-muted);font-size:0.85rem;letter-spacing:0.06em;opacity:0;animation:introIn 0.5s ease 0.5s forwards}
+@keyframes introIn{to{opacity:1;transform:none}}
+@keyframes introDot{40%{transform:scale(1.45)}70%{transform:scale(0.9)}100%{transform:scale(1)}}
+@keyframes introOut{to{opacity:0;visibility:hidden}}
 /* v9: adjuntar desde galeria/archivos */
 .clipbtn{width:2.15rem;height:2.15rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .clipbtn:active{transform:scale(0.94)}
@@ -373,6 +381,8 @@ button.capbadge:active{transform:scale(0.95)}
 </style>
 </head>
 <body>
+<!-- v61: entrada de marca — un segundo de identidad en vez de la "T" cruda (pedido de Matías) -->
+<div id="intro" aria-hidden="true"><div class="w">Tikora<span>.</span></div><div class="t">Tu IVA, identificado</div></div>
 
 <!-- Pantalla 1: visor de cámara (la app ES esto) -->
 <div id="screenCam">
@@ -1694,6 +1704,8 @@ function clic(id, siNo){
   if (e.disabled) return siNo || null;
   e.click(); return true;
 }
+/* v61: retirar la entrada de marca del DOM cuando ya se desvaneció */
+setTimeout(function(){ var i = $('intro'); if (i) i.remove(); }, 1900);
 /* v53: avisos push — suscripción de ESTE teléfono a la notificación por factura nueva */
 if (TOKEN) idbTikora(function(db){ try { db.transaction('kv', 'readwrite').objectStore('kv').put(TOKEN, 'token'); } catch(e){} });
 function b64aBytes(b64){
@@ -1787,7 +1799,11 @@ document.addEventListener('visibilitychange', function(){
     hint.classList.toggle('on', (e.touches[0].clientY - startY) > 70);
   }, { passive: true });
   sp.addEventListener('touchend', function(){
-    if (hint.classList.contains('on')){ hint.classList.remove('on'); toast('Actualizando…', false); loadPanel(false); }
+    if (hint.classList.contains('on')){
+      hint.classList.remove('on'); toast('Actualizando…', false); loadPanel(false);
+      /* v61: tirar hacia abajo TAMBIÉN busca versión nueva de la app — se aplica sin salir (pedido de Matías) */
+      try { if (typeof buscarActualizacion === 'function') buscarActualizacion(false); } catch(e){}
+    }
     tirando = false;
   });
 })();
@@ -2316,7 +2332,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v61';
+var APP_VER = 'v62';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

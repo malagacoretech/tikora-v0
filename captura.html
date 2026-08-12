@@ -410,6 +410,13 @@ button.capbadge:active{transform:scale(0.95)}
 div:has(> #segProv) > button{min-height:44px}
 .vertag{min-height:26px;padding:0.15rem 0.5rem}
 .prow{line-height:1.35}
+/* v66: navegación rápida en listas largas — flechas arriba/abajo + barra de scroll gorda y agarrable */
+#screenPanel::-webkit-scrollbar{width:11px}
+#screenPanel::-webkit-scrollbar-thumb{background:rgba(244,201,93,0.55);border-radius:8px;min-height:56px}
+#screenPanel::-webkit-scrollbar-track{background:rgba(255,255,255,0.06)}
+#subeBaja{position:fixed;right:0.85rem;bottom:calc(6.6rem + env(safe-area-inset-bottom));z-index:20;display:none;flex-direction:column;gap:0.55rem}
+#subeBaja.on{display:flex}
+#subeBaja button{width:46px;height:46px;border-radius:50%;border:1px solid var(--border);background:rgba(20,34,56,0.94);color:var(--accent);font-size:1.25rem;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45)}
 </style>
 </head>
 <body>
@@ -1859,6 +1866,27 @@ setInterval(function(){
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden && $('screenPanel').classList.contains('on')) loadPanel(true);
 });
+/* v66: flechas subir/bajar de la lista (pedido de Matías: llegar arriba o abajo de una) */
+(function(){
+  var sp = $('screenPanel');
+  var caja = document.createElement('div'); caja.id = 'subeBaja';
+  var bArr = document.createElement('button'); bArr.type = 'button'; bArr.textContent = '↑'; bArr.setAttribute('aria-label', 'Ir arriba');
+  var bAba = document.createElement('button'); bAba.type = 'button'; bAba.textContent = '↓'; bAba.setAttribute('aria-label', 'Ir abajo');
+  caja.appendChild(bArr); caja.appendChild(bAba);
+  document.body.appendChild(caja);
+  bArr.addEventListener('click', function(){ sp.scrollTo({ top: 0, behavior: 'smooth' }); });
+  bAba.addEventListener('click', function(){ sp.scrollTo({ top: sp.scrollHeight, behavior: 'smooth' }); });
+  function pinta(){
+    var visible = sp.classList.contains('on') && sp.scrollHeight > sp.clientHeight * 1.8;
+    caja.classList.toggle('on', visible);
+    if (visible){
+      bArr.style.visibility = sp.scrollTop > 200 ? 'visible' : 'hidden';
+      bAba.style.visibility = (sp.scrollTop + sp.clientHeight) < (sp.scrollHeight - 200) ? 'visible' : 'hidden';
+    }
+  }
+  sp.addEventListener('scroll', pinta, { passive: true });
+  setInterval(pinta, 1200);
+})();
 /* v15: tirar hacia abajo en el panel para refrescar */
 (function(){
   var sp = $('screenPanel');
@@ -2406,7 +2434,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v65';
+var APP_VER = 'v66';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

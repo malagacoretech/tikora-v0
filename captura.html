@@ -380,7 +380,10 @@ input[type=file]{display:none}
 .caprow.rev{border-color:rgba(229,72,77,0.45)}
 .caprow .cg{flex:1;min-width:0}
 .caprow .ce{font-size:0.92rem;font-weight:700}
+/* v99: en una fila de Revisar los botones dejan la columna estrecha y "Ingresó 12/08 · 22:51"
+   se partía en TRES renglones (visto en el móvil de Matías). Una sola línea, sin cortes. */
 .caprow .ce.grande{font-size:1.08rem;font-variant-numeric:tabular-nums}
+.caprow.rev .ce.grande{font-size:0.95rem;white-space:nowrap}
 .caprow .ch{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
 /* v95: el motivo, en una frase y en la propia fila — antes había que abrir la hoja para saber por qué */
 .caprow .cm{font-size:0.78rem;font-weight:700;color:#ff8f93;margin-top:0.15rem}
@@ -1368,15 +1371,7 @@ function initCamera(){
         try { quiereLuz = localStorage.getItem('tikora_linterna') !== '0'; } catch(e){}
         /* v64: al VOLVER a Capturar muchos Android rechazan el torch recién abierto el stream y el
            intento único moría en silencio — ahora insiste a 0/600/1500ms. Capturar prende, el resto apaga. */
-        if (quiereLuz){
-          var intentaLuz = function(){
-            if (torchOn || !track) return;
-            track.applyConstraints({ advanced: [{ torch: true }] })
-              .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
-              .catch(function(){});
-          };
-          intentaLuz(); setTimeout(intentaLuz, 600); setTimeout(intentaLuz, 1500);
-        }
+        if (quiereLuz) encenderLuz();
       }
       if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
         track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function(){});
@@ -1385,6 +1380,28 @@ function initCamera(){
   });
 }
 
+/* v99: la linterna, en UNA sola función que se puede llamar desde donde haga falta.
+   El fallo que arreglaba: al bloquear el móvil y volver a abrirlo, el track de la cámara
+   MUCHAS VECES SOBREVIVE — así que initCamera() no se volvía a ejecutar y el encendido
+   automático (que vivía dentro) no se ejecutaba nunca. Resultado: la cámara aparecía
+   pero SIN luz, y no había forma de que volviera sola. En una barra a media luz eso es
+   la diferencia entre una foto que el motor lee y una que acaba en Revisar.
+   Insiste a 0/600/1500 ms porque muchos Android rechazan el torch recién abierto el stream. */
+function encenderLuz(){
+  if (!track) return;
+  try {
+    var caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (!caps.torch) return;
+    if (localStorage.getItem('tikora_linterna') === '0') return;   /* apagada a mano: se respeta */
+  } catch(e){}
+  var intenta = function(){
+    if (torchOn || !track) return;
+    track.applyConstraints({ advanced: [{ torch: true }] })
+      .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
+      .catch(function(){});
+  };
+  intenta(); setTimeout(intenta, 600); setTimeout(intenta, 1500);
+}
 $('torchBtn').addEventListener('click', function(){
   if (!track) return;
   torchOn = !torchOn;
@@ -1837,6 +1854,17 @@ function motivoHumano(c){
   }
   return c.tipo === 'corregir' ? 'Falta confirmar un dato' : 'La foto no se lee entera';
 }
+/* v99: la frase NUNCA puede contradecir al botón. Matías lo vio en el móvil: una tarjeta
+   con el botón ✏️ CORREGIR y debajo, en rojo, "Se lee a medias — mejor repetirla".
+   Dos instrucciones opuestas en la misma fila. Si la fila se arregla confirmando un dato,
+   la frase tiene que hablar de confirmar; si se arregla repitiendo la foto, de repetir. */
+function motivoCoherente(c){
+  var f = motivoHumano(c);
+  if (c.tipo === 'corregir' && /repetir|repetirla|oscura|movida|no se lee entera|no es una foto/i.test(f)){
+    return 'Faltan varios datos — confirmalos';
+  }
+  return f;
+}
 /* v95: una fila de Revisar. Sale del cuerpo del forEach de la v39 sin cambiarle un botón —
    lo único nuevo es la línea del motivo. Mismos handlers: Foto, corregir/repetila, quitar. */
 function filaRevisar(c){
@@ -1882,7 +1910,7 @@ function filaRevisar(c){
   }
   /* v97: el motivo ABAJO, a lo ancho y centrado (Matias 07:22: en la columna angosta
      se partia en cuatro lineas y comia media tarjeta) */
-  var m = document.createElement('div'); m.className = 'cm abajo'; m.textContent = motivoHumano(c);
+  var m = document.createElement('div'); m.className = 'cm abajo'; m.textContent = motivoCoherente(c);
   row.appendChild(m);
   return row;
 }
@@ -3137,13 +3165,24 @@ $('tokenSave').addEventListener('click', function(){
 /* la cámara muere al pasar a segundo plano: revivirla al volver */
 document.addEventListener('visibilitychange', function(){
   if (document.visibilityState === 'visible'){
-    if (TOKEN && $('screenCam').classList.contains('on') && (!track || track.readyState === 'ended')){
-      stopCamera(); initCamera().catch(function(){ show('screenShot'); });
+    if (TOKEN && $('screenCam').classList.contains('on')){
+      if (!track || track.readyState === 'ended'){
+        stopCamera(); initCamera().catch(function(){ show('screenShot'); });
+      } else {
+        /* v99: el track sobrevivió al bloqueo de pantalla → initCamera NO se ejecuta y la
+           linterna se quedaba apagada para siempre. Se vuelve a encender aquí. */
+        encenderLuz();
+      }
     }
     if ($('screenPanel').classList.contains('on')) loadPanel(true);   /* refresco al volver a la app */
     processQueue(false);
   } else {
-    if (torchOn && track){ torchOn=false; $('torchBtn').classList.remove('active'); }
+    /* v99: además de bajar la bandera, se apaga DE VERDAD — antes solo se marcaba
+       apagada y el LED podía quedarse encendido con el móvil en el bolsillo. */
+    if (torchOn && track){
+      torchOn = false; $('torchBtn').classList.remove('active');
+      try { track.applyConstraints({ advanced: [{ torch: false }] }).catch(function(){}); } catch(e){}
+    }
   }
 });
 window.addEventListener('online', function(){ processQueue(false); });
@@ -3166,7 +3205,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v98';
+var APP_VER = 'v99';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

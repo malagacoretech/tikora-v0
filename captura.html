@@ -341,6 +341,7 @@ input[type=file]{display:none}
 /* v79: los dos ejes se distinguen a simple vista — lo reciente va en azul, los meses en dorado */
 .mesfil button.porentro{border-style:dashed}
 .mesfil button.porentro.on{background:#5B8DEF;border-color:#5B8DEF;color:#fff;border-style:solid}
+.mesfil button.todos.on{background:#2F9E44;border-color:#2F9E44;color:#fff}
 /* v72: la linea que sustituyo a los 3 recuadros llevaba letra de nota al pie. Es informacion real: se lee. */
 .heroPie{font-size:0.92rem;font-weight:700;color:var(--text);margin-top:0.5rem}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -417,12 +418,13 @@ button.capbadge:active{transform:scale(0.95)}
 .pcard.debe:active{background:rgba(229,72,77,0.10)}
 .pcard.debe.filtro{background:rgba(229,72,77,0.14)}
 /* v82: "Para repetir" encendido en amarillo, igual que un chip seleccionado (pedido de Matías) */
-#cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent)}
-#cardRehacer.filtro .lbl,#cardRehacer.filtro .val2{color:var(--accent)}
+/* v89: ahora es pastilla en la fila de vistas — rojo suave en reposo, amarillo al filtrar */
+#cardRehacer{flex:0 0 auto;border-color:rgba(229,72,77,0.55);color:#ff8f93;white-space:nowrap}
+#cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
 .debehint{font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:1.25rem 0 0.65rem}
-.seg button{padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}
+.seg{display:flex;gap:0.4rem;margin:1.25rem 0 0.65rem}   /* v89: flex para que quepa la pastilla de repetir */
+.seg button{flex:1 1 0;min-width:0;padding:0.6rem 0.45rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}
 .seg button.on{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 .prow .who .iva{font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem}
 .prow{display:flex;align-items:center;gap:0.7rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
@@ -586,6 +588,10 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
+    <!-- v89: "Para repetir" deja de ser tarjeta a lo ancho y vive aqui como pastilla,
+         al lado de las dos vistas (pedido de Matias 06:13: "asi no ocupa espacio de arriba
+         hacia abajo"). Mismos ids y mismo comportamiento de filtro que la tarjeta vieja. -->
+    <button type="button" id="cardRehacer" style="display:none">&#9888;&#65039;&nbsp;<span id="rehacerTxt">&mdash;</span><span id="rehacerHint" style="display:none"></span></button>
   </div>
   <!-- v63: el carril se deslizaba de lado pero nada lo indicaba, asi que "Efectivo" y
        "Tarjeta" no existian para quien no adivinara el gesto. Flechas que solo salen
@@ -604,7 +610,6 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
   </div>
   <div class="alertas">
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
-    <div class="pcard debe" id="cardRehacer" style="display:none"><div class="lbl">&#9888;&#65039; Para repetir</div><div class="val2" id="rehacerTxt">&mdash;</div><div class="debehint" id="rehacerHint">Toc&aacute; y velas</div></div>
   </div>
   <!-- v85: vuelve, y ahora mira en los TRES sitios (Facturas, Revisar y Otros). En la v81
        cantaba perdidas las que estaban archivadas como papel; ese dato ya llega del API. -->
@@ -1575,7 +1580,11 @@ function pintarMeses(){
     b.type = 'button';
     b.textContent = o.t ? (o.t.charAt(0).toUpperCase() + o.t.slice(1)) : 'Todo';
     b.classList.toggle('on', o.entro ? (panelEntro === o.v) : (!panelEntro && panelMes === o.v));
+    /* v91: tres familias, tres colores. Al quitar las barras de "viendo solo…" el color del
+       chip es lo ÚNICO que dice qué estás mirando — deja de ser adorno y pasa a ser el aviso.
+       Azul = por hora de ingreso · Verde = todo · Amarillo = un mes concreto. */
     if (o.entro) b.classList.add('porentro');
+    else if (o.v === '') b.classList.add('todos');
     b.addEventListener('click', function(){
       if (o.entro){ panelEntro = (panelEntro === o.v) ? '' : o.v; }   /* volver a tocarlo lo apaga */
       else { panelEntro = ''; panelMes = o.v; }
@@ -1713,7 +1722,9 @@ function renderFilas(cont, rowsArr){
       ab.title = 'Nota de entrega con desglose de IVA completo. Cuenta como IVA identificado; el deducible definitivo llega con la factura.';
       e1.appendChild(ab);
     }
-    var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
+    /* v89: el numero de factura FUERA de la tarjeta (Matias lo confundia con un CIF y come
+       espacio); sigue en la ficha al tocar y el buscador sigue encontrandolo. */
+    var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha);
     var eh = entroHoy(r.entro);
     if (eh){
       var tag = document.createElement('span'); tag.className = 'nuevotag'; tag.textContent = ' · ingresó hoy ' + eh;
@@ -1813,7 +1824,7 @@ function renderPanel(data, cachedNote){
   /* v39: "Fotos para repetir" — las filas de Revisar sin rehacer, con ver-foto y rehacer enlazado */
   var pend = data.pendientes || [];
   if (pend.length){
-    $('rehacerTxt').textContent = pend.length + (pend.length === 1 ? ' foto' : ' fotos');
+    $('rehacerTxt').textContent = pend.length + ' para repetir';   /* v89: "fotos" a secas no decia que */
     $('cardRehacer').style.display = 'block';
     var rr = $('rehacerRows');
     rr.innerHTML = '';
@@ -2018,15 +2029,9 @@ function renderLista(){
   /* v44: filtro "las que entraron esta semana" (desde el contador de la cámara) */
   /* v79: el filtro semanal vive ahora en el carril de arriba (pastilla "Esta semana"),
      que ya filtra en filasDelMes. Aquí solo se rotula para que se sepa qué se está viendo. */
-  if (panelEntro){
-    var backS = document.createElement('div'); backS.className = 'backprov';
-    backS.textContent = '← Ver todo · viendo lo que INGRESÓ ' + (panelEntro === 'hoy' ? 'hoy' : 'esta semana');
-    backS.addEventListener('click', function(){
-      panelEntro = ''; panelMes = mesDeHoy();
-      pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
-    });
-    cont.appendChild(backS);
-  }
+  /* v89: fuera la barra "Ver todo · viendo lo que INGRESO hoy" — las pastillas Hoy/Semana
+     encendidas arriba ya dicen que se esta viendo, y para salir esta "Todo" (pedido de
+     Matias 06:11: "sacame ese, asi tenemos mas espacio"). */
   /* v33: filtro por forma de pago (chips o tarjeta roja) */
   if (panelFiltroPago){
     rows = rows.filter(function(r){
@@ -2034,10 +2039,9 @@ function renderLista(){
       if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta';
       return pgf === panelFiltroPago;
     });
-    var backP = document.createElement('div'); backP.className = 'backprov';
-    backP.textContent = '← Todas las facturas · viendo solo ' + ({ pendiente: 'SIN PAGAR', efectivo: 'EFECTIVO', tarjeta: 'TARJETA', nada: 'SIN ASIGNAR' })[panelFiltroPago];
-    backP.addEventListener('click', function(){ panelFiltroPago = ''; renderLista(); });
-    cont.appendChild(backP);
+    /* v91: fuera la barra "← Todas las facturas · viendo solo EFECTIVO". El chip de pago ya
+       está encendido: la barra repetía lo que se ve. Con las barras fuera, el COLOR del chip
+       pasa a ser el indicador — por eso cada familia lleva el suyo. */
   }
   if (panelQuery){
     rows = rows.filter(function(r){ return normTxt(r.emisor + ' ' + (r.nfac || '') + ' ' + (r.fecha || '')).indexOf(panelQuery) >= 0; });
@@ -3046,7 +3050,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v90';
+var APP_VER = 'v91';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

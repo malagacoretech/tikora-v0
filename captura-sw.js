@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v90'; /* v90: el visor de fotos sale de dentro de la camara - por eso 'ver foto' no ensenaba nada desde el chat ni el panel */
+var VERSION = 'tikora-captura-v91'; /* v91: repetir como pastilla junto a las vistas + fuera la barra de INGRESO y el n de factura de la tarjeta + aviso propio cuando algo cae en Revisar */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -111,7 +111,8 @@ self.addEventListener('push', function(e){
       })
       .then(function(d){
         var rows = (d && d.rows) || [];
-        if (!rows.length) return;
+        var pend = (d && d.pendientes) || [];   /* v89: tambien avisamos cuando algo cae en Revisar */
+        if (!rows.length && !pend.length) return;
         return swAvisados().then(function(mem){
           var vistos = {};
           mem.lista.forEach(function(x){ vistos[x] = 1; });
@@ -123,8 +124,35 @@ self.addEventListener('push', function(e){
             if (!swEntroReciente(f.entro, 40)) return;   /* lo viejo jamás suena como nuevo */
             nuevas.push({ f: f, fid: fid });
           });
+          /* v89: "capturé 5 y llegaron 3" — las que caen en Revisar ahora TAMBIÉN suenan,
+             con su propio texto. Antes el móvil quedaba mudo justo cuando había que actuar. */
+          var nuevasRev = [];
+          pend.forEach(function(p){
+            var fid = String(p.f || '');
+            if (!fid || vistos[fid]) return;
+            sellar.push(fid);
+            if (!swEntroReciente(p.entro, 40)) return;
+            nuevasRev.push({ p: p, fid: fid });
+          });
           if (sellar.length) mem.guardar(mem.lista.concat(sellar));
-          if (!nuevas.length) return;   /* la genérica queda: algo entró aunque no sepamos el detalle */
+          if (nuevasRev.length){
+            nuevasRev.slice(-3).forEach(function(n){
+              self.registration.showNotification('Tikora — foto para revisar', {
+                body: (n.p.emisor || 'Una foto') + (n.p.tipo === 'corregir' ? ' · hay un dato para corregir' : ' · conviene volver a sacarla'),
+                icon: '/favicons/android-chrome-192x192.png',
+                badge: '/favicons/android-chrome-192x192.png',
+                tag: 'tikora-rev-' + n.fid, renotify: false,
+                data: { url: '/captura.html?v=panel', f: '' }
+              });
+            });
+          }
+          if (!nuevas.length){
+            if (nuevasRev.length){
+              /* solo Revisar: el aviso especifico ya sono; retirar la generica que decia "entro una boleta" */
+              return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
+            }
+            return;   /* nada nuevo de verdad: la genérica queda como pista */
+          }
           /* v77: por hora de ENTRADA (rows viene por fecha de factura, que no es lo mismo);
              las 5 más recientes, mostradas de vieja a nueva para que la última quede arriba */
           nuevas.sort(function(a, b){ return swEntroMs(a.f.entro) - swEntroMs(b.f.entro); });
@@ -156,7 +184,7 @@ self.addEventListener('notificationclick', function(e){
   var fid = d.f || '';
   /* v73: el botón decide — "preguntar" va al chat; "ver" (o tocar el cuerpo) abre la factura en el panel */
   var modo = (e.action === 'preguntar') ? 'chat' : 'ver';
-  var url = fid ? ('/captura.html?' + modo + '=' + fid) : '/captura.html';
+  var url = fid ? ('/captura.html?' + modo + '=' + fid) : (d.url || '/captura.html');   /* v89: el aviso de revisar abre el panel */
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){
       var w = ws[i];

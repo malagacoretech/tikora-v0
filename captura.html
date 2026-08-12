@@ -417,6 +417,12 @@ div:has(> #segProv) > button{min-height:44px}
 #subeBaja{position:fixed;right:0.85rem;bottom:calc(6.6rem + env(safe-area-inset-bottom));z-index:20;display:none;flex-direction:column;gap:0.55rem}
 #subeBaja.on{display:flex}
 #subeBaja button{width:46px;height:46px;border-radius:50%;border:1px solid var(--border);background:rgba(20,34,56,0.94);color:var(--accent);font-size:1.25rem;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45)}
+/* v69: cierre de B.1 y B.4 del informe — nada tocable bajo 40px, importes de un vistazo, pestañas legibles */
+.pagofil button{min-height:40px}
+.sugchips button{min-height:40px}
+.pcard .val2{font-size:clamp(0.92rem,4vw,1.05rem)}
+#tabbar .tab .tl{font-size:0.68rem}
+.pcard a[href^="mailto"]{display:inline-flex;min-height:44px;align-items:center}
 </style>
 </head>
 <body>
@@ -2434,7 +2440,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v68';
+var APP_VER = 'v69';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

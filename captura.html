@@ -1347,6 +1347,13 @@ function nombreMes(ym){
    Por eso son excluyentes: elegir uno apaga el otro. */
 var panelEntro = '';   /* '' | 'hoy' | 'semana' */
 
+/* v80: "entro" viene como "dd/mm/aaaa HH:MM:SS" — ordenarlo como texto da disparates
+   (11/08 iría antes que 30/06). Hay que convertirlo a fecha de verdad. */
+function tsEntro(entro){
+  var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return 0;
+  return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+}
 function esDeHoy(entro){
   var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (!m) return false;
@@ -1765,6 +1772,11 @@ function renderLista(){
       cont.appendChild(avisoB);
     }
   }
+  /* v80: la ULTIMA en llegar, arriba. Siempre, y en cualquier filtro — "Todas", "Sin pagar",
+     "Sin asignar", "Efectivo" o "Tarjeta". Hasta ahora se pintaba en el orden que devolvía
+     el servidor, que NO es el de llegada: por eso "Últimas facturas" enseñaba fósiles de
+     junio por encima de lo de anoche. Copia con slice() para no reordenar el original. */
+  rows = rows.slice().sort(function(a, b){ return tsEntro(b.entro) - tsEntro(a.entro); });
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
@@ -2656,7 +2668,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v79';
+var APP_VER = 'v80';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

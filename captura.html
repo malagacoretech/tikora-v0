@@ -514,24 +514,26 @@ div:has(> #segProv) > button{min-height:44px}
       </div>
     </div>
   </div>
-  <div id="fotoVis">
-    <div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
-    <!-- v82: el zoom del navegador está desactivado a propósito (maximum-scale=1) para que no
-         se descoloque la app. Así que el visor lleva el suyo: tocar la foto acerca, y con la
-         foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si salió legible. -->
-    <div id="fvZona"><img id="fvImg" alt="Foto de la sesi&oacute;n"></div>
-    <button type="button" class="fvNav fvPrev" id="fvPrev" aria-label="Anterior">&#8249;</button>
-    <button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
-    <!-- v89: desde la foto se puede preguntar por ESA factura, sin volver atrás ni buscarla -->
-    <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
-    <div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
-  </div>
   <div class="bottombar">
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
     <button id="shutter" type="button" aria-label="Capturar" disabled></button>
     <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button><span class="lbl">c&aacute;mara nativa</span></div>
   </div>
   <div id="okOverlay"><div class="big">&#10003;</div><div class="txt">Enviada &#10003;</div><div class="sub" id="okSub"></div></div>
+</div>
+
+<!-- v90: el visor de fotos VIVE FUERA de las pantallas. Estaba dentro de #screenCam, y como esa pantalla se oculta al ir a Panel o Preguntar, el visor se ocultaba con ella: por eso "ver foto" no ensenaba nada fuera de la camara. Un position:fixed no salva a un hijo de un padre con display:none. -->
+<div id="fotoVis">
+<div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
+<!-- v82: el zoom del navegador está desactivado a propósito (maximum-scale=1) para que no
+se descoloque la app. Así que el visor lleva el suyo: tocar la foto acerca, y con la
+foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si salió legible. -->
+<div id="fvZona"><img id="fvImg" alt="Foto de la sesi&oacute;n"></div>
+<button type="button" class="fvNav fvPrev" id="fvPrev" aria-label="Anterior">&#8249;</button>
+<button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
+<!-- v89: desde la foto se puede preguntar por ESA factura, sin volver atrás ni buscarla -->
+<button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
+<div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
 </div>
 
 <!-- Pantalla 2: sin cámara web disponible → botón gigante a la cámara nativa -->
@@ -3044,7 +3046,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v89';
+var APP_VER = 'v90';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

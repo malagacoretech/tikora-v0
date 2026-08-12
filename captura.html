@@ -211,7 +211,7 @@ input[type=file]{display:none}
 @keyframes introDot{40%{transform:scale(1.45)}70%{transform:scale(0.9)}100%{transform:scale(1)}}
 @keyframes introOut{to{opacity:0;visibility:hidden}}
 /* v9: adjuntar desde galeria/archivos */
-.clipbtn{width:2.15rem;height:2.15rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.clipbtn{width:2.5rem;height:2.5rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .clipbtn:active{transform:scale(0.94)}
 .attachlink{margin:1.1rem auto 0;display:block;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;padding:0.7rem 1.15rem;font-family:inherit;font-size:0.85rem;cursor:pointer}
 /* v10: buscador del panel */
@@ -357,7 +357,7 @@ button.capbadge:active{transform:scale(0.95)}
 .pgflecha:active{transform:translateY(-50%) scale(0.92)}
 .pagofil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.55rem;scrollbar-width:none;flex-shrink:0}
 .pagofil::-webkit-scrollbar{display:none}
-.pagofil button{flex-shrink:0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
+.pagofil button{flex-shrink:0;min-height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:0.35rem}
 .pagofil button .pf{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--text-muted)}
 /* v48: cuantas facturas y cuanto dinero hay en cada forma de pago, dentro del propio chip */
 .pagofil button .pn{font-size:0.66rem;font-weight:800;color:var(--text);opacity:0.62;letter-spacing:0.01em}
@@ -2434,7 +2434,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v66';
+var APP_VER = 'v67';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

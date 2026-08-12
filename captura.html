@@ -235,6 +235,11 @@ input[type=file]{display:none}
 .psearch{width:100%;box-sizing:border-box;margin:0 0 0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.68rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
 .psearch::placeholder{color:var(--text-muted)}
 .psearch:focus{border-color:var(--accent)}
+/* v84: selector de orden. Compacto: una linea, sin comerse pantalla. */
+.ordfil{display:flex;align-items:center;gap:0.5rem;margin:0 0 0.7rem}
+.ordfil label{color:var(--text-muted);font-size:0.78rem;font-weight:600;flex-shrink:0}
+.ordfil select{flex:1;min-width:0;min-height:44px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:0.86rem;font-weight:600;padding:0.4rem 0.7rem}
+.ordfil select:focus{border-color:var(--accent);outline:none}
 /* v78: la X de borrar la busqueda era la nativa del navegador, diminuta y gris — se perdia.
    Ahora es un boton redondo de 36px con la X dorada: se ve y se acierta con el dedo. */
 .psearch::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:36px;height:36px;margin-left:0.3rem;border-radius:50%;background-color:var(--surface-2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F4C95D' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E");background-size:17px 17px;background-position:center;background-repeat:no-repeat;cursor:pointer}
@@ -591,6 +596,16 @@ div:has(> #segProv) > button{min-height:44px}
        peor que no tener alarma. Vuelve cuando el API exponga Otros. -->
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
+  <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
+  <div class="ordfil">
+    <label for="panelOrden">Ordenar por</label>
+    <select id="panelOrden">
+      <option value="fecha">Fecha de la factura</option>
+      <option value="llegada">Cu&aacute;ndo entr&oacute;</option>
+      <option value="importe">Importe, de mayor a menor</option>
+      <option value="nombre">Proveedor, de la A a la Z</option>
+    </select>
+  </div>
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">El IVA identificado es una estimaci&oacute;n sobre tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
@@ -1421,6 +1436,40 @@ function tsEntro(entro){
   if (!m) return 0;
   return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
 }
+/* ===== v84: EL ORDEN LO ELIGE EL USUARIO =====
+   Vale para las dos vistas. En "Por proveedor" no hay fecha en el API, así que la de cada
+   proveedor se calcula aquí: la más reciente de sus facturas. */
+var panelOrden = 'fecha';
+try { panelOrden = localStorage.getItem('tikora_orden') || 'fecha'; } catch(e){}
+
+function tsFecha(f){
+  var m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : 0;
+}
+function ordenarFilas(rows){
+  var c = (rows || []).slice();
+  if (panelOrden === 'llegada')      c.sort(function(a, b){ return tsEntro(b.entro) - tsEntro(a.entro); });
+  else if (panelOrden === 'importe') c.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
+  else if (panelOrden === 'nombre')  c.sort(function(a, b){ return String(a.emisor || '').localeCompare(String(b.emisor || ''), 'es'); });
+  else c.sort(function(a, b){        /* fecha, y si empatan la que entró después */
+    return (tsFecha(b.fecha) - tsFecha(a.fecha)) || (tsEntro(b.entro) - tsEntro(a.entro));
+  });
+  return c;
+}
+function ordenarProveedores(provs){
+  var ultima = {};
+  ((panelData && panelData.rows) || []).forEach(function(r){
+    var k = r.clave || r.emisor, t = tsFecha(r.fecha);
+    if (t > (ultima[k] || 0)) ultima[k] = t;
+  });
+  var c = (provs || []).slice();
+  if (panelOrden === 'nombre')       c.sort(function(a, b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+  else if (panelOrden === 'importe') c.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
+  else c.sort(function(a, b){        /* fecha y llegada: el que te vendió más recientemente */
+    return (ultima[b.clave] || 0) - (ultima[a.clave] || 0);
+  });
+  return c;
+}
 function esDeHoy(entro){
   var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (!m) return false;
@@ -1734,7 +1783,7 @@ function renderLista(){
   $('cardDebe').classList.toggle('filtro', panelFiltroPago === 'pendiente');
   $('debeHint').textContent = panelFiltroPago === 'pendiente' ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
   if (panelModo === 'prov'){
-    var provs = (data.proveedores || []);
+    var provs = ordenarProveedores(data.proveedores || []);   /* v84 */
     if (panelQuery && !panelProvSel){
       provs = provs.filter(function(p){ return normTxt(p.nombre + ' ' + (p.nif || '')).indexOf(panelQuery) >= 0; });
     }
@@ -1850,7 +1899,7 @@ function renderLista(){
      "Sin asignar", "Efectivo" o "Tarjeta". Hasta ahora se pintaba en el orden que devolvía
      el servidor, que NO es el de llegada: por eso "Últimas facturas" enseñaba fósiles de
      junio por encima de lo de anoche. Copia con slice() para no reordenar el original. */
-  rows = rows.slice().sort(function(a, b){ return tsEntro(b.entro) - tsEntro(a.entro); });
+  rows = ordenarFilas(rows);   /* v84: el criterio lo elige el usuario */
   if (!rows.length){
     var e = document.createElement('div');
     e.className = 'pempty';
@@ -1866,6 +1915,16 @@ function renderLista(){
     }
   }
 }
+/* v84: cambiar el orden repinta lo que estés viendo, sea facturas o proveedores */
+(function(){
+  var s = $('panelOrden'); if (!s) return;
+  s.value = panelOrden;
+  s.addEventListener('change', function(){
+    panelOrden = s.value;
+    try { localStorage.setItem('tikora_orden', panelOrden); } catch(e){}
+    renderLista();
+  });
+})();
 $('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
 $('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
@@ -2748,7 +2807,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v83';
+var APP_VER = 'v84';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

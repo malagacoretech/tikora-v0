@@ -198,6 +198,10 @@ input[type=file]{display:none}
 .vertag{margin-left:0.45rem;vertical-align:middle;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:0.14rem 0.45rem;font-family:inherit;font-size:0.6rem;font-weight:700;cursor:pointer;line-height:1.35}
 .vertag:active{transform:scale(0.94)}
 .vertag.buscando{opacity:0.5}
+/* v73: selector de ritmo en Capturar, bajo la marca. Mismo sitio que ocupaba el boton de voz. */
+.ritmo{position:absolute;top:calc(5.7rem + env(safe-area-inset-top));left:1rem;z-index:8;display:inline-flex;align-items:center;gap:0.35rem;min-height:40px;background:rgba(10,22,40,0.72);border:1px solid var(--border);color:#fff;border-radius:999px;padding:0.4rem 0.85rem;font-family:inherit;font-size:0.76rem;font-weight:700;cursor:pointer}
+.ritmo.rapido{border-color:var(--accent);color:var(--accent);background:rgba(20,34,56,0.92)}
+.ritmo:active{transform:scale(0.96)}
 .pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
 .pushask span{flex:1}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
@@ -447,6 +451,8 @@ div:has(> #segProv) > button{min-height:44px}
       <button class="clipbtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button>
     </div>
   </div>
+  <!-- v73: el ritmo, a mano y a la vista. Se toca poco pero cuando hace falta, hace falta ya. -->
+  <button type="button" id="ritmoBtn" class="ritmo">&#9201;&#65039; Tranquilo &middot; 6 s</button>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
   <!-- v54: los tres se apilan en UNA columna anclada abajo. Antes cada uno tenia su propio
@@ -970,7 +976,17 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
 /* ================== VENTANA POST-DISPARO (v16) ================== */
 /* v69: UN solo numero manda sobre la ventana de pago. Antes la barra se veia 4,6 s
    pero la foto salia a los 4,0 s: elegir en ese medio segundo podia no aplicarse. */
-var VENTANA_PAGO_MS = 6000;
+/* v73: dos ritmos. Detras de una barra no siempre se tiene el mismo tiempo:
+   tranquilo para marcar el pago con calma, rapido para disparar y seguir. */
+var RITMO_RAPIDO_MS = 3000, RITMO_TRANQUILO_MS = 6000;
+var VENTANA_PAGO_MS = RITMO_TRANQUILO_MS;
+try { if (localStorage.getItem('tikora_ritmo') === 'rapido') VENTANA_PAGO_MS = RITMO_RAPIDO_MS; } catch(e){}
+function esRapido(){ return VENTANA_PAGO_MS === RITMO_RAPIDO_MS; }
+function pintarRitmo(){
+  var b = $('ritmoBtn'); if (!b) return;
+  b.textContent = esRapido() ? '⚡ Rápido · 3 s' : '⏱️ Tranquilo · 6 s';
+  b.classList.toggle('rapido', esRapido());
+}
 var holdItem = null, postTimer = null, postTick = null, pagosPend = [];
 try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]'); } catch(e){}
 function guardarPagosPend(){ try { localStorage.setItem('tikora_pagos_pend', JSON.stringify(pagosPend.slice(-30))); } catch(e){} }
@@ -993,6 +1009,18 @@ function mostrarPostShot(id){
     $('postShot').classList.remove('on'); holdItem = null;
   }, VENTANA_PAGO_MS);
 }
+/* v73: cambiar de ritmo. Si se cambia con la ventana abierta, se reinicia con el nuevo tiempo. */
+(function(){
+  var b = $('ritmoBtn'); if (!b) return;
+  pintarRitmo();
+  b.addEventListener('click', function(){
+    VENTANA_PAGO_MS = esRapido() ? RITMO_TRANQUILO_MS : RITMO_RAPIDO_MS;
+    try { localStorage.setItem('tikora_ritmo', esRapido() ? 'rapido' : 'tranquilo'); } catch(e){}
+    pintarRitmo();
+    toast(esRapido() ? '⚡ Rápido: 3 s para marcar el pago' : '⏱️ Tranquilo: 6 s para marcar el pago');
+    if (holdItem && $('postShot').classList.contains('on')) mostrarPostShot(holdItem.id);
+  });
+})();
 $('psRehacer').addEventListener('click', function(){
   if (!holdItem) return;
   var id = holdItem.id; holdItem = null;
@@ -2515,7 +2543,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v72';
+var APP_VER = 'v73';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

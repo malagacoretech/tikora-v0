@@ -108,7 +108,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
 
 /* ====== COLA PENDIENTES ====== */
-#queueBar{display:none;align-items:center;gap:0.6rem;background:rgba(20,34,56,0.92);border:1px solid var(--border);border-radius:14px;padding:0.7rem 0.9rem;font-size:0.82rem}
+/* v77: era una caja maciza de ancho completo que tapaba la factura al encuadrar, y repetia
+   lo que ya dice statusLine arriba ("enviando · 1 pendiente"). Ahora: pastilla que abraza su
+   contenido, translucida como el resto de mandos, y SOLO cuando de verdad hay algo parado. */
+#queueBar{display:none;align-self:flex-start;max-width:100%;align-items:center;gap:0.55rem;background:rgba(10,22,40,0.72);border:1px solid var(--border);border-radius:999px;padding:0.4rem 0.75rem;font-size:0.78rem}
 #queueBar.on{display:flex}
 #queueBar .n{background:var(--accent);color:#0A1628;font-weight:800;border-radius:10px;padding:0.1rem 0.5rem}
 #queueBar .msg{flex:1;color:var(--text-muted)}
@@ -833,7 +836,11 @@ function refreshQueueUI(){
     var pend = items.filter(function(i){ return !i.dead; });
     var dead = items.filter(function(i){ return i.dead; });
     var bar = $('queueBar');
-    if (pend.length || dead.length){
+    /* v77: la barra solo sale cuando hay algo QUE HACER — un error, o una cola parada sin
+       nada enviandose y sin ventana de pago abierta. Mientras todo fluye, la pantalla se
+       queda limpia para encuadrar: el "enviando · N pendientes" de arriba ya lo cuenta. */
+    var parada = pend.length && !processing && !holdItem;
+    if (dead.length || parada){
       bar.classList.add('on');
       $('queueN').textContent = pend.length + (dead.length ? ('+' + dead.length) : '');
       $('queueMsg').textContent = dead.length
@@ -2609,7 +2616,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v76';
+var APP_VER = 'v77';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

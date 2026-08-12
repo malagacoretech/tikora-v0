@@ -198,6 +198,11 @@ input[type=file]{display:none}
 .vertag{margin-left:0.45rem;vertical-align:middle;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:0.14rem 0.45rem;font-family:inherit;font-size:0.6rem;font-weight:700;cursor:pointer;line-height:1.35}
 .vertag:active{transform:scale(0.94)}
 .vertag.buscando{opacity:0.5}
+/* v57: el microfono NUNCA escucha en secreto — si esta abierto, se ve */
+#micChip{position:fixed;top:calc(0.6rem + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:0.4rem;background:rgba(20,34,56,0.94);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:0.32rem 0.75rem;font-size:0.72rem;font-weight:700;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,0.4)}
+#micChip.on{display:flex}
+#micChip i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:latido 1.1s infinite}
+@keyframes latido{0%,100%{opacity:1}50%{opacity:0.2}}
 .pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
 .pushask span{flex:1}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
@@ -395,6 +400,7 @@ button.capbadge:active{transform:scale(0.95)}
       <button type="button" id="psPendiente">&#128337; Sin pagar</button>
     </div>
   </div>
+  <div id="micChip"><i></i>escuchando</div>
   <div id="fotoVis">
     <div class="fvTop"><span class="fvN" id="fvN"></span><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div>
     <img id="fvImg" alt="Foto de la sesi&oacute;n">
@@ -1590,7 +1596,7 @@ setInterval(chequearActualizacion, 10 * 60000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) chequearActualizacion(); });
 /* v10: buscador — filtra sin acentos ni mayusculas, en las dos vistas */
 var panelQuery = '';
-function normTxt(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function normTxt(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 $('panelSearch').addEventListener('input', function(){ panelQuery = normTxt(this.value.trim()); renderLista(); });
 var panelLoading = false;
 function loadPanel(silent){
@@ -1637,7 +1643,14 @@ var VOZ_KEY = 'tikora_voz_avisos';
 var vozOn = false; try { vozOn = localStorage.getItem(VOZ_KEY) === '1'; } catch(e){}
 function vozPinta(){ var b = $('vozBtn'); if (b) b.classList.toggle('vozon', vozOn); }
 function vozDecir(txt){
-  try { var u = new SpeechSynthesisUtterance(txt); u.lang = 'es-ES'; u.rate = 1.02; window.speechSynthesis.speak(u); } catch(e){}
+  try {
+    var u = new SpeechSynthesisUtterance(txt); u.lang = 'es-ES'; u.rate = 1.02;
+    /* v57: si el micro esta abierto hay que callarlo mientras hablamos,
+       o la app se oye a si misma y se da ordenes sola. */
+    var reanudar = oidoPausar();
+    if (reanudar) { u.onend = oidoSeguir; u.onerror = oidoSeguir; }
+    window.speechSynthesis.speak(u);
+  } catch(e){}
 }
 function vozVistasKey(){ return 'tikora_voz_vistas_' + (TOKEN || ''); }
 function vozKeyRow(r){ return String(r.entro || '') + '|' + String(r.nfac || r.emisor || '') + '|' + String(r.total || ''); }
@@ -1667,10 +1680,141 @@ $('vozBtn').addEventListener('click', function(){
   vozOn = !vozOn;
   try { localStorage.setItem(VOZ_KEY, vozOn ? '1' : '0'); } catch(e){}
   vozPinta();
-  if (vozOn) vozDecir('Avisos por voz activados. Te canto cada factura que entre.');
-  else { try { window.speechSynthesis.cancel(); } catch(e){} }
+  modoOido = vozOn && !!SR;                                  /* v57: el mismo boton abre el micro */
+  if (vozOn){
+    if (SR){ oidoArranca(); vozDecir('Voz activada. Te canto las facturas y te escucho. Deci ayuda para saber que podes pedirme.'); }
+    else { vozDecir('Avisos por voz activados. Te canto cada factura que entre.'); toast('Este teléfono no permite darle órdenes por voz'); }
+  } else {
+    try { window.speechSynthesis.cancel(); } catch(e){}
+    oidoPara();
+  }
+  oidoPinta();
 });
 vozPinta();
+
+/* ============ MANOS LIBRES (v57) ============
+   Detras de una barra las manos estan llenas o mojadas. Con la voz encendida la app
+   no solo habla: escucha. "capturar" dispara, "efectivo" marca el pago de la foto
+   recien sacada, "busca manantiales" te lleva a ese proveedor.
+   Solo Android/Chrome: iOS no trae reconocimiento de voz en apps web.
+
+   REGLA ANTI-DISPARO ACCIDENTAL: en un bar se habla todo el rato. Una orden solo
+   cuenta si la frase entera ES la orden ("efectivo" a secas), o si va precedida de
+   "tikora". Asi, "cobrale en efectivo" a un cliente no marca ninguna factura. */
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var oido = null, modoOido = false, oidoPausa = false;
+
+function sinTildes(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function oidoPinta(){ var c = $('micChip'); if (c) c.classList.toggle('on', modoOido && !oidoPausa); }
+
+function oidoCrear(){
+  var r = new SR();
+  r.lang = 'es-ES'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+  r.onresult = function(e){
+    for (var i = e.resultIndex; i < e.results.length; i++){
+      if (e.results[i].isFinal) ejecutarOrden(e.results[i][0].transcript);
+    }
+  };
+  r.onerror = function(e){
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      modoOido = false; oidoPinta();
+      toast('Sin permiso de micrófono — dáselo para manejarla hablando', true);
+    }
+  };
+  r.onend = function(){
+    if (modoOido && !oidoPausa) setTimeout(function(){ try { r.start(); } catch(err){} }, 300);
+    oidoPinta();
+  };
+  return r;
+}
+function oidoArranca(){
+  if (!SR || !modoOido) return;
+  if (!oido) oido = oidoCrear();
+  oidoPausa = false;
+  try { oido.start(); } catch(e){}
+  oidoPinta();
+}
+function oidoPara(){
+  modoOido = false; oidoPausa = false;
+  if (oido) { try { oido.stop(); } catch(e){} }
+  oidoPinta();
+}
+function oidoPausar(){
+  if (!modoOido || !oido) return false;
+  oidoPausa = true;
+  try { oido.stop(); } catch(e){}
+  oidoPinta();
+  return true;
+}
+function oidoSeguir(){
+  if (!modoOido) return;
+  oidoPausa = false;
+  setTimeout(function(){ try { oido.start(); } catch(e){} oidoPinta(); }, 250);
+}
+
+function clic(id, siNo){
+  var e = $(id);
+  if (!e) return null;
+  if (e.disabled) return siNo || null;
+  e.click(); return true;
+}
+var ORDENES = [
+  { pal: ['ayuda','que puedo decir','ordenes','que sabes hacer'], hacer: function(){
+      vozDecir('Podes decir: capturar. Efectivo. Tarjeta. Sin pagar. Repetir. Archivo. Panel. Camara. Preguntar. O buscar, y el nombre del proveedor.');
+      return 'Te lo canto'; } },
+  { pal: ['efectivo','en efectivo','metalico','pago en efectivo'], hacer: function(){ return clic('psEfectivo') ? 'Efectivo' : null; } },
+  { pal: ['tarjeta','con tarjeta','pago con tarjeta'], hacer: function(){ return clic('psTarjeta') ? 'Tarjeta' : null; } },
+  { pal: ['sin pagar','pendiente','no pagada','a deber','queda a deber'], hacer: function(){ return clic('psPendiente') ? 'Sin pagar' : null; } },
+  { pal: ['repetir','repite','repetila','rehacer','otra vez','descartar'], hacer: function(){ return clic('psRehacer') ? 'Repetimos' : null; } },
+  { pal: ['capturar','captura','foto','saca la foto','dispara','disparar','sacar foto'], hacer: function(){
+      if ($('screenCam') && !$('screenCam').classList.contains('on')) clic('tabCam');
+      var r = clic('shutter', 'cam-no-lista');
+      if (r === 'cam-no-lista') { vozDecir('La camara todavia no esta lista'); return 'Cámara no lista'; }
+      return r ? 'Capturando' : null; } },
+  { pal: ['archivo','galeria','adjuntar','adjunta','subir foto','desde archivo'], hacer: function(){ return clic('pickInput') ? 'Abriendo archivos' : null; } },
+  { pal: ['camara','capturar pestana','ir a camara'], hacer: function(){ return clic('tabCam') ? 'Cámara' : null; } },
+  { pal: ['panel','mi panel','facturas','mis facturas'], hacer: function(){ return clic('tabPanel') ? 'Panel' : null; } },
+  { pal: ['preguntar','pregunta','chat'], hacer: function(){ return clic('tabChat') ? 'Preguntar' : null; } },
+  { pal: ['mis claves','claves'], hacer: function(){ return clic('tabClaves') ? 'Mis claves' : null; } },
+  { pal: ['mis datos','datos'], hacer: function(){ return clic('tabDatos') ? 'Mis datos' : null; } },
+  { pal: ['cuanto llevo','cuanto iva','cuanto va','total'], hacer: function(){
+      var t = ($('pIvaTot') && $('pIvaTot').textContent || '').trim();
+      if (!t || t === '—') { vozDecir('Todavia no tengo el total cargado'); return 'Sin total aún'; }
+      vozDecir('Llevas ' + t + ' de I.V.A. identificado'); return t; } },
+  { pal: ['calla','callate','silencio','para'], hacer: function(){ try { window.speechSynthesis.cancel(); } catch(e){} return 'Callada'; } }
+];
+
+function irABuscar(q){
+  clic('tabPanel');
+  var s = $('panelSearch');
+  if (!s) return;
+  s.value = q;
+  s.dispatchEvent(new Event('input', { bubbles: true }));
+  toast('🎤 Buscando ' + q);
+}
+function ejecutarOrden(bruto){
+  var t = sinTildes(bruto).replace(/[.,!¡?¿]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return;
+  /* "tikora ..." es la forma segura: siempre cuenta, aunque venga en medio de una charla */
+  var conNombre = t.match(/^(?:oye\s+|hey\s+)?tikora[, ]+(.+)$/);
+  if (conNombre) t = conNombre[1].trim();
+
+  var mb = t.match(/^(?:busca|buscar|buscame|encuentra|proveedor|ir a|ve a|abri|abrir)\s+(.{2,})$/);
+  if (mb){ irABuscar(mb[1]); return; }
+
+  for (var i = 0; i < ORDENES.length; i++){
+    var o = ORDENES[i];
+    for (var j = 0; j < o.pal.length; j++){
+      if (t === o.pal[j]){                       /* frase entera = la orden. Nada de coincidencias sueltas. */
+        var r = o.hacer();
+        if (r) toast('🎤 ' + r);
+        return;
+      }
+    }
+  }
+}
+/* si quedo encendida de la sesion anterior, que siga escuchando al abrir */
+if (vozOn && SR){ modoOido = true; oidoArranca(); }
 /* v53: avisos push — suscripción de ESTE teléfono a la notificación por factura nueva */
 if (TOKEN) idbTikora(function(db){ try { db.transaction('kv', 'readwrite').objectStore('kv').put(TOKEN, 'token'); } catch(e){} });
 function b64aBytes(b64){
@@ -2250,7 +2394,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v56';
+var APP_VER = 'v57';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

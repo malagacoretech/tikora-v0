@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v95'; /* v94: apagado empleados (panel sin dinero, recortado en servidor) + fuera la coletilla del hero en Hoy-Semana */
+var VERSION = 'tikora-captura-v96'; /* v96: partes de la manana (9:01) y de la noche (22:02) en el aviso + deep-link rev=1 que abre el panel con para-repetir desplegada */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -151,6 +151,41 @@ self.addEventListener('push', function(e){
               /* solo Revisar: el aviso especifico ya sono; retirar la generica que decia "entro una boleta" */
               return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
             }
+            /* v96: PARTES del dia (pedido de Matias "si lo quiero"): los workflows Parte de la
+               manana (09:01) y Parte de la noche (22:02) disparan un push sin datos; si no hay
+               nada nuevo y estamos en esa franja, el generico se convierte en el parte.
+               Sin un solo importe (#28) — solo trabajo. Si justo llega una factura nueva en la
+               franja, gana el aviso de factura y el parte de ese dia se salta (raro y asumido). */
+            var ahora = new Date(), hh = ahora.getHours(), mn = ahora.getMinutes();
+            var esManana = (hh === 9 && mn < 20), esNoche = (hh === 22 && mn < 20);
+            if (esManana || esNoche){
+              var nCor = 0, nRep = 0;
+              pend.forEach(function(p){ if (p.tipo === 'corregir') nCor++; else nRep++; });
+              var pendTxt = '';
+              if (nRep) pendTxt += nRep + (nRep === 1 ? ' foto hay que repetirla' : ' fotos hay que repetirlas');
+              if (nRep && nCor) pendTxt += ' y ';
+              if (nCor) pendTxt += nCor + (nCor === 1 ? ' espera que confirmes un dato' : ' esperan que confirmes un dato');
+              var cuerpo = '';
+              if (esNoche){
+                var hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+                var nHoy = 0; rows.forEach(function(f){ if (swEntroMs(f.entro) >= hoy0) nHoy++; });
+                var nPap = 0; ((d && d.otros) || []).forEach(function(o){ if (swEntroMs(o.entro) >= hoy0) nPap++; });
+                cuerpo = 'Hoy ' + (nHoy === 1 ? 'ingreso 1 factura' : 'ingresaron ' + nHoy + ' facturas') + '.';
+                if (pendTxt) cuerpo += ' ' + pendTxt.charAt(0).toUpperCase() + pendTxt.slice(1) + '.';
+                if (nPap) cuerpo += ' ' + nPap + (nPap === 1 ? ' papel archivado' : ' papeles archivados') + ', nada que hacer.';
+                if (!nHoy && !pendTxt && !nPap) cuerpo = 'Dia sin movimientos. Todo al dia.';
+              } else {
+                cuerpo = pendTxt ? (pendTxt.charAt(0).toUpperCase() + pendTxt.slice(1) + '.') : 'Nada pendiente - todo al dia.';
+              }
+              return self.registration.showNotification(esNoche ? 'Tikora - parte de la noche' : 'Tikora - parte de la manana', {
+                body: cuerpo,
+                icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png',
+                tag: 'tikora-parte', renotify: true,
+                data: { url: (pendTxt ? '/captura.html?rev=1' : '/captura.html?v=panel'), rev: pendTxt ? 1 : 0, f: '' }
+              }).then(function(){
+                return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
+              });
+            }
             return;   /* nada nuevo de verdad: la genérica queda como pista */
           }
           /* v77: por hora de ENTRADA (rows viene por fecha de factura, que no es lo mismo);
@@ -184,6 +219,7 @@ self.addEventListener('notificationclick', function(e){
   var fid = d.f || '';
   /* v73: el botón decide — "preguntar" va al chat; "ver" (o tocar el cuerpo) abre la factura en el panel */
   var modo = (e.action === 'preguntar') ? 'chat' : 'ver';
+  if (!fid && d.rev) modo = 'rev';   /* v96: el parte con la app abierta despliega "para repetir" */
   var url = fid ? ('/captura.html?' + modo + '=' + fid) : (d.url || '/captura.html');   /* v89: el aviso de revisar abre el panel */
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){

@@ -2335,6 +2335,7 @@ function loadPanel(silent){
       panelBanner(null);
       try { vozAnunciar(data.rows || []); } catch(e){}
       try { aplicarVerPend(); } catch(e){}
+      try { aplicarRevPend(); } catch(e){}   /* v96: ?rev=1 — desplegar "para repetir" al llegar el panel */
       try { localStorage.setItem(panelCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
     })
     .catch(function(err){
@@ -2498,6 +2499,17 @@ try {
   var qsVer = new URLSearchParams(location.search).get('ver');
   if (qsVer) verPendFid = qsVer;
 } catch(e){}
+/* v96: ?rev=1 — el parte de la manana/noche abre el panel con "para repetir" desplegada */
+var revPend = false;
+try {
+  var qsRev = new URLSearchParams(location.search).get('rev');
+  if (qsRev) revPend = true;
+} catch(e){}
+function aplicarRevPend(){
+  if (!revPend) return;
+  /* solo se consume cuando la pastilla existe — si el panel aun no cargo, el gancho de loadPanel reintenta */
+  try { if ($('cardRehacer').style.display !== 'none'){ revPend = false; $('cardRehacer').click(); } } catch(e){}
+}
 /* v89: "Ver factura" ahora LLEVA A LA FOTO, que es lo que significa. Además deja el panel
    filtrado a esa factura por debajo, para que al cerrar la foto esté donde toca. */
 function abrirFacturaPanel(fid){
@@ -2544,6 +2556,7 @@ if ('serviceWorker' in navigator){
     if (!e.data) return;
     if (e.data.tikora === 'chat') abrirChatFactura(e.data.f);
     if (e.data.tikora === 'ver') abrirFacturaPanel(e.data.f);   /* v73: botón "Ver factura" del aviso */
+    if (e.data.tikora === 'rev'){ revPend = true; try { clic('tabPanel'); } catch(err){} aplicarRevPend(); }   /* v96: el parte con la app abierta */
   });
 }
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
@@ -3079,6 +3092,10 @@ function boot(){
   if (typeof qsVer !== 'undefined' && qsVer){
     show('screenPanel'); loadPanel(false); processQueue(false); return;
   }
+  /* v96: ?rev=1 — el parte abre el panel con "para repetir" desplegada (se aplica al cargar) */
+  if (revPend){
+    show('screenPanel'); loadPanel(false); processQueue(false); return;
+  }
   /* v59: cada uno entra donde trabaja — el dueno a mirar sus numeros, el empleado a disparar */
   /* ===== LEY DE CERO FRICCION — no cambiar sin un motivo muy bueno =====
      La app SIEMPRE abre en la camara, lista para disparar. Dueno o empleado, da igual.
@@ -3130,7 +3147,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v95';
+var APP_VER = 'v96';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -429,6 +429,9 @@ button.capbadge:active{transform:scale(0.95)}
 #cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
 .debehint{font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
+/* v97: el motivo de Revisar debajo de los botones, a lo ancho y centrado */
+.caprow.rev{flex-wrap:wrap}
+.caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.4rem}
 /* v94: modo empleado — el panel sin dinero (el servidor ya manda ceros; esto evita ensenarlos) */
 body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,body.emp .prow .who .iva{display:none !important}
 .seg{display:flex;gap:0.4rem;margin:1.25rem 0 0.65rem}   /* v89: flex para que quepa la pastilla de repetir */
@@ -1833,8 +1836,6 @@ function filaRevisar(c){
     var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
     g.appendChild(h1);
   }
-  var m = document.createElement('div'); m.className = 'cm'; m.textContent = motivoHumano(c);
-  g.appendChild(m);
   row.appendChild(g);
   if (c.f){
     var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
@@ -1865,6 +1866,10 @@ function filaRevisar(c){
       row.appendChild(bx);
     }
   }
+  /* v97: el motivo ABAJO, a lo ancho y centrado (Matias 07:22: en la columna angosta
+     se partia en cuatro lineas y comia media tarjeta) */
+  var m = document.createElement('div'); m.className = 'cm abajo'; m.textContent = motivoHumano(c);
+  row.appendChild(m);
   return row;
 }
 function renderPanel(data, cachedNote){
@@ -3147,7 +3152,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v96';
+var APP_VER = 'v97';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -64,6 +64,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 /* v52: visor de fotos de la sesión — tocá la miniatura y repasá en grande lo que sacaste */
 #fotoVis{position:fixed;inset:0;z-index:60;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
 #fotoVis.on{display:flex}
+/* v100: el corrector. Mismo criterio que el visor: vive fuera de las pantallas. */
+#corr{position:fixed;inset:0;z-index:70;background:var(--bg,#0A1628);display:none;flex-direction:column}
+#corr.on{display:flex}
+#corr .corrTop{display:flex;align-items:center;gap:0.6rem;padding:calc(0.7rem + env(safe-area-inset-top)) 0.9rem 0.7rem;border-bottom:1px solid var(--border)}
+#corr .corrTit{flex:1;text-align:center;font-weight:800;font-size:1rem}
+#corr .corrX{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;min-width:44px;min-height:44px;font-size:1.05rem}
+#corr .corrCuerpo{flex:1;overflow-y:auto;padding:0.9rem;-webkit-overflow-scrolling:touch}
+#corr .corrFoto{background:#000;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0.8rem}
+#corr .corrFoto img{display:block;width:100%;max-height:38vh;object-fit:contain}
+#corr .corrAviso{font-size:0.85rem;color:var(--text-muted);line-height:1.35;margin-bottom:0.9rem}
+#corr .campo{margin-bottom:0.9rem}
+#corr .campo label{display:block;font-size:0.82rem;font-weight:700;color:var(--text-muted);margin-bottom:0.3rem}
+#corr .campo .fila{display:flex;gap:0.45rem;align-items:stretch}
+#corr .campo input,#corr .campo select{flex:1;min-width:0;min-height:48px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:0 0.7rem;font-size:1rem;font-family:inherit}
+#corr .campo input:focus,#corr .campo select:focus{outline:none;border-color:var(--accent)}
+#corr .campo .dictar{flex:0 0 auto;min-width:48px;min-height:48px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;font-size:1.1rem}
+#corr .campo .dictar.rec{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+#corr .corrTodos{width:100%;min-height:44px;background:transparent;border:1px dashed var(--border);color:var(--text-muted);border-radius:12px;font-size:0.85rem;font-family:inherit}
+#corr .corrPie{display:flex;gap:0.5rem;padding:0.7rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom));border-top:1px solid var(--border)}
+#corr .corrPie button{flex:1;min-height:52px;border-radius:14px;font-size:0.95rem;font-weight:800;font-family:inherit}
+#corr .corrGuardar{background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
+#corr .corrBuena{background:var(--accent);border:1px solid var(--accent);color:#0A1628}
+#corr .corrPie button[disabled]{opacity:0.5}
 #fotoVis img{max-width:96vw;max-height:76vh;object-fit:contain;border-radius:10px}
 /* v82: zona con scroll propio — al acercar, la foto se sale de la caja y se recorre arrastrando */
 #fvZona{width:96vw;height:76vh;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:center;justify-content:center;border-radius:10px;cursor:zoom-in}
@@ -552,6 +575,28 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
 <!-- v89: desde la foto se puede preguntar por ESA factura, sin volver atrás ni buscarla -->
 <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
 <div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
+</div>
+
+<!-- v100: EL CORRECTOR. Hasta ahora el botón "corregir" abría Google Sheets en el móvil:
+buscar la fila, hacer zoom y escribir en una celda de tres milímetros. Ahora se arregla aquí,
+con la foto delante. Vive FUERA de las pantallas por la misma razón que el visor (v90):
+un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
+<div id="corr">
+  <div class="corrTop">
+    <button type="button" class="corrX" id="corrCerrar" aria-label="Cerrar">&#10005;</button>
+    <span class="corrTit">Completar la factura</span>
+    <button type="button" class="corrX" id="corrVerFoto" aria-label="Ver la foto grande">&#128269;</button>
+  </div>
+  <div class="corrCuerpo">
+    <div class="corrFoto"><img id="corrImg" alt="La factura"></div>
+    <div class="corrAviso" id="corrAviso"></div>
+    <div id="corrCampos"></div>
+    <button type="button" class="corrTodos" id="corrTodos">Ver todos los campos</button>
+  </div>
+  <div class="corrPie">
+    <button type="button" class="corrGuardar" id="corrGuardar">Guardar</button>
+    <button type="button" class="corrBuena" id="corrBuena">Guardar y darla por buena</button>
+  </div>
 </div>
 
 <!-- Pantalla 2: sin cámara web disponible → botón gigante a la cámara nativa -->
@@ -1380,6 +1425,162 @@ function initCamera(){
   });
 }
 
+/* ================== v100: EL CORRECTOR ==================
+   Hasta la v99, "corregir" abría Google Sheets en el navegador del móvil: buscar la fila,
+   hacer zoom, escribir en una celda de tres milímetros. Deuda nuestra — era lo rápido,
+   no lo correcto. 40 de los 50 pendientes de Matías son "confirmá un dato", así que esto
+   es lo que le quita el trabajo de encima sin buscar un solo papel.
+   El servidor ya existe: workflow "Tikora - Corregir campos". Esto es solo el cliente,
+   y se ciñe a su contrato sin pedirle un cambio. */
+var CORREGIR_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-corregir-8f2c31a7';
+var CAMPOS_DEF = [
+  { k: 'emisor',  et: 'Quién te la hizo',       tipo: 'text' },
+  { k: 'nif',     et: 'Su NIF o CIF',           tipo: 'text' },
+  { k: 'fecha',   et: 'Fecha de la factura',    tipo: 'date' },
+  { k: 'nfac',    et: 'Número de factura',      tipo: 'text' },
+  { k: 'base',    et: 'Importe sin IVA',        tipo: 'text' },
+  { k: 'tipoIva', et: 'Tipo de IVA (21, 10, 4)', tipo: 'text' },
+  { k: 'cuota',   et: 'El IVA',                 tipo: 'text' },
+  { k: 'total',   et: 'Total con IVA',          tipo: 'text' },
+  { k: 'pago',    et: 'Cómo se pagó',           tipo: 'pago' }
+];
+/* del motivo técnico de la hoja a los campos que hay que enseñar: solo se pide lo que falta */
+function camposDelMotivo(c){
+  var t = String(c.campos || c.campos_dudosos || c.motivo || c.dudosos || '').toLowerCase();
+  var k = [];
+  if (/emisor_nombre|emisor\b|proveedor/.test(t)) k.push('emisor');
+  if (/emisor_nif|\bnif\b|\bcif\b/.test(t))       k.push('nif');
+  if (/fecha/.test(t))                            k.push('fecha');
+  if (/numero_factura/.test(t))                   k.push('nfac');
+  if (/base_imponible/.test(t))                   k.push('base');
+  if (/tipo_iva/.test(t))                         k.push('tipoIva');
+  if (/cuota_iva/.test(t))                        k.push('cuota');
+  if (/\btotal\b/.test(t))                        k.push('total');
+  if (/forma_pago/.test(t))                       k.push('pago');
+  /* sin pistas legibles, se piden los que sostienen una factura */
+  if (!k.length) k = ['emisor', 'nif', 'fecha', 'base', 'cuota', 'total'];
+  return k;
+}
+var corrActual = null, corrTodo = false;
+function corrPinta(){
+  var cont = $('corrCampos'); cont.innerHTML = '';
+  var pedir = corrTodo ? CAMPOS_DEF.map(function(d){ return d.k; }) : camposDelMotivo(corrActual);
+  CAMPOS_DEF.forEach(function(d){
+    if (pedir.indexOf(d.k) < 0) return;
+    var wrap = document.createElement('div'); wrap.className = 'campo';
+    var lab = document.createElement('label'); lab.textContent = d.et; lab.htmlFor = 'cc_' + d.k;
+    wrap.appendChild(lab);
+    var fila = document.createElement('div'); fila.className = 'fila';
+    var inp;
+    if (d.tipo === 'pago'){
+      inp = document.createElement('select');
+      [['','—'],['efectivo','En efectivo'],['tarjeta','Con tarjeta'],['pendiente','Sin pagar todavía']].forEach(function(o){
+        var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; inp.appendChild(op);
+      });
+    } else {
+      inp = document.createElement('input');
+      inp.type = (d.tipo === 'date') ? 'date' : 'text';
+      if (d.k === 'base' || d.k === 'cuota' || d.k === 'total' || d.k === 'tipoIva') inp.inputMode = 'decimal';
+      if (d.k === 'nif') inp.autocapitalize = 'characters';
+    }
+    inp.id = 'cc_' + d.k;
+    /* lo que ya se sabe, puesto: no se le hace teclear algo que el sistema ya leyó */
+    if (d.k === 'emisor' && corrActual.emisor && corrActual.emisor.charAt(0) !== '(') inp.value = corrActual.emisor;
+    fila.appendChild(inp);
+    if (d.tipo === 'text'){
+      var mic = document.createElement('button'); mic.type = 'button'; mic.className = 'dictar';
+      mic.innerHTML = '&#127908;'; mic.setAttribute('aria-label', 'Dictar ' + d.et);
+      mic.addEventListener('click', function(){ dictarEn(inp, mic); });
+      fila.appendChild(mic);
+    }
+    wrap.appendChild(fila);
+    cont.appendChild(wrap);
+  });
+  /* ayuda visible, nunca silenciosa: rellena el IVA a partir de base y tipo, y él lo ve antes de guardar */
+  var b = $('cc_base'), ti = $('cc_tipoIva'), cu = $('cc_cuota');
+  if (b && ti && cu){
+    var calc = function(){
+      var nb = parseFloat(String(b.value).replace(/\./g,'').replace(',', '.'));
+      var nt = parseFloat(String(ti.value).replace(',', '.'));
+      if (!isNaN(nb) && !isNaN(nt) && !cu.value){
+        cu.value = (Math.round(nb * nt) / 100).toFixed(2).replace('.', ',');
+      }
+    };
+    b.addEventListener('blur', calc); ti.addEventListener('blur', calc);
+  }
+}
+/* el dictado que ya existía desde la v12 en el chat, puesto donde de verdad hace falta */
+function dictarEn(input, btn){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){ toast('Usá el micrófono del teclado', true); return; }
+  var rec = new SR();
+  rec.lang = 'es-ES'; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.onresult = function(ev){
+    var t = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || '';
+    if (!t) return;
+    if (input.id === 'cc_nif') t = t.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    else if (input.inputMode === 'decimal') t = t.replace(/[^0-9,\.]/g, '');
+    input.value = t;
+  };
+  rec.onend = function(){ btn.classList.remove('rec'); };
+  rec.onerror = function(){ btn.classList.remove('rec'); };
+  btn.classList.add('rec');
+  try { rec.start(); } catch(e){ btn.classList.remove('rec'); }
+}
+function abrirCorrector(c){
+  if (ES_EMPLEADO || !c || !c.f) return;
+  corrActual = c; corrTodo = false;
+  $('corrImg').src = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f);
+  $('corrAviso').textContent = motivoCoherente(c) + '. Escribí solo lo que falte mirando la foto — la foto se queda como está.';
+  $('corrTodos').textContent = 'Ver todos los campos';
+  corrPinta();
+  $('corr').classList.add('on');
+}
+function cerrarCorrector(){ $('corr').classList.remove('on'); corrActual = null; $('corrImg').src = ''; }
+function guardarCorreccion(promover){
+  if (!corrActual) return;
+  var cambios = {};
+  CAMPOS_DEF.forEach(function(d){
+    var el = $('cc_' + d.k); if (!el) return;
+    var v = String(el.value || '').trim();
+    if (!v) return;
+    if (d.k === 'nif') v = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    cambios[d.k] = v;
+  });
+  if (!Object.keys(cambios).length){ toast('No escribiste nada todavía', true); return; }
+  $('corrGuardar').disabled = true; $('corrBuena').disabled = true;
+  fetch(CORREGIR_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET },
+    body: JSON.stringify({ u: TOKEN, f: corrActual.f, cambios: cambios, promover: promover === true })
+  })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(res){
+      $('corrGuardar').disabled = false; $('corrBuena').disabled = false;
+      if (!res.ok || (res.j && res.j.ok === false)){
+        toast((res.j && res.j.motivo) ? res.j.motivo : 'No se pudo guardar', true); return;
+      }
+      toast(promover ? 'Guardada y pasada a facturas' : 'Guardado');
+      cerrarCorrector();
+      loadPanel(true);
+    })
+    .catch(function(){
+      $('corrGuardar').disabled = false; $('corrBuena').disabled = false;
+      toast('No se pudo guardar — mirá la conexión', true);
+    });
+}
+$('corrCerrar').addEventListener('click', cerrarCorrector);
+$('corrTodos').addEventListener('click', function(){
+  corrTodo = !corrTodo;
+  $('corrTodos').textContent = corrTodo ? 'Ver solo lo que falta' : 'Ver todos los campos';
+  corrPinta();
+});
+$('corrVerFoto').addEventListener('click', function(){
+  if (corrActual && corrActual.f) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f));
+});
+$('corrGuardar').addEventListener('click', function(){ guardarCorreccion(false); });
+$('corrBuena').addEventListener('click', function(){ guardarCorreccion(true); });
+
 /* v99: la linterna, en UNA sola función que se puede llamar desde donde haga falta.
    El fallo que arreglaba: al bloquear el móvil y volver a abrirlo, el track de la cámara
    MUCHAS VECES SOBREVIVE — así que initCamera() no se volvía a ejecutar y el encendido
@@ -1887,7 +2088,9 @@ function filaRevisar(c){
     if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
       var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'capbadge'; b2.textContent = '✏️ corregir';
       b2.title = 'La foto está bien: falta un dato. Se corrige en la hoja.';
-      b2.addEventListener('click', function(ev){ ev.stopPropagation(); window.open(HOJA_REVISAR + '&range=A' + c.fila, '_blank', 'noopener'); });
+      /* v100: se acabó mandarle a Google Sheets desde el móvil a buscar una celda de tres
+         milímetros. Se corrige aquí, con la foto delante, tecleando o dictando. */
+      b2.addEventListener('click', function(ev){ ev.stopPropagation(); abrirCorrector(c); });
       row.appendChild(b2);
     } else {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'capbadge rev'; b.textContent = '⚠ repetila';
@@ -3205,7 +3408,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v99';
+var APP_VER = 'v100';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -237,10 +237,10 @@ input[type=file]{display:none}
 .psearch:focus{border-color:var(--accent)}
 /* v84: selector de orden. Compacto: una linea, sin comerse pantalla. */
 /* v86: periodo + orden en una sola fila, pegados a la lista */
-.filarow{display:flex;align-items:center;gap:0.45rem;margin:0 0 0.6rem}
-.filarow .mesfil{flex:1;min-width:0;margin:0}
-.ordbtn{flex-shrink:0;width:44px;height:44px;padding:0;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:1.25rem;font-weight:800;line-height:1;cursor:pointer}
+.ordbtn{display:flex;align-items:center;gap:0.5rem;width:100%;min-height:44px;margin:0 0 0.6rem;padding:0.4rem 0.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:left}
+.ordbtn .ordval{color:var(--text);font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ordbtn.on{border-color:var(--accent);color:var(--accent)}
+.ordbtn.on .ordval{color:var(--accent)}
 .ordmenu{display:none;flex-direction:column;gap:0.3rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.4rem;margin:0 0 0.7rem}
 .ordmenu.on{display:flex}
 .ordmenu button{text-align:left;min-height:44px;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:0.88rem;font-weight:600;border-radius:10px;padding:0.5rem 0.7rem;cursor:pointer}
@@ -430,6 +430,10 @@ button.capbadge:active{transform:scale(0.95)}
 .prow .who .d{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
 .prow .amt{font-size:0.95rem;font-weight:700;white-space:nowrap}
 /* v85: sello de albaran y forma de pago impresa */
+/* v87: la linea del cuadre — discreta cuando todo va bien, es su unica virtud */
+.cuadrelinea{text-align:center;font-size:0.72rem;color:var(--text-muted);margin-top:0.6rem}
+.cuadrelinea.bien{color:#4FBF7B}
+.cuadrelinea.mal{color:#E5484D;font-weight:700}
 .albtag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(91,141,239,0.18);border:1px solid #5B8DEF;color:#9CC0FF;border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em}
 .pgleida{font-size:0.66rem;color:var(--text-muted);white-space:nowrap;margin-top:0.1rem}
 .prow a.foto{color:var(--accent);text-decoration:none;font-size:1.1rem;flex-shrink:0;padding:0.2rem}
@@ -604,6 +608,11 @@ div:has(> #segProv) > button{min-height:44px}
     <div class="val2" id="sinRastroTxt">&mdash;</div>
     <div class="debehint" id="sinRastroHint"></div>
   </div>
+  <div class="pcard debe" id="cardCuadre" style="display:none">
+    <div class="lbl">&#9878;&#65039; No cuadra</div>
+    <div class="val2" id="cuadreTxt">&mdash;</div>
+    <div class="debehint" id="cuadreHint"></div>
+  </div>
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
@@ -611,13 +620,25 @@ div:has(> #segProv) > button{min-height:44px}
        ocupaba un renglón entero para algo que se toca una vez cada mucho: ahora vive detrás
        de los tres puntos. Menos pantalla comida, y las dos preguntas ("¿de cuándo?" y
        "¿en qué orden?") una al lado de la otra, justo encima de lo que afectan. -->
-  <div class="filarow">
-    <div class="mesfil" id="mesFil"></div>
-    <button type="button" class="ordbtn" id="ordBtn" aria-label="Ordenar la lista" title="Ordenar">&#8942;</button>
-  </div>
+  <div class="mesfil" id="mesFil"></div>
+  <!-- v87: el orden en su propia fila, DEBAJO del carril de periodos y pegado a las facturas.
+       Icono de tres rayas descendentes (el universal de "ordenar", no tres puntos mudos) y,
+       sobre todo, DICE por qué criterio estás ordenando ahora mismo. -->
+  <button type="button" class="ordbtn" id="ordBtn" aria-label="Cambiar el orden de la lista">
+    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">
+      <rect x="3" y="5" width="18" height="2.6" rx="1.3" fill="currentColor"></rect>
+      <rect x="3" y="11" width="12" height="2.6" rx="1.3" fill="currentColor"></rect>
+      <rect x="3" y="17" width="6" height="2.6" rx="1.3" fill="currentColor"></rect>
+    </svg>
+    <span class="ordlbl">Ordenar por</span><span class="ordval" id="ordActual"></span>
+  </button>
   <div class="ordmenu" id="ordMenu"></div>
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
   <p class="legal">El IVA identificado es una estimaci&oacute;n sobre tus facturas capturadas. No constituye asesoramiento fiscal &mdash; confirmalo con tu gestor.</p>
+  <!-- v87: el cuadre. La respuesta a "¿cómo sé que está todo?" — la pregunta que Matías
+       lleva haciendo toda la noche y la que va a hacer un gestor con otras palabras.
+       Cuando cuadra, una línea discreta. Cuando no, una tarjeta arriba que no se puede ignorar. -->
+  <div class="cuadrelinea" id="cuadreLinea"></div>
   <div class="muted" id="panelUpdated" style="text-align:center;font-size:0.68rem;margin-top:0.3rem"></div>
 </div>
 
@@ -1573,6 +1594,39 @@ function pintarSinRastro(){
   if (enCamino)  pistas.push(enCamino + (enCamino === 1 ? ' va' : ' van') + ' en camino.');
   $('sinRastroHint').textContent = pistas.join(' ');
 }
+/* v87: EL CUADRE — fotos que hay en la carpeta contra filas que hay en el sistema.
+   Lo calcula el Goteo cada 2 minutos y el Panel API lo trae ya hecho. Es la única
+   respuesta honesta a "¿está todo?": no una promesa, una resta. */
+function pintarCuadre(){
+  var c = (panelData && panelData.cuadre) || null;
+  var linea = $('cuadreLinea'), caja = $('cardCuadre');
+  if (!linea || !caja) return;
+
+  if (!c){   /* el Goteo todavia no ha corrido: ni verde ni rojo, la verdad */
+    linea.textContent = 'Cuadre: sin datos todavía.';
+    linea.className = 'cuadrelinea';
+    caja.style.display = 'none';
+    return;
+  }
+
+  var huerf = Number(c.huerfanos || 0);
+  var apart = Number(c.apartadas || 0);
+  var cola  = apart ? (' · ' + apart + (apart === 1 ? ' apartada por peso' : ' apartadas por peso')) : '';
+
+  if (huerf > 0){
+    caja.style.display = 'block';
+    $('cuadreTxt').textContent = huerf + (huerf === 1 ? ' foto sin procesar' : ' fotos sin procesar');
+    $('cuadreHint').textContent = 'Están en la carpeta pero todavía no tienen fila. El sistema las recoge solo cada pocos minutos; si el número no baja, avisá.';
+    linea.textContent = 'Cuadre a las ' + String(c.cuando || '').slice(-5) + ': ' + c.drive + ' fotos · ' + c.filas + ' filas' + cola;
+    linea.className = 'cuadrelinea mal';
+  } else {
+    caja.style.display = 'none';
+    linea.textContent = '✓ Todo cuadra · ' + c.drive + ' fotos · ' + c.filas + ' filas' + cola +
+                        (c.cuando ? (' · ' + String(c.cuando).slice(-5)) : '');
+    linea.className = 'cuadrelinea bien';
+  }
+}
+
 function pintarHero(){
   var rows = filasDelMes((panelData && panelData.rows) || []);
   var iva = 0, base = 0;
@@ -1712,6 +1766,7 @@ function renderPanel(data, cachedNote){
   pintarMeses();
   pintarHero();
   pintarSinRastro();   /* v85: ¿entraron todas las de hoy? ahora mirando tambien en Otros */
+  pintarCuadre();      /* v87: fotos en la carpeta vs filas en el sistema */
 
   /* v18: tarjeta de deuda — suma de filas marcadas pendiente (v71: del mes que estas viendo) */
   var deben = filasDelMes(data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
@@ -1990,6 +2045,12 @@ var ORDENES_PANEL = [
 ];
 function pintarMenuOrden(){
   var m = $('ordMenu'); if (!m) return;
+  /* v87: el botón dice en qué orden estás. Un icono mudo obliga a abrirlo para saberlo. */
+  var act = $('ordActual');
+  if (act){
+    var elegido = ORDENES_PANEL.filter(function(o){ return o.v === panelOrden; })[0];
+    act.textContent = elegido ? elegido.t : '';
+  }
   m.innerHTML = '';
   ORDENES_PANEL.forEach(function(o){
     var b = document.createElement('button');
@@ -2899,7 +2960,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v86';
+var APP_VER = 'v87';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

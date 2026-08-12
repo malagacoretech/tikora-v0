@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v57'; /* v57: manos libres — la app escucha ordenes ademas de cantar las facturas */
+var VERSION = 'tikora-captura-v58'; /* v58: al tocar el aviso, si la app ya estaba abierta salta al chat de esa factura sin recargar */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -33,50 +33,69 @@ var PANEL_URL_SW = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70
 var APP_SECRET_SW = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420';
 function swToken(){
   return new Promise(function(res){
+    var listo = false;
+    function fin(v){ if (!listo){ listo = true; res(v); } }
+    /* v58: onblocked + timeout — sin esto la promesa podía no resolver JAMÁS y la notificación no salía */
+    setTimeout(function(){ fin(null); }, 1500);
     try {
       var rq = indexedDB.open('tikora', 1);
       rq.onupgradeneeded = function(){ rq.result.createObjectStore('kv'); };
+      rq.onblocked = function(){ fin(null); };
       rq.onsuccess = function(){
         try {
           var g = rq.result.transaction('kv', 'readonly').objectStore('kv').get('token');
-          g.onsuccess = function(){ res(g.result || null); };
-          g.onerror = function(){ res(null); };
-        } catch(e){ res(null); }
+          g.onsuccess = function(){ fin(g.result || null); };
+          g.onerror = function(){ fin(null); };
+        } catch(e){ fin(null); }
       };
-      rq.onerror = function(){ res(null); };
-    } catch(e){ res(null); }
+      rq.onerror = function(){ fin(null); };
+    } catch(e){ fin(null); }
   });
 }
+function esperar(ms){ return new Promise(function(res){ setTimeout(function(){ res(null); }, ms); }); }
 self.addEventListener('push', function(e){
-  e.waitUntil(swToken().then(function(tok){
-    var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-boleta', renotify: true, data: { url: '/captura.html' } };
-    if (!tok) return self.registration.showNotification('Tikora', basico);
-    return fetch(PANEL_URL_SW + '?u=' + encodeURIComponent(tok), { headers: { 'x-tikora-app': APP_SECRET_SW } })
-      .then(function(r){ return r.json(); })
+  /* v58: mostrar YA, enriquecer después (patrón del Cowork paralelo). La genérica suena en el acto pase lo que pase;
+     la detallada la SUSTITUYE (mismo tag) sin sonar dos veces. Peor caso: aviso genérico — nunca silencio. */
+  var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-boleta', renotify: true, data: { url: '/captura.html' } };
+  e.waitUntil(
+    self.registration.showNotification('Tikora', basico)
+      .then(function(){ return swToken(); })
+      .then(function(tok){
+        if (!tok) return null;
+        return Promise.race([
+          fetch(PANEL_URL_SW + '?u=' + encodeURIComponent(tok), { headers: { 'x-tikora-app': APP_SECRET_SW } }).then(function(r){ return r.json(); }),
+          esperar(4000)
+        ]);
+      })
       .then(function(d){
         var rows = (d && d.rows) || [];
         var f = rows.length ? rows[rows.length - 1] : null;
-        if (!f) return self.registration.showNotification('Tikora', basico);
+        if (!f) return;
         var imp = f.total ? (String(f.total).replace('.', ',') + ' €') : 'importe por leer';
         var fid = (String(f.foto || '').match(/\/d\/([^\/?]+)/) || [])[1] || '';
         return self.registration.showNotification('Tikora — boleta nueva', {
           body: (f.emisor || 'emisor por leer') + ' · ' + imp,
           icon: '/favicons/android-chrome-192x192.png',
           badge: '/favicons/android-chrome-192x192.png',
-          tag: 'tikora-boleta', renotify: true,
-          data: { url: '/captura.html' + (fid ? ('?chat=' + fid) : '') }
+          tag: 'tikora-boleta', renotify: false,
+          data: { url: '/captura.html' + (fid ? ('?chat=' + fid) : ''), f: fid }
         });
       })
-      .catch(function(){ return self.registration.showNotification('Tikora', basico); });
-  }));
+      .catch(function(){})
+  );
 });
 self.addEventListener('notificationclick', function(e){
   e.notification.close();
-  var url = (e.notification.data && e.notification.data.url) || '/captura.html';
+  var d = e.notification.data || {};
+  var url = d.url || '/captura.html';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){
       var w = ws[i];
-      if ('focus' in w){ try { w.navigate(url); } catch(err){} return w.focus(); }
+      if ('focus' in w){
+        /* v57: la app ya está abierta — se le susurra la factura por mensaje (sin recargar) y se trae al frente */
+        try { w.postMessage({ tikora: 'chat', f: d.f || '' }); } catch(err){}
+        return w.focus();
+      }
     }
     return clients.openWindow(url);
   }));

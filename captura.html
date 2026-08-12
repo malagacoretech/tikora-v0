@@ -1869,13 +1869,21 @@ if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in
   }
 }
 /* v53: la notificación tocada abre el chat con esa factura en contexto */
+function abrirChatFactura(fid){
+  if (!fid || ES_EMPLEADO) return;
+  setChatCtx({ foto: 'https://drive.google.com/file/d/' + fid + '/view', emisor: 'la factura que entró', fecha: '' });
+  stopCamera(); show('screenChat'); chatHello();
+}
 try {
   var qsChat = new URLSearchParams(location.search).get('chat');
-  if (qsChat && !ES_EMPLEADO){
-    setChatCtx({ foto: 'https://drive.google.com/file/d/' + qsChat + '/view', emisor: 'la factura que entró', fecha: '' });
-    stopCamera(); show('screenChat'); chatHello();
-  }
+  if (qsChat) abrirChatFactura(qsChat);
 } catch(e){}
+/* v57: si la app YA estaba abierta, el aviso llega por mensaje del service worker (sin recarga) */
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', function(e){
+    if (e.data && e.data.tikora === 'chat') abrirChatFactura(e.data.f);
+  });
+}
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
    y siempre que se vuelve a la app — sin tocar nada */
 setInterval(function(){
@@ -2394,7 +2402,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v57';
+var APP_VER = 'v58';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

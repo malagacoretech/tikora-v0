@@ -301,8 +301,12 @@ input[type=file]{display:none}
 .prow.clickable:active{background:var(--surface-2)}
 .backprov{display:flex;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.9rem;margin-bottom:0.6rem;font-size:0.85rem;font-weight:600;cursor:pointer;color:var(--text)}
 .pcard.hero .sub{font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
-.grid3 .pcard{padding:0.8rem 0.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center}
+/* v71: carril de meses. Mismo lenguaje visual que los filtros de pago, pero manda sobre todo. */
+.mesfil{display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 0.7rem;scrollbar-width:none;flex-shrink:0}
+.mesfil::-webkit-scrollbar{display:none}
+.mesfil button{flex-shrink:0;min-height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.95rem;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.mesfil button.on{border-color:var(--accent);color:#0A1628;background:var(--accent)}
+.heroPie{font-size:0.72rem;color:var(--text-muted);margin-top:0.45rem}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* v28/v43: los contadores de Facturas y Proveedores llenan su tarjeta */
 #pN,#pProv{font-size:clamp(1.5rem,7.5vw,2.1rem);font-weight:800;line-height:1.05}
@@ -332,7 +336,7 @@ input[type=file]{display:none}
 .baseline{font-size:0.66rem;color:var(--text-muted);margin-top:0.12rem;font-variant-numeric:tabular-nums}
 .baseline .bivaw{color:#F8D57E;font-weight:700}
 /* v36: panel de EMPLEADO — sin un solo importe; solo sus capturas con estado accionable */
-#screenPanel.modo-empleado .pcard.hero,#screenPanel.modo-empleado .grid3,#screenPanel.modo-empleado .seg,#screenPanel.modo-empleado .pagofil,#screenPanel.modo-empleado .pcard.debe,#screenPanel.modo-empleado .psearch,#screenPanel.modo-empleado .legal{display:none}
+#screenPanel.modo-empleado .pcard.hero,#screenPanel.modo-empleado .mesfil,#screenPanel.modo-empleado .seg,#screenPanel.modo-empleado .pagofil,#screenPanel.modo-empleado .pcard.debe,#screenPanel.modo-empleado .psearch,#screenPanel.modo-empleado .legal{display:none}
 .caphead{font-size:0.95rem;font-weight:800;margin:0.2rem 0}
 .capsub{font-size:0.74rem;color:var(--text-muted);margin-bottom:0.8rem;line-height:1.45}
 .caprow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
@@ -419,9 +423,6 @@ div:has(> #segProv) > button{min-height:44px}
 #screenPanel::-webkit-scrollbar{width:11px}
 #screenPanel::-webkit-scrollbar-thumb{background:rgba(244,201,93,0.55);border-radius:8px;min-height:56px}
 #screenPanel::-webkit-scrollbar-track{background:rgba(255,255,255,0.06)}
-#subeBaja{position:fixed;right:0.85rem;bottom:calc(6.6rem + env(safe-area-inset-bottom));z-index:20;display:none;flex-direction:column;gap:0.55rem}
-#subeBaja.on{display:flex}
-#subeBaja button{width:46px;height:46px;border-radius:50%;border:1px solid var(--border);background:rgba(20,34,56,0.94);color:var(--accent);font-size:1.25rem;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45)}
 /* v69: cierre de B.1 y B.4 del informe — nada tocable bajo 40px, importes de un vistazo, pestañas legibles */
 .pagofil button{min-height:40px}
 .sugchips button{min-height:40px}
@@ -514,17 +515,17 @@ div:has(> #segProv) > button{min-height:44px}
     <button class="refreshbtn" id="panelRefresh" type="button">&#8635; Actualizar</button>
   </div>
   <div class="pbanner" id="panelBanner" style="display:none"></div>
+  <!-- v71: un mes por vez. Ver 174 facturas juntas no le sirve a nadie, y menos a una
+       gestoria, que trabaja por trimestres. El mes elegido manda sobre TODA la pantalla. -->
+  <div class="mesfil" id="mesFil"></div>
+  <!-- v71: el hero deja de decir "IVA identificado" (jerga que nos inventamos y que la
+       gente no entiende) y pasa a decir lo que es: el IVA que pagaste en tus compras.
+       Debajo, el termino que si entiende un gestor. -->
   <div class="pcard hero">
-    <div class="lbl" id="pIvaLbl">Tu IVA identificado este mes</div>
+    <div class="lbl" id="pIvaLbl">IVA de tus compras</div>
     <div class="val" id="pIva">&mdash;</div>
-    <div class="ivatot">Total identificado de todas tus facturas capturadas: <span id="pIvaTot">&mdash;</span></div>
-    <div class="sub">estimaci&oacute;n &mdash; confirmalo con tu gestor</div>
-  </div>
-  <div class="grid3">
-    <div class="pcard clickable" id="cardN"><div class="lbl">Facturas</div><div class="val2" id="pN">&mdash;</div></div>
-    <!-- v65: idioma de bar — "Base imponible" es de asesor; en la gestoría sigue el término oficial -->
-    <div class="pcard clickable" id="cardBase"><div class="lbl">Gastado sin IVA</div><div class="val2" id="pBase">&mdash;</div></div>
-    <div class="pcard clickable" id="cardProv"><div class="lbl">Proveedores</div><div class="val2" id="pProv">&mdash;</div></div>
+    <div class="sub" id="pIvaSub">IVA soportado &mdash; estimaci&oacute;n, confirmalo con tu gestor</div>
+    <div class="heroPie" id="pHeroPie">&nbsp;</div>
   </div>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
@@ -1265,6 +1266,72 @@ function panelBanner(msg, retry){
   b.style.display = 'block';
 }
 var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPago = '', panelFiltroSemana = false;
+/* v71: null = sin decidir todavia · '' = todos los meses · 'AAAA-MM' = ese mes */
+var panelMes = null;
+
+function mesDeHoy(){
+  var d = new Date();
+  return d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1));
+}
+function nombreMes(ym){
+  if (!ym) return '';
+  var p = String(ym).split('-');
+  try {
+    var n = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date(+p[0], +p[1] - 1, 1));
+    /* el año solo se dice si NO es el año en curso: en el bar nadie dice "agosto de 2026" */
+    return n + (p[0] !== mesDeHoy().slice(0, 4) ? (' ' + p[0]) : '');
+  } catch(e){ return ym; }
+}
+function filasDelMes(rows){
+  if (!panelMes) return rows || [];
+  return (rows || []).filter(function(r){ return String(r.fecha || '').slice(0, 7) === panelMes; });
+}
+function mesesConFacturas(){
+  var visto = {}, out = [];
+  ((panelData && panelData.rows) || []).forEach(function(r){
+    var ym = String(r.fecha || '').slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(ym) && !visto[ym]){ visto[ym] = 1; out.push(ym); }
+  });
+  out.sort(function(a, b){ return a < b ? 1 : -1; });   /* el mas reciente primero */
+  return out;
+}
+function pintarMeses(){
+  var cont = $('mesFil'); if (!cont) return;
+  var meses = mesesConFacturas();
+  var hoy = mesDeHoy();
+  /* el mes en curso sale siempre, tenga facturas o no: es el que uno espera encontrar */
+  if (meses.indexOf(hoy) < 0) meses.unshift(hoy);
+  var ops = meses.map(function(m){ return { v: m, t: nombreMes(m) }; });
+  if (meses.length > 1) ops.push({ v: '', t: 'Todo' });
+  cont.innerHTML = '';
+  ops.forEach(function(o){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = o.t ? (o.t.charAt(0).toUpperCase() + o.t.slice(1)) : 'Todo';
+    b.classList.toggle('on', panelMes === o.v);
+    b.addEventListener('click', function(){
+      panelMes = o.v;
+      panelFiltroSemana = false;   /* dos periodos a la vez no se entienden */
+      pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
+      var sp = $('screenPanel'); if (sp) sp.scrollTop = 0;
+    });
+    cont.appendChild(b);
+  });
+}
+function pintarHero(){
+  var rows = filasDelMes((panelData && panelData.rows) || []);
+  var iva = 0, base = 0;
+  rows.forEach(function(r){ iva += (r.iva || 0); base += (r.base || 0); });
+  var lbl = $('pIvaLbl');
+  if (lbl) lbl.textContent = panelMes ? ('IVA de tus compras de ' + nombreMes(panelMes)) : 'IVA de tus compras — todo';
+  var v = $('pIva'); if (v) v.textContent = fmtEur(Math.round(iva * 100) / 100);
+  /* v71: esta linea sustituye a los tres recuadros que habia antes. Misma informacion,
+     una linea en vez de tres tarjetas que empujaban lo importante fuera de pantalla. */
+  var pie = $('pHeroPie');
+  if (pie) pie.textContent = rows.length
+    ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(Math.round(base * 100) / 100) + ' sin IVA')
+    : (panelMes ? 'Todavía no hay facturas de este mes.' : 'Todavía no hay facturas.');
+}
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
 /* v19 (RGPD): la foto se abre via el proxy con token — el enlace directo de Drive no llega al cliente */
 function fotoSegura(url){
@@ -1360,23 +1427,12 @@ function renderPanel(data, cachedNote){
     } catch(e){}
   }
   panelData = data;
-  var st = data.stats || {};
-  /* v40: el hero promete "este mes" — se calcula el IVA del mes en curso; Proveedores ocupa el tercer fijo */
-  var ymHoy = (function(){ var d = new Date(); return d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1)); })();
-  var ivaMes = 0;
-  (data.rows || []).forEach(function(r){ if (String(r.fecha || '').slice(0, 7) === ymHoy) ivaMes += (r.iva || 0); });
-  /* v43: el mes con su nombre — "de julio", "de agosto"... (pedido Matías) */
-  try {
-    var nomMes = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', month: 'long' }).format(new Date());
-    $('pIvaLbl').textContent = 'Tu IVA identificado de ' + nomMes;
-  } catch(e){}
-  $('pIva').textContent = fmtEur(Math.round(ivaMes * 100) / 100);
-  $('pIvaTot').textContent = fmtEur(st.iva);
-  $('pN').textContent = String(st.n || 0);
-  $('pBase').textContent = fmtEur(st.base);
-  $('pProv').textContent = String(st.emisores || 0);
-  /* v18: tarjeta de deuda — suma de filas marcadas pendiente */
-  var deben = (data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
+  /* v71: el mes elegido manda sobre TODA la pantalla. En la primera carga, el mes en curso. */
+  if (panelMes === null) panelMes = mesDeHoy();
+  pintarMeses();
+  pintarHero();
+  /* v18: tarjeta de deuda — suma de filas marcadas pendiente (v71: del mes que estas viendo) */
+  var deben = filasDelMes(data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
   if (deben.length){
     var suma = deben.reduce(function(a, r){ return a + (r.total || 0); }, 0);
     $('debeTxt').textContent = deben.length + (deben.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(suma);
@@ -1455,7 +1511,7 @@ function fmtEurCorto(n){
   return (v < 0 ? '-' : '') + s + ' €';
 }
 function pintarContadoresPago(){
-  var filas = (panelData && panelData.rows) || [];
+  var filas = filasDelMes((panelData && panelData.rows) || []);   /* v71: del mes que estas viendo */
   var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
   filas.forEach(function(r){
     var p = String(r.pago || '').toLowerCase();
@@ -1584,7 +1640,7 @@ function renderLista(){
     });
     return;
   }
-  var rows = (data.rows || []);          /* todas las que manda el API */
+  var rows = filasDelMes(data.rows || []);   /* v71: primero el mes elegido, manda sobre todo */
   /* v44: filtro "las que entraron esta semana" (desde el contador de la cámara) */
   if (panelFiltroSemana){
     rows = rows.filter(function(r){ return esDeEstaSemana(r.entro); });
@@ -1662,9 +1718,9 @@ function irPanel(modo){
   var b = $('panelSearch'); if (b) b.value = '';
   if (!$('screenPanel').classList.contains('on')){ $('tabPanel').click(); } else { renderLista(); }
 }
-$('cardN').addEventListener('click', function(){ irPanel('ultimas'); });
-$('cardBase').addEventListener('click', function(){ irPanel('ultimas'); });
-$('cardProv').addEventListener('click', function(){ irPanel('prov'); });
+/* v71: los tres recuadros (Facturas / Gastado sin IVA / Proveedores) se fueron en la pasada
+   de RESTA. Su informacion vive ahora en una linea bajo el hero, y "Por proveedor" sigue
+   estando en el selector de vista de abajo. Sin elementos, no hay manejadores. */
 /* v44: el contador semanal FILTRA de verdad — muestra solo las que ENTRARON esta semana */
 function esDeEstaSemana(entro){
   var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
@@ -1900,27 +1956,8 @@ setInterval(function(){
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden && $('screenPanel').classList.contains('on')) loadPanel(true);
 });
-/* v66: flechas subir/bajar de la lista (pedido de Matías: llegar arriba o abajo de una) */
-(function(){
-  var sp = $('screenPanel');
-  var caja = document.createElement('div'); caja.id = 'subeBaja';
-  var bArr = document.createElement('button'); bArr.type = 'button'; bArr.textContent = '↑'; bArr.setAttribute('aria-label', 'Ir arriba');
-  var bAba = document.createElement('button'); bAba.type = 'button'; bAba.textContent = '↓'; bAba.setAttribute('aria-label', 'Ir abajo');
-  caja.appendChild(bArr); caja.appendChild(bAba);
-  document.body.appendChild(caja);
-  bArr.addEventListener('click', function(){ sp.scrollTo({ top: 0, behavior: 'smooth' }); });
-  bAba.addEventListener('click', function(){ sp.scrollTo({ top: sp.scrollHeight, behavior: 'smooth' }); });
-  function pinta(){
-    var visible = sp.classList.contains('on') && sp.scrollHeight > sp.clientHeight * 1.8;
-    caja.classList.toggle('on', visible);
-    if (visible){
-      bArr.style.visibility = sp.scrollTop > 200 ? 'visible' : 'hidden';
-      bAba.style.visibility = (sp.scrollTop + sp.clientHeight) < (sp.scrollHeight - 200) ? 'visible' : 'hidden';
-    }
-  }
-  sp.addEventListener('scroll', pinta, { passive: true });
-  setInterval(pinta, 1200);
-})();
+/* v71: las flechas de subir/bajar de la v66 se retiran — Matias: "no funciona, no me gusta
+   tener que dar eso". Con la lista partida por meses ya no hay listas kilometricas que salvar. */
 /* v15: tirar hacia abajo en el panel para refrescar */
 (function(){
   var sp = $('screenPanel');
@@ -2473,7 +2510,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v70';
+var APP_VER = 'v71';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

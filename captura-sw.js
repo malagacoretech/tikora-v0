@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v74'; /* v74: tercer ritmo - Lento 10s, ciclando Rapido-Tranquilo-Lento */
+var VERSION = 'tikora-captura-v75'; /* v75: un aviso POR factura (se apilan) + botones Ver factura / Preguntar + factura destacada en el panel + foto desde el chip del chat */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -53,10 +53,37 @@ function swToken(){
   });
 }
 function esperar(ms){ return new Promise(function(res){ setTimeout(function(){ res(null); }, ms); }); }
+/* v73: memoria de fids ya avisados — para que CADA factura tenga SU notificación (apilan, no se pisan) */
+function swAvisados(){
+  return new Promise(function(res){
+    var listo = false;
+    function fin(v){ if (!listo){ listo = true; res(v); } }
+    setTimeout(function(){ fin({ lista: [], guardar: function(){} }); }, 1500);
+    try {
+      var rq = indexedDB.open('tikora', 1);
+      rq.onupgradeneeded = function(){ rq.result.createObjectStore('kv'); };
+      rq.onblocked = function(){ fin({ lista: [], guardar: function(){} }); };
+      rq.onsuccess = function(){
+        var db = rq.result;
+        try {
+          var g = db.transaction('kv', 'readonly').objectStore('kv').get('avisados');
+          g.onsuccess = function(){
+            var lista = Array.isArray(g.result) ? g.result : [];
+            fin({ lista: lista, guardar: function(nueva){
+              try { db.transaction('kv', 'readwrite').objectStore('kv').put(nueva.slice(-200), 'avisados'); } catch(e){}
+            } });
+          };
+          g.onerror = function(){ fin({ lista: [], guardar: function(){} }); };
+        } catch(e){ fin({ lista: [], guardar: function(){} }); }
+      };
+      rq.onerror = function(){ fin({ lista: [], guardar: function(){} }); };
+    } catch(e){ fin({ lista: [], guardar: function(){} }); }
+  });
+}
 self.addEventListener('push', function(e){
-  /* v58: mostrar YA, enriquecer después (patrón del Cowork paralelo). La genérica suena en el acto pase lo que pase;
-     la detallada la SUSTITUYE (mismo tag) sin sonar dos veces. Peor caso: aviso genérico — nunca silencio. */
-  var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-boleta', renotify: true, data: { url: '/captura.html' } };
+  /* v73: mostrar YA (garantía de sonido) → enriquecer con UNA notificación POR factura nueva,
+     tag único por factura (se apilan, no se pisan) + botones "Ver factura" y "Preguntar". */
+  var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-entrando', renotify: true, data: { url: '/captura.html', accionVer: '' } };
   e.waitUntil(
     self.registration.showNotification('Tikora', basico)
       .then(function(){ return swToken(); })
@@ -69,16 +96,34 @@ self.addEventListener('push', function(e){
       })
       .then(function(d){
         var rows = (d && d.rows) || [];
-        var f = rows.length ? rows[rows.length - 1] : null;
-        if (!f) return;
-        var imp = f.total ? (String(f.total).replace('.', ',') + ' €') : 'importe por leer';
-        var fid = (String(f.foto || '').match(/\/d\/([^\/?]+)/) || [])[1] || '';
-        return self.registration.showNotification('Tikora — boleta nueva', {
-          body: (f.emisor || 'emisor por leer') + ' · ' + imp,
-          icon: '/favicons/android-chrome-192x192.png',
-          badge: '/favicons/android-chrome-192x192.png',
-          tag: 'tikora-boleta', renotify: false,
-          data: { url: '/captura.html' + (fid ? ('?chat=' + fid) : ''), f: fid }
+        if (!rows.length) return;
+        return swAvisados().then(function(mem){
+          var vistos = {};
+          mem.lista.forEach(function(x){ vistos[x] = 1; });
+          var nuevas = [];
+          rows.forEach(function(f){
+            var fid = (String(f.foto || '').match(/\/d\/([^\/?]+)/) || [])[1] || '';
+            if (!fid || vistos[fid]) return;
+            nuevas.push({ f: f, fid: fid });
+          });
+          if (!nuevas.length) return;
+          var recientes = nuevas.slice(-5);   /* como mucho 5 avisos por tanda; el resto queda avisado en memoria */
+          var proms = recientes.map(function(n){
+            var imp = n.f.total ? (String(n.f.total).replace('.', ',') + ' €') : 'importe por leer';
+            return self.registration.showNotification('Tikora — boleta nueva', {
+              body: (n.f.emisor || 'emisor por leer') + ' · ' + imp,
+              icon: '/favicons/android-chrome-192x192.png',
+              badge: '/favicons/android-chrome-192x192.png',
+              tag: 'tikora-' + n.fid, renotify: false,
+              actions: [ { action: 'ver', title: '📄 Ver factura' }, { action: 'preguntar', title: '💬 Preguntar' } ],
+              data: { url: '/captura.html?ver=' + n.fid, f: n.fid }
+            });
+          });
+          mem.guardar(mem.lista.concat(nuevas.map(function(n){ return n.fid; })));
+          return Promise.all(proms).then(function(){
+            /* la genérica ya cumplió (sonó): se retira para no duplicar */
+            return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
+          });
         });
       })
       .catch(function(){})
@@ -87,13 +132,15 @@ self.addEventListener('push', function(e){
 self.addEventListener('notificationclick', function(e){
   e.notification.close();
   var d = e.notification.data || {};
-  var url = d.url || '/captura.html';
+  var fid = d.f || '';
+  /* v73: el botón decide — "preguntar" va al chat; "ver" (o tocar el cuerpo) abre la factura en el panel */
+  var modo = (e.action === 'preguntar') ? 'chat' : 'ver';
+  var url = fid ? ('/captura.html?' + modo + '=' + fid) : '/captura.html';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){
       var w = ws[i];
       if ('focus' in w){
-        /* v57: la app ya está abierta — se le susurra la factura por mensaje (sin recargar) y se trae al frente */
-        try { w.postMessage({ tikora: 'chat', f: d.f || '' }); } catch(err){}
+        try { w.postMessage({ tikora: modo, f: fid }); } catch(err){}
         return w.focus();
       }
     }

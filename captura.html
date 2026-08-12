@@ -207,6 +207,9 @@ input[type=file]{display:none}
 .pushask span{flex:1}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
 .pushask button.no{background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);font-weight:600}
+/* v73: la factura recién llegada se destaca al abrirla desde el aviso */
+.prow.destacada{outline:2px solid var(--accent);border-radius:14px;animation:destello 1.3s ease 3}
+@keyframes destello{50%{outline-color:transparent}}
 /* v61: entrada de marca (1,2s y se desvanece; luego el JS la retira del DOM) */
 #intro{position:fixed;inset:0;z-index:99;background:#0A1628;display:flex;align-items:center;justify-content:center;animation:introOut 0.45s ease 1.15s forwards;pointer-events:none}
 #intro .w{font-size:3rem;font-weight:800;letter-spacing:-0.03em;color:#fff;opacity:0;transform:translateY(10px) scale(0.96);animation:introIn 0.55s cubic-bezier(0.2,0.7,0.3,1) 0.1s forwards}
@@ -1858,6 +1861,7 @@ function loadPanel(silent){
       renderPanel(data, null);
       panelBanner(null);
       try { vozAnunciar(data.rows || []); } catch(e){}
+      try { aplicarVerPend(); } catch(e){}
       try { localStorage.setItem(panelCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e){}
     })
     .catch(function(err){
@@ -1983,10 +1987,43 @@ try {
   var qsChat = new URLSearchParams(location.search).get('chat');
   if (qsChat) abrirChatFactura(qsChat);
 } catch(e){}
+/* v73: "Ver factura" — el panel con ESA factura buscada y destacada */
+var verPendFid = null;
+try {
+  var qsVer = new URLSearchParams(location.search).get('ver');
+  if (qsVer) verPendFid = qsVer;
+} catch(e){}
+function abrirFacturaPanel(fid){
+  if (!fid) return;
+  verPendFid = fid;
+  try { clic('tabPanel'); } catch(e){}
+  aplicarVerPend();
+}
+function aplicarVerPend(){
+  if (!verPendFid || !panelData || !panelData.rows) return;
+  var fid = verPendFid, row = null;
+  for (var i = 0; i < panelData.rows.length; i++){
+    if (String(panelData.rows[i].foto || '').indexOf(fid) >= 0){ row = panelData.rows[i]; break; }
+  }
+  if (!row) return;              /* todavía no llegó al panel: el próximo refresco la aplica */
+  verPendFid = null;
+  var s = $('panelSearch');
+  if (s){ s.value = row.nfac || row.emisor || ''; s.dispatchEvent(new Event('input', { bubbles: true })); }
+  setTimeout(function(){
+    var primera = document.querySelector('#panelRows .prow');
+    if (primera){
+      primera.classList.add('destacada');
+      try { primera.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e){}
+      setTimeout(function(){ primera.classList.remove('destacada'); }, 4200);
+    }
+  }, 300);
+}
 /* v57: si la app YA estaba abierta, el aviso llega por mensaje del service worker (sin recarga) */
 if ('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', function(e){
-    if (e.data && e.data.tikora === 'chat') abrirChatFactura(e.data.f);
+    if (!e.data) return;
+    if (e.data.tikora === 'chat') abrirChatFactura(e.data.f);
+    if (e.data.tikora === 'ver') abrirFacturaPanel(e.data.f);   /* v73: botón "Ver factura" del aviso */
   });
 }
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
@@ -2051,6 +2088,11 @@ function setChatCtx(row){
     $('chatCtx').classList.remove('on');
   }
 }
+/* v73: tocar el chip de contexto ABRE la foto de esa factura (queja de Matías: "no figura ni para verla") */
+$('chatCtxTxt').style.cursor = 'pointer';
+$('chatCtxTxt').addEventListener('click', function(){
+  if (chatFile) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(chatFile));
+});
 /* v27: las respuestas llegan con **negritas** y guiones de lista — se pintan bien, no crudos */
 function chatFmt(t){
   var e = String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -2502,6 +2544,10 @@ function boot(){
   if (typeof qsChat !== 'undefined' && qsChat && $('screenChat').classList.contains('on')){
     processQueue(false); return;
   }
+  /* v73: mismo respeto para ?ver= — el aviso "Ver factura" abre el panel con ESA factura destacada */
+  if (typeof qsVer !== 'undefined' && qsVer){
+    show('screenPanel'); loadPanel(false); processQueue(false); return;
+  }
   /* v59: cada uno entra donde trabaja — el dueno a mirar sus numeros, el empleado a disparar */
   /* ===== LEY DE CERO FRICCION — no cambiar sin un motivo muy bueno =====
      La app SIEMPRE abre en la camara, lista para disparar. Dueno o empleado, da igual.
@@ -2553,7 +2599,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v74';
+var APP_VER = 'v75';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

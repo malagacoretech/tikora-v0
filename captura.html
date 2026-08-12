@@ -245,7 +245,11 @@ input[type=file]{display:none}
 .fichabtns{display:grid;gap:0.5rem}
 .fichabtns button{padding:0.85rem 1rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left}
 .fichabtns button.pri{background:var(--accent);color:#0A1628;border-color:var(--accent)}
-.micbtn{width:3rem;flex-shrink:0;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1.05rem;cursor:pointer}
+/* v61: el dictado existia desde la v12 detras de un iconito de 3rem y no lo encontraba nadie.
+   Ahora es un boton ancho, con texto y debajo del campo: se ve lo que hace sin explicarlo. */
+.micbtn{width:100%;margin-top:0.6rem;min-height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:0.5rem;border-radius:16px;border:1px solid var(--accent);background:rgba(244,201,93,0.1);color:var(--accent);font-family:inherit;font-size:0.98rem;font-weight:800;cursor:pointer}
+.micbtn:active{transform:scale(0.98)}
+.micbtn.rec{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 .micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
 /* v14: chip de factura en contexto */
 .chatctx{display:none;align-items:center;gap:0.5rem;background:var(--surface-2);border:1px solid rgba(244,201,93,0.45);border-radius:10px;padding:0.45rem 0.7rem;font-size:0.8rem;margin-bottom:0.5rem}
@@ -501,7 +505,7 @@ button.capbadge:active{transform:scale(0.95)}
   <div class="chatctx" id="chatCtx"><span id="chatCtxTxt"></span><button type="button" id="chatCtxX" aria-label="Quitar factura del contexto">&#10005;</button></div>
   <div id="chatMsgs"></div>
   <div class="chatsug" id="chatSug">
-    <button type="button" class="sugtoggle" id="sugToggle">Preguntas frecuentes <span class="sgc">&#9662;</span></button>
+    <button type="button" class="sugtoggle" id="sugToggle">Preguntame lo que quieras <span class="sgc">&#9662;</span></button>
     <div class="sugchips">
       <button type="button">&iquest;Cu&aacute;nto IVA llevo identificado?</button>
       <button type="button">&iquest;Cu&aacute;l es mi mayor proveedor?</button>
@@ -509,10 +513,10 @@ button.capbadge:active{transform:scale(0.95)}
     </div>
   </div>
   <div class="chatbar">
-    <input id="chatInput" type="text" placeholder="Pregunt&aacute; sobre tus facturas&hellip;" autocomplete="off" maxlength="400">
-    <button id="chatMic" class="micbtn" type="button" aria-label="Dictar">&#127908;</button>
+    <input id="chatInput" type="text" placeholder="Escrib&iacute; tu pregunta&hellip;" autocomplete="off" maxlength="400">
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
+  <button id="chatMic" class="micbtn" type="button" aria-label="Dictar tu pregunta">&#127908; Habl&aacute; conmigo</button>
   <p class="legal">Responde solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
@@ -1834,7 +1838,13 @@ function chatMsg(texto, cls){
 function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
 function chatHello(){
   if ($('chatMsgs').children.length) return;
-  chatMsg('Hola — preguntame lo que quieras sobre tus facturas: totales, IVA, proveedores, fechas. Respondo solo con tus datos.', 'bot');
+  /* v61: el saludo de antes describia el formulario. Este dice lo que la app SABE, con el
+     numero real de facturas cargadas — nada inventado, es el mismo dato del panel. */
+  var nFac = 0;
+  try { nFac = (panelData && panelData.stats && panelData.stats.n) || 0; } catch(e){}
+  chatMsg((nFac ? ('Tengo tus ' + nFac + ' facturas delante.') : 'Tengo todas tus facturas delante.') +
+          ' Preguntame lo que quieras: cuánto IVA llevás identificado, quién te cobra más caro, qué compraste el martes.' +
+          ' Contesto solo con tus datos — nada inventado.', 'bot');
   sugAbrir(true);   /* primera visita: las sugerencias a la vista; despues se pliegan solas */
 }
 /* v59: limpiar la respuesta para LEERLA en voz alta — sin URLs, sin markdown, corta */
@@ -2220,6 +2230,7 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
 (function(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var btn = $('chatMic');
+  var ETIQUETA_MIC = '&#127908; Hablá conmigo';                 /* v61 */
   if (!SR){ btn.style.display = 'none'; return; }   /* sin soporte (iPhone): queda el mic del teclado */
   var rec = null, grabando = false;
   btn.addEventListener('click', function(){
@@ -2231,11 +2242,11 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
       $('chatInput').value = ($('chatInput').value + ' ' + t).trim();
     };
     rec.onend = function(){
-      grabando = false; btn.classList.remove('rec');
+      grabando = false; btn.classList.remove('rec'); btn.innerHTML = ETIQUETA_MIC;
       if ($('chatInput').value.trim()) sendChat();   /* hablaste → se envía sola */
     };
-    rec.onerror = function(){ grabando = false; btn.classList.remove('rec'); };
-    grabando = true; btn.classList.add('rec');
+    rec.onerror = function(){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = ETIQUETA_MIC; };
+    grabando = true; btn.classList.add('rec'); btn.innerHTML = '&#9210; Te escucho&hellip; hablá';
     try { rec.start(); } catch(e){ grabando = false; btn.classList.remove('rec'); }
   });
 })();
@@ -2305,7 +2316,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v60';
+var APP_VER = 'v61';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

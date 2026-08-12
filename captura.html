@@ -1633,8 +1633,8 @@ function pintarHero(){
   rows.forEach(function(r){ iva += (r.iva || 0); base += (r.base || 0); });
   var lbl = $('pIvaLbl');
   if (lbl) lbl.textContent =
-    panelEntro === 'hoy'    ? 'IVA de lo que entró hoy' :
-    panelEntro === 'semana' ? 'IVA de lo que entró esta semana' :
+    panelEntro === 'hoy'    ? 'IVA de lo que ingresó hoy' :
+    panelEntro === 'semana' ? 'IVA de lo que ingresó esta semana' :
     panelMes ? ('IVA de tus compras de ' + nombreMes(panelMes)) : 'IVA de tus compras — todo';
   var v = $('pIva'); if (v) v.textContent = fmtEur(Math.round(iva * 100) / 100);
   /* v71: esta linea sustituye a los tres recuadros que habia antes. Misma informacion,
@@ -1642,9 +1642,9 @@ function pintarHero(){
   var pie = $('pHeroPie');
   if (pie) pie.textContent = rows.length
     ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(Math.round(base * 100) / 100) + ' sin IVA'
-       + (panelEntro ? ' · por hora de entrada, no por fecha de factura' : ''))
-    : (panelEntro === 'hoy' ? 'Todavía no ha entrado nada hoy.'
-       : panelEntro === 'semana' ? 'Todavía no ha entrado nada esta semana.'
+       + (panelEntro ? ' · por hora de ingreso, no por fecha de factura' : ''))
+    : (panelEntro === 'hoy' ? 'Todavía no ha ingresado nada hoy.'
+       : panelEntro === 'semana' ? 'Todavía no ha ingresado nada esta semana.'
        : panelMes ? 'Todavía no hay facturas de este mes.' : 'Todavía no hay facturas.');
 }
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
@@ -1683,7 +1683,7 @@ function renderFilas(cont, rowsArr){
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha) + (r.nfac ? (' · ' + r.nfac) : '');
     var eh = entroHoy(r.entro);
     if (eh){
-      var tag = document.createElement('span'); tag.className = 'nuevotag'; tag.textContent = ' · entró hoy ' + eh;
+      var tag = document.createElement('span'); tag.className = 'nuevotag'; tag.textContent = ' · ingresó hoy ' + eh;
       d1.appendChild(tag);
     }
     who.appendChild(e1); who.appendChild(d1);
@@ -1789,7 +1789,7 @@ function renderPanel(data, cachedNote){
       /* v40: la hora EN GRANDE, sin parrafada de campos. v42: el nombre vuelve debajo, chiquito (pedido Matías) */
       var g = document.createElement('div'); g.className = 'cg';
       var e1 = document.createElement('div'); e1.className = 'ce grande';
-      e1.textContent = c.entro ? ('Entró ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
+      e1.textContent = c.entro ? ('Ingresó ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
       g.appendChild(e1);
       if (c.emisor && c.emisor.charAt(0) !== '('){
         var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
@@ -1987,7 +1987,7 @@ function renderLista(){
      que ya filtra en filasDelMes. Aquí solo se rotula para que se sepa qué se está viendo. */
   if (panelEntro){
     var backS = document.createElement('div'); backS.className = 'backprov';
-    backS.textContent = '← Ver todo · viendo lo que ENTRÓ ' + (panelEntro === 'hoy' ? 'hoy' : 'esta semana');
+    backS.textContent = '← Ver todo · viendo lo que INGRESÓ ' + (panelEntro === 'hoy' ? 'hoy' : 'esta semana');
     backS.addEventListener('click', function(){
       panelEntro = ''; panelMes = mesDeHoy();
       pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
@@ -2039,7 +2039,7 @@ function renderLista(){
    un renglón fijo en una pantalla que ya tiene ocho cosas. */
 var ORDENES_PANEL = [
   { v: 'fecha',   t: 'Fecha de la factura' },
-  { v: 'llegada', t: 'Cuándo entró' },
+  { v: 'llegada', t: 'Cuándo ingresó' },
   { v: 'importe', t: 'Importe, de mayor a menor' },
   { v: 'nombre',  t: 'Proveedor, de la A a la Z' }
 ];
@@ -2264,7 +2264,7 @@ function vozAnunciar(rows){
   nuevas.slice(0, 3).forEach(function(r){
     var imp = Number(r.total || 0);
     var hhmm = (String(r.entro || '').match(/(\d{1,2}:\d{2})/) || [])[1] || '';
-    vozDecir('Factura nueva de ' + (r.emisor || 'emisor sin leer') + ': ' + (imp ? vozImporte(imp) : 'importe por confirmar') + (hhmm ? (', entró a las ' + hhmm) : ''));
+    vozDecir('Factura nueva de ' + (r.emisor || 'emisor sin leer') + ': ' + (imp ? vozImporte(imp) : 'importe por confirmar') + (hhmm ? (', ingresó a las ' + hhmm) : ''));
   });
   if (nuevas.length > 3) vozDecir('Y ' + (nuevas.length - 3) + ' facturas más.');
   toast('🔊 ' + nuevas.length + ' factura' + (nuevas.length > 1 ? 's' : '') + ' nueva' + (nuevas.length > 1 ? 's' : ''));
@@ -2341,7 +2341,7 @@ if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in
 /* v53: la notificación tocada abre el chat con esa factura en contexto */
 function abrirChatFactura(fid){
   if (!fid || ES_EMPLEADO) return;
-  setChatCtx({ foto: 'https://drive.google.com/file/d/' + fid + '/view', emisor: 'la factura que entró', fecha: '' });
+  setChatCtx({ foto: 'https://drive.google.com/file/d/' + fid + '/view', emisor: 'la factura que ingresó', fecha: '' });
   stopCamera(); show('screenChat'); chatHello();
 }
 try {
@@ -2960,7 +2960,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v87';
+var APP_VER = 'v88';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

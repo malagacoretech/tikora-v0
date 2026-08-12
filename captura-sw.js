@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v77'; /* v77: la barra de pendientes deja de tapar la factura - pastilla translucida y solo cuando hay algo parado */
+var VERSION = 'tikora-captura-v78'; /* v78: los avisos ya no mienten - solo suena lo que ENTRO hace poco; el historico se sella en silencio */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -80,6 +80,21 @@ function swAvisados(){
     } catch(e){ fin({ lista: [], guardar: function(){} }); }
   });
 }
+/* v77: SOLO es "nueva" lo que ENTRÓ hace poco. El campo entro viene dd/mm/aaaa hh:mm:ss (hora Madrid,
+   el móvil vive en la misma zona). Sin esto, la primera pasada con memoria vacía anunciaba HISTÓRICO:
+   el 12-ago sonaron como nuevas 4 PERYMUZ que habían entrado el 30-jun (rows viene fecha DESC y el
+   slice(-5) encima cogía las 5 más VIEJAS). Un aviso que miente es peor que no tener avisos. */
+function swEntroMs(s){
+  var m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return 0;
+  return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)).getTime();
+}
+function swEntroReciente(s, mins){
+  var t = swEntroMs(s);
+  if (!t) return false;                 /* sin fecha de entrada legible: mejor callar que mentir */
+  var dif = Date.now() - t;
+  return dif > -5 * 60000 && dif <= mins * 60000;
+}
 self.addEventListener('push', function(e){
   /* v73: mostrar YA (garantía de sonido) → enriquecer con UNA notificación POR factura nueva,
      tag único por factura (se apilan, no se pisan) + botones "Ver factura" y "Preguntar". */
@@ -100,14 +115,20 @@ self.addEventListener('push', function(e){
         return swAvisados().then(function(mem){
           var vistos = {};
           mem.lista.forEach(function(x){ vistos[x] = 1; });
-          var nuevas = [];
+          var nuevas = [], sellar = [];
           rows.forEach(function(f){
             var fid = (String(f.foto || '').match(/\/d\/([^\/?]+)/) || [])[1] || '';
             if (!fid || vistos[fid]) return;
+            sellar.push(fid);           /* v77: TODO lo visto queda sellado, se avise o no */
+            if (!swEntroReciente(f.entro, 40)) return;   /* lo viejo jamás suena como nuevo */
             nuevas.push({ f: f, fid: fid });
           });
-          if (!nuevas.length) return;
-          var recientes = nuevas.slice(-5);   /* como mucho 5 avisos por tanda; el resto queda avisado en memoria */
+          if (sellar.length) mem.guardar(mem.lista.concat(sellar));
+          if (!nuevas.length) return;   /* la genérica queda: algo entró aunque no sepamos el detalle */
+          /* v77: por hora de ENTRADA (rows viene por fecha de factura, que no es lo mismo);
+             las 5 más recientes, mostradas de vieja a nueva para que la última quede arriba */
+          nuevas.sort(function(a, b){ return swEntroMs(a.f.entro) - swEntroMs(b.f.entro); });
+          var recientes = nuevas.slice(-5);
           var proms = recientes.map(function(n){
             var imp = n.f.total ? (String(n.f.total).replace('.', ',') + ' €') : 'importe por leer';
             return self.registration.showNotification('Tikora — boleta nueva', {

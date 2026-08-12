@@ -229,6 +229,10 @@ input[type=file]{display:none}
 .psearch{width:100%;box-sizing:border-box;margin:0 0 0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.68rem 0.95rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none}
 .psearch::placeholder{color:var(--text-muted)}
 .psearch:focus{border-color:var(--accent)}
+/* v78: la X de borrar la busqueda era la nativa del navegador, diminuta y gris — se perdia.
+   Ahora es un boton redondo de 36px con la X dorada: se ve y se acierta con el dedo. */
+.psearch::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:36px;height:36px;margin-left:0.3rem;border-radius:50%;background-color:var(--surface-2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F4C95D' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E");background-size:17px 17px;background-position:center;background-repeat:no-repeat;cursor:pointer}
+.psearch::-webkit-search-cancel-button:active{background-color:var(--accent);transform:scale(0.92)}
 /* v11: chat "preguntale a tus facturas" — v27: pase fino movil (delicado y profesional) */
 #chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch}
 .cmsg{max-width:88%;border-radius:16px;padding:0.62rem 0.85rem;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
@@ -317,6 +321,9 @@ input[type=file]{display:none}
 .mesfil::-webkit-scrollbar{display:none}
 .mesfil button{flex-shrink:0;min-height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.4rem 0.95rem;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .mesfil button.on{border-color:var(--accent);color:#0A1628;background:var(--accent)}
+/* v79: los dos ejes se distinguen a simple vista — lo reciente va en azul, los meses en dorado */
+.mesfil button.porentro{border-style:dashed}
+.mesfil button.porentro.on{background:#5B8DEF;border-color:#5B8DEF;color:#fff;border-style:solid}
 /* v72: la linea que sustituyo a los 3 recuadros llevaba letra de nota al pie. Es informacion real: se lee. */
 .heroPie{font-size:0.92rem;font-weight:700;color:var(--text);margin-top:0.5rem}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -1333,9 +1340,25 @@ function nombreMes(ym){
     return n + (p[0] !== mesDeHoy().slice(0, 4) ? (' ' + p[0]) : '');
   } catch(e){ return ym; }
 }
+/* v79: dos ejes distintos en el mismo carril, y conviene tenerlo claro:
+     - los MESES filtran por la FECHA DE LA FACTURA (lo que le importa a la gestoría)
+     - "Hoy" y "Esta semana" filtran por CUÁNDO ENTRÓ al sistema (lo que le importa a él
+       cuando acaba de capturar una tanda y quiere ver si está todo)
+   Por eso son excluyentes: elegir uno apaga el otro. */
+var panelEntro = '';   /* '' | 'hoy' | 'semana' */
+
+function esDeHoy(entro){
+  var m = String(entro || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return false;
+  var h = new Date();
+  return (+m[1]) === h.getDate() && (+m[2]) === (h.getMonth() + 1) && (+m[3]) === h.getFullYear();
+}
 function filasDelMes(rows){
-  if (!panelMes) return rows || [];
-  return (rows || []).filter(function(r){ return String(r.fecha || '').slice(0, 7) === panelMes; });
+  rows = rows || [];
+  if (panelEntro === 'hoy')    return rows.filter(function(r){ return esDeHoy(r.entro); });
+  if (panelEntro === 'semana') return rows.filter(function(r){ return esDeEstaSemana(r.entro); });
+  if (!panelMes) return rows;
+  return rows.filter(function(r){ return String(r.fecha || '').slice(0, 7) === panelMes; });
 }
 function mesesConFacturas(){
   var visto = {}, out = [];
@@ -1356,14 +1379,19 @@ function pintarMeses(){
   /* v72: "Todo" delante, no al final. Al final habia que deslizar para encontrarlo,
      que es el mismo error que teniamos con Efectivo y Tarjeta. */
   if (meses.length > 1) ops.unshift({ v: '', t: 'Todo' });
+  /* v79: lo recien entrado, primero de todo — es lo que mas se mira tras capturar una tanda */
+  ops.unshift({ v: 'semana', entro: true, t: 'Esta semana' });
+  ops.unshift({ v: 'hoy',    entro: true, t: 'Hoy' });
   cont.innerHTML = '';
   ops.forEach(function(o){
     var b = document.createElement('button');
     b.type = 'button';
     b.textContent = o.t ? (o.t.charAt(0).toUpperCase() + o.t.slice(1)) : 'Todo';
-    b.classList.toggle('on', panelMes === o.v);
+    b.classList.toggle('on', o.entro ? (panelEntro === o.v) : (!panelEntro && panelMes === o.v));
+    if (o.entro) b.classList.add('porentro');
     b.addEventListener('click', function(){
-      panelMes = o.v;
+      if (o.entro){ panelEntro = (panelEntro === o.v) ? '' : o.v; }   /* volver a tocarlo lo apaga */
+      else { panelEntro = ''; panelMes = o.v; }
       panelFiltroSemana = false;   /* dos periodos a la vez no se entienden */
       pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
       var sp = $('screenPanel'); if (sp) sp.scrollTop = 0;
@@ -1376,14 +1404,20 @@ function pintarHero(){
   var iva = 0, base = 0;
   rows.forEach(function(r){ iva += (r.iva || 0); base += (r.base || 0); });
   var lbl = $('pIvaLbl');
-  if (lbl) lbl.textContent = panelMes ? ('IVA de tus compras de ' + nombreMes(panelMes)) : 'IVA de tus compras — todo';
+  if (lbl) lbl.textContent =
+    panelEntro === 'hoy'    ? 'IVA de lo que entró hoy' :
+    panelEntro === 'semana' ? 'IVA de lo que entró esta semana' :
+    panelMes ? ('IVA de tus compras de ' + nombreMes(panelMes)) : 'IVA de tus compras — todo';
   var v = $('pIva'); if (v) v.textContent = fmtEur(Math.round(iva * 100) / 100);
   /* v71: esta linea sustituye a los tres recuadros que habia antes. Misma informacion,
      una linea en vez de tres tarjetas que empujaban lo importante fuera de pantalla. */
   var pie = $('pHeroPie');
   if (pie) pie.textContent = rows.length
-    ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(Math.round(base * 100) / 100) + ' sin IVA')
-    : (panelMes ? 'Todavía no hay facturas de este mes.' : 'Todavía no hay facturas.');
+    ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(Math.round(base * 100) / 100) + ' sin IVA'
+       + (panelEntro ? ' · por hora de entrada, no por fecha de factura' : ''))
+    : (panelEntro === 'hoy' ? 'Todavía no ha entrado nada hoy.'
+       : panelEntro === 'semana' ? 'Todavía no ha entrado nada esta semana.'
+       : panelMes ? 'Todavía no hay facturas de este mes.' : 'Todavía no hay facturas.');
 }
 function abrirFoto(url){ if (url) { try { window.open(url, '_blank', 'noopener'); } catch(e){} } }
 /* v19 (RGPD): la foto se abre via el proxy con token — el enlace directo de Drive no llega al cliente */
@@ -1699,11 +1733,15 @@ function renderLista(){
      donde este. El filtro de mes manda sobre TODO menos sobre la busqueda. */
   var rows = panelQuery ? (data.rows || []) : filasDelMes(data.rows || []);
   /* v44: filtro "las que entraron esta semana" (desde el contador de la cámara) */
-  if (panelFiltroSemana){
-    rows = rows.filter(function(r){ return esDeEstaSemana(r.entro); });
+  /* v79: el filtro semanal vive ahora en el carril de arriba (pastilla "Esta semana"),
+     que ya filtra en filasDelMes. Aquí solo se rotula para que se sepa qué se está viendo. */
+  if (panelEntro){
     var backS = document.createElement('div'); backS.className = 'backprov';
-    backS.textContent = '← Todas las facturas · las que ENTRARON esta semana';
-    backS.addEventListener('click', function(){ panelFiltroSemana = false; renderLista(); });
+    backS.textContent = '← Ver todo · viendo lo que ENTRÓ ' + (panelEntro === 'hoy' ? 'hoy' : 'esta semana');
+    backS.addEventListener('click', function(){
+      panelEntro = ''; panelMes = mesDeHoy();
+      pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
+    });
     cont.appendChild(backS);
   }
   /* v33: filtro por forma de pago (chips o tarjeta roja) */
@@ -1743,7 +1781,7 @@ function renderLista(){
   }
 }
 $('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
@@ -1777,7 +1815,7 @@ $('cardRehacer').addEventListener('click', function(){
 });
 /* v41: los recuadros fijos y el contador de la semana LLEVAN a su lista */
 function irPanel(modo){
-  panelModo = modo; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; panelQuery = '';
+  panelModo = modo; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; panelQuery = '';
   var b = $('panelSearch'); if (b) b.value = '';
   if (!$('screenPanel').classList.contains('on')){ $('tabPanel').click(); } else { renderLista(); }
 }
@@ -1794,7 +1832,9 @@ function esDeEstaSemana(entro){
   return f >= lunes;
 }
 $('weekPill').addEventListener('click', function(){
-  panelFiltroSemana = true; panelFiltroPago = ''; panelModo = 'ultimas'; panelProvSel = null;
+  /* v79: la pastilla de la cámara usa el MISMO filtro que el carril, no uno paralelo */
+  panelEntro = 'semana'; panelMes = ''; panelFiltroPago = ''; panelModo = 'ultimas'; panelProvSel = null;
+  try { pintarMeses(); pintarHero(); pintarContadoresPago(); } catch(e){}
   cerrarListaRehacer();
   if (!$('screenPanel').classList.contains('on')){ $('tabPanel').click(); } else { renderLista(); }
 });
@@ -2616,7 +2656,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v78';
+var APP_VER = 'v79';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

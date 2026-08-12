@@ -585,12 +585,10 @@ div:has(> #segProv) > button{min-height:44px}
     <div class="pcard debe" id="cardDebe"><div class="lbl">&#128337; Sin pagar</div><div class="val2" id="debeTxt">&mdash;</div><div class="debehint" id="debeHint">Toc&aacute; y velas</div></div>
     <div class="pcard debe" id="cardRehacer" style="display:none"><div class="lbl">&#9888;&#65039; Para repetir</div><div class="val2" id="rehacerTxt">&mdash;</div><div class="debehint" id="rehacerHint">Toc&aacute; y velas</div></div>
   </div>
-  <!-- v81: la app cuenta ella misma si alguna de tus fotos de hoy no llegó a entrar -->
-  <div class="pcard debe" id="cardSinRastro" style="display:none">
-    <div class="lbl">&#128248; Tus fotos de hoy</div>
-    <div class="val2" id="sinRastroTxt">&mdash;</div>
-    <div class="debehint" id="sinRastroHint"></div>
-  </div>
+  <!-- v83: la tarjeta "Tus fotos de hoy" se RETIRA. Cantaba como "sin rastro" fotos que el
+       motor había archivado bien en la pestaña Otros (albaranes, notas de entrega), porque el
+       Panel API no devuelve Otros y yo no tenía forma de verlas. Una alarma que se equivoca es
+       peor que no tener alarma. Vuelve cuando el API exponga Otros. -->
   <div id="rehacerRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <div id="panelRows"><div class="pempty">Cargando&hellip;</div></div>
@@ -1475,46 +1473,9 @@ function pintarMeses(){
     cont.appendChild(b);
   });
 }
-/* v81: la conciliacion. Cruza lo que este telefono envio HOY contra lo que hay en el panel:
-   entro como factura · esta en Revisar · sin rastro. Solo se enseña si algo va mal — si
-   entraron todas, la tarjeta no aparece y la pantalla se queda limpia. */
-function pintarSinRastro(){
-  var caja = $('cardSinRastro'); if (!caja) return;
-  var hoy = enviadasLeer().filter(function(x){ return esDeHoyTs(x.ts); });
-  if (!hoy.length){ caja.style.display = 'none'; return; }
-
-  var visto = {};
-  ((panelData && panelData.rows) || []).forEach(function(r){ var f = fotoId(r.foto); if (f) visto[f] = 'factura'; });
-  ((panelData && panelData.pendientes) || []).forEach(function(c){ var f = fotoId(c.foto); if (f) visto[f] = 'revisar'; });
-
-  /* menos de 5 minutos: todavia puede estar en camino. No hay que asustar por nada. */
-  var margen = Date.now() - 5 * 60 * 1000;
-  var enFactura = 0, enRevisar = 0, perdidas = [], enCamino = 0;
-  hoy.forEach(function(x){
-    if (visto[x.id] === 'factura') enFactura++;
-    else if (visto[x.id] === 'revisar') enRevisar++;
-    else if (x.ts < margen) perdidas.push(x);
-    else enCamino++;
-  });
-
-  if (!perdidas.length && !enRevisar){ caja.style.display = 'none'; return; }
-
-  caja.style.display = 'block';
-  $('sinRastroTxt').textContent = hoy.length + (hoy.length === 1 ? ' foto enviada · ' : ' fotos enviadas · ') +
-    enFactura + ' en facturas' +
-    (enRevisar ? (' · ' + enRevisar + ' a revisar') : '') +
-    (perdidas.length ? (' · ' + perdidas.length + ' sin rastro') : '');
-
-  var partes = [];
-  if (perdidas.length){
-    partes.push('Sin rastro: ' + perdidas.map(function(x){ return hhmm(x.ts); }).join(', ') +
-                '. Búscalas en el visor de la cámara y volvé a sacarlas.');
-  }
-  if (enRevisar) partes.push(enRevisar + (enRevisar === 1 ? ' necesita' : ' necesitan') + ' que la mires: tocá “Para repetir”.');
-  if (enCamino)  partes.push(enCamino + (enCamino === 1 ? ' va' : ' van') + ' todavía en camino.');
-  $('sinRastroHint').textContent = partes.join(' ');
-}
-
+/* v83: la conciliacion se retiro (ver comentario en el HTML). El registro de envios de abajo
+   SE QUEDA: no cuesta nada, no guarda datos y es la base para volver a hacerla bien cuando el
+   Panel API devuelva tambien la pestana Otros. Lo que falto no fue la idea, fue el dato. */
 function pintarHero(){
   var rows = filasDelMes((panelData && panelData.rows) || []);
   var iva = 0, base = 0;
@@ -1637,7 +1598,7 @@ function renderPanel(data, cachedNote){
   if (panelMes === null) panelMes = mesDeHoy();
   pintarMeses();
   pintarHero();
-  pintarSinRastro();   /* v81: ¿entraron todas las que mandaste hoy? */
+
   /* v18: tarjeta de deuda — suma de filas marcadas pendiente (v71: del mes que estas viendo) */
   var deben = filasDelMes(data.rows || []).filter(function(r){ return String(r.pago || '').toLowerCase() === 'pendiente'; });
   if (deben.length){
@@ -2787,7 +2748,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v82';
+var APP_VER = 'v83';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

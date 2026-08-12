@@ -429,6 +429,8 @@ button.capbadge:active{transform:scale(0.95)}
 #cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
 .debehint{font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
+/* v98: la tarjeta de fotos de hoy habla en tono normal, no en titular */
+.pcard .val2.chico{font-size:1.02rem;line-height:1.45;font-weight:700}
 /* v97: el motivo de Revisar debajo de los botones, a lo ancho y centrado */
 .caprow.rev{flex-wrap:wrap}
 .caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.4rem}
@@ -628,7 +630,8 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
        cantaba perdidas las que estaban archivadas como papel; ese dato ya llega del API. -->
   <div class="pcard debe" id="cardSinRastro" style="display:none">
     <div class="lbl">&#128248; Tus fotos de hoy</div>
-    <div class="val2" id="sinRastroTxt">&mdash;</div>
+    <!-- v98: sin numeros gigantes — la tarjeta informaba gritando (Matias 13-ago 00:2x: "se sobresale") -->
+    <div class="val2 chico" id="sinRastroTxt">&mdash;</div>
     <div class="debehint" id="sinRastroHint"></div>
   </div>
   <div class="pcard debe" id="cardCuadre" style="display:none">
@@ -1619,33 +1622,44 @@ function pintarSinRastro(){
 
   var visto = {};
   ((panelData && panelData.rows) || []).forEach(function(r){ var f = fotoId(r.foto); if (f) visto[f] = 'factura'; });
-  ((panelData && panelData.pendientes) || []).forEach(function(c){ var f = fotoId(c.foto); if (f) visto[f] = 'revisar'; });
+  /* v98: los pendientes traen el fid en c.f (no c.foto) — por ese campo la tarjeta del 12-ago
+     no reconocia NINGUNA foto "a revisar" y las cantaba todas como sin rastro. Mintio. */
+  ((panelData && panelData.pendientes) || []).forEach(function(c){ var f = String(c.f || ''); if (f) visto[f] = 'revisar'; });
   ((panelData && panelData.otros) || []).forEach(function(o){ if (o.fid) visto[o.fid] = 'otros'; });
 
   var margen = Date.now() - 6 * 60 * 1000;   /* menos de 6 min: todavia puede estar en camino */
-  var enFactura = 0, enRevisar = 0, enOtros = 0, perdidas = [], enCamino = 0;
+  var enFactura = 0, enRevisar = 0, enOtros = 0, sueltas = [], enCamino = 0;
   hoy.forEach(function(x){
     var d = visto[x.id];
     if (d === 'factura') enFactura++;
     else if (d === 'revisar') enRevisar++;
     else if (d === 'otros') enOtros++;
-    else if (x.ts < margen) perdidas.push(x);
+    else if (x.ts < margen) sueltas.push(x);
     else enCamino++;
   });
 
-  /* solo se enseña si hay algo que hacer: perdidas o cosas que mirar */
+  /* v98: el arbitro de "perdida" es EL CUADRE (la resta del servidor), no esta lista local.
+     Con cuadre a cero, una foto subida sin fila es una REPETIDA que el sistema descarto solo
+     (o una fila anulada a mano) — decir "volve a sacarlas" era mentirle y hacerle trabajar gratis. */
+  var cuadreCero = !!(panelData && panelData.cuadre && Number(panelData.cuadre.huerfanos || 0) === 0);
+  var perdidas = cuadreCero ? [] : sueltas;
+  var repetidas = cuadreCero ? sueltas.length : 0;
+
+  /* solo se enseña si hay algo que HACER: perdidas de verdad o cosas que mirar */
   if (!perdidas.length && !enRevisar){ caja.style.display = 'none'; return; }
 
   caja.style.display = 'block';
   var partes = [enFactura + ' en facturas'];
-  if (enOtros)   partes.push(enOtros + ' como papel');
+  if (enOtros)   partes.push(enOtros + ' papeles');
   if (enRevisar) partes.push(enRevisar + ' a revisar');
+  if (repetidas) partes.push(repetidas + ' repetidas');
   if (perdidas.length) partes.push(perdidas.length + ' sin rastro');
-  $('sinRastroTxt').textContent = hoy.length + (hoy.length === 1 ? ' foto: ' : ' fotos: ') + partes.join(' · ');
+  $('sinRastroTxt').textContent = hoy.length + ' fotos hoy · ' + partes.join(' · ');
 
   var pistas = [];
-  if (perdidas.length) pistas.push('Sin rastro desde las ' + perdidas.map(function(x){ return hhmm(x.ts); }).join(', ') + '. Volvé a sacarlas.');
-  if (enRevisar) pistas.push(enRevisar + (enRevisar === 1 ? ' necesita' : ' necesitan') + ' que la mires.');
+  if (enRevisar) pistas.push(enRevisar + (enRevisar === 1 ? ' necesita' : ' necesitan') + ' que la mires en "para revisar".');
+  if (repetidas) pistas.push('Las repetidas se descartaron solas — no hay nada que hacer.');
+  if (perdidas.length) pistas.push(perdidas.length + ' no aparecen y el cuadre tampoco las ve: avisá a Claude.');
   if (enCamino)  pistas.push(enCamino + (enCamino === 1 ? ' va' : ' van') + ' en camino.');
   $('sinRastroHint').textContent = pistas.join(' ');
 }
@@ -3152,7 +3166,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v97';
+var APP_VER = 'v98';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

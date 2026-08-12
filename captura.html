@@ -77,6 +77,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,34,56,0.85);border:1px solid var(--border);color:#fff;border-radius:14px;min-width:48px;min-height:56px;font-size:1.4rem;font-family:inherit;cursor:pointer}
 #fotoVis .fvPrev{left:0.6rem}
 #fotoVis .fvNext{right:0.6rem}
+#fotoVis .fvPreg{position:absolute;bottom:calc(3.4rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:48px;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.92rem;font-weight:800;cursor:pointer}
 #fotoVis .fvHint{position:absolute;bottom:calc(1.2rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
 #thumb.on{display:block}
 #thumb img{display:block;width:100%;height:78px;object-fit:cover}
@@ -521,7 +522,9 @@ div:has(> #segProv) > button{min-height:44px}
     <div id="fvZona"><img id="fvImg" alt="Foto de la sesi&oacute;n"></div>
     <button type="button" class="fvNav fvPrev" id="fvPrev" aria-label="Anterior">&#8249;</button>
     <button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
-    <div class="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
+    <!-- v89: desde la foto se puede preguntar por ESA factura, sin volver atrás ni buscarla -->
+    <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
+    <div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
   </div>
   <div class="bottombar">
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
@@ -1196,12 +1199,34 @@ var thumbItemId = null, thumbUrl = null, okTimer = null;
 var sesionFotos = [], fvIdx = 0;
 function fvPinta(){
   if (!sesionFotos.length) return;
+  fvRemota = null;                                   /* v89: volvemos al modo sesion */
   if (fvIdx < 0) fvIdx = 0;
   if (fvIdx >= sesionFotos.length) fvIdx = sesionFotos.length - 1;
   $('fvImg').src = sesionFotos[fvIdx];
   $('fvN').textContent = 'Foto ' + (fvIdx + 1) + ' de ' + sesionFotos.length;
   $('fvPrev').style.visibility = fvIdx > 0 ? 'visible' : 'hidden';
   $('fvNext').style.visibility = fvIdx < sesionFotos.length - 1 ? 'visible' : 'hidden';
+  $('fvPreg').style.display = 'none';
+  $('fvHint').textContent = 'Fotos de esta sesión de captura — las facturas ya viajaron al panel; esto es solo para repasar';
+}
+
+/* ===== v89: EL VISOR TAMBIÉN ABRE FOTOS DEL SERVIDOR =====
+   Antes solo enseñaba las de la sesión (las que están en el móvil). Por eso "Ver factura"
+   desde un aviso no llevaba a ninguna foto: la del servidor no tenía dónde verse dentro de
+   la app. Ahora se abre aquí, con el mismo zoom, y con un botón para preguntar por ella. */
+var fvRemota = null;
+function fvAbrirRemota(fid, rotulo){
+  if (!fid || !TOKEN) return false;
+  fvRemota = fid;
+  $('fvImg').src = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+  $('fvN').textContent = rotulo || 'Factura';
+  $('fvPrev').style.visibility = 'hidden';
+  $('fvNext').style.visibility = 'hidden';
+  $('fvPreg').style.display = ES_EMPLEADO ? 'none' : 'block';
+  $('fvHint').textContent = 'Tocá la foto para acercarla y arrastrá para recorrerla';
+  fvZoom(false);
+  $('fotoVis').classList.add('on');
+  return true;
 }
 function fvAbrir(){ if (!sesionFotos.length) return; fvIdx = sesionFotos.length - 1; fvPinta(); fvZoom(false); $('fotoVis').classList.add('on'); }
 $('thumb').addEventListener('click', fvAbrir);
@@ -1228,6 +1253,12 @@ $('fvImg').addEventListener('click', function(e){
   fvZoom(undefined, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
 });
 $('fvZoom').addEventListener('click', function(){ fvZoom(); });
+/* v89: de la foto al chat sin pasos intermedios — es lo que él quiere hacer al verla */
+$('fvPreg').addEventListener('click', function(){
+  var fid = fvRemota;
+  fvZoom(false); $('fotoVis').classList.remove('on');
+  if (fid) abrirChatFactura(fid);
+});
 $('fvX').addEventListener('click', function(){ fvZoom(false); $('fotoVis').classList.remove('on'); });
 $('fvPrev').addEventListener('click', function(){ fvZoom(false); fvIdx--; fvPinta(); });
 $('fvNext').addEventListener('click', function(){ fvZoom(false); fvIdx++; fvPinta(); });
@@ -2339,10 +2370,42 @@ if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in
   }
 }
 /* v53: la notificación tocada abre el chat con esa factura en contexto */
+/* v89: buscar la factura DE VERDAD por su fichero. Antes el chat se inventaba el rótulo
+   ("la factura que ingresó · —") porque nunca miraba quién era. Ahora busca en los tres
+   sitios donde puede estar: Facturas, Revisar y Otros. */
+function buscarPorFid(fid){
+  if (!fid || !panelData) return null;
+  var rows = panelData.rows || [], i;
+  for (i = 0; i < rows.length; i++){
+    if (String(rows[i].foto || '').indexOf(fid) >= 0) return rows[i];
+  }
+  var pend = panelData.pendientes || [];
+  for (i = 0; i < pend.length; i++){
+    if (String(pend[i].foto || '').indexOf(fid) >= 0){
+      return { emisor: pend[i].emisor || 'foto por revisar', fecha: pend[i].fecha || '', foto: pend[i].foto };
+    }
+  }
+  var otr = panelData.otros || [];
+  for (i = 0; i < otr.length; i++){
+    if (otr[i].fid === fid){
+      return { emisor: (otr[i].emisor || otr[i].tipo || 'papel'), fecha: otr[i].fecha || '',
+               foto: 'https://drive.google.com/file/d/' + fid + '/view' };
+    }
+  }
+  return null;
+}
 function abrirChatFactura(fid){
   if (!fid || ES_EMPLEADO) return;
-  setChatCtx({ foto: 'https://drive.google.com/file/d/' + fid + '/view', emisor: 'la factura que ingresó', fecha: '' });
+  var r = buscarPorFid(fid);
+  setChatCtx(r || { foto: 'https://drive.google.com/file/d/' + fid + '/view', emisor: 'la factura que ingresó', fecha: '' });
   stopCamera(); show('screenChat'); chatHello();
+  /* si el panel aún no estaba cargado, se carga y se vuelve a rotular con el nombre real */
+  if (!r){
+    try {
+      loadPanel(true);
+      setTimeout(function(){ var r2 = buscarPorFid(fid); if (r2) setChatCtx(r2); }, 2500);
+    } catch(e){}
+  }
 }
 try {
   var qsChat = new URLSearchParams(location.search).get('chat');
@@ -2354,11 +2417,26 @@ try {
   var qsVer = new URLSearchParams(location.search).get('ver');
   if (qsVer) verPendFid = qsVer;
 } catch(e){}
+/* v89: "Ver factura" ahora LLEVA A LA FOTO, que es lo que significa. Además deja el panel
+   filtrado a esa factura por debajo, para que al cerrar la foto esté donde toca. */
 function abrirFacturaPanel(fid){
   if (!fid) return;
   verPendFid = fid;
   try { clic('tabPanel'); } catch(e){}
   aplicarVerPend();
+  var r = buscarPorFid(fid);
+  var rot = r ? ((r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '')) : 'Factura';
+  if (!fvAbrirRemota(fid, rot)){ return; }
+  /* si el panel aun no la tenia, se re-rotula cuando llegue */
+  if (!r){
+    try {
+      loadPanel(true);
+      setTimeout(function(){
+        var r2 = buscarPorFid(fid);
+        if (r2 && fvRemota === fid) $('fvN').textContent = (r2.emisor || 'Factura') + (r2.fecha ? (' · ' + fmtFecha(r2.fecha)) : '');
+      }, 2500);
+    } catch(e){}
+  }
 }
 function aplicarVerPend(){
   if (!verPendFid || !panelData || !panelData.rows) return;
@@ -2443,7 +2521,9 @@ function setChatCtx(row){
   var fid = row ? fotoId(row.foto) : null;
   chatFile = fid;
   if (fid){
-    $('chatCtxTxt').textContent = '📎 ' + (row.emisor || 'factura') + ' · ' + fmtFecha(row.fecha);
+    /* v89: la fecha solo si existe (antes salía "· —"), y se dice que se puede tocar */
+    $('chatCtxTxt').textContent = '📎 ' + (row.emisor || 'factura') +
+      (row.fecha ? (' · ' + fmtFecha(row.fecha)) : '') + '  ·  ver foto';
     $('chatCtx').classList.add('on');
   } else {
     $('chatCtx').classList.remove('on');
@@ -2452,7 +2532,11 @@ function setChatCtx(row){
 /* v73: tocar el chip de contexto ABRE la foto de esa factura (queja de Matías: "no figura ni para verla") */
 $('chatCtxTxt').style.cursor = 'pointer';
 $('chatCtxTxt').addEventListener('click', function(){
-  if (chatFile) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(chatFile));
+  /* v89: se abre DENTRO de la app, con zoom, en vez de mandarlo a otra pestaña del navegador */
+  if (!chatFile) return;
+  var r = buscarPorFid(chatFile);
+  var rot = r ? ((r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '')) : 'Factura';
+  if (!fvAbrirRemota(chatFile, rot)) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(chatFile));
 });
 /* v27: las respuestas llegan con **negritas** y guiones de lista — se pintan bien, no crudos */
 function chatFmt(t){
@@ -2960,7 +3044,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v88';
+var APP_VER = 'v89';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

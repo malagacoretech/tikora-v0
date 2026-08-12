@@ -201,6 +201,10 @@ input[type=file]{display:none}
 /* v57: el microfono NUNCA escucha en secreto — si esta abierto, se ve */
 #micChip{position:fixed;top:calc(0.6rem + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:0.4rem;background:rgba(20,34,56,0.94);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:0.32rem 0.75rem;font-size:0.72rem;font-weight:700;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,0.4)}
 #micChip.on{display:flex}
+/* v59: el mando de voz, donde se usa: en Capturar, justo debajo de la marca */
+.vozcam{position:absolute;top:calc(5.7rem + env(safe-area-inset-top));left:1rem;z-index:8;display:inline-flex;align-items:center;gap:0.4rem;min-height:40px;background:rgba(10,22,40,0.72);border:1px solid var(--border);color:#fff;border-radius:999px;padding:0.4rem 0.85rem;font-family:inherit;font-size:0.76rem;font-weight:700;cursor:pointer}
+.vozcam.on{border-color:var(--accent);color:var(--accent);background:rgba(20,34,56,0.92)}
+.vozcam:active{transform:scale(0.96)}
 #micChip i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:latido 1.1s infinite}
 @keyframes latido{0%,100%{opacity:1}50%{opacity:0.2}}
 .pushask{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));left:1rem;right:1rem;z-index:8;display:flex;align-items:center;gap:0.5rem;background:rgba(20,34,56,0.94);border:1px solid var(--border);border-radius:14px;padding:0.6rem 0.8rem;font-size:0.82rem}
@@ -386,6 +390,8 @@ button.capbadge:active{transform:scale(0.95)}
       <button class="clipbtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button>
     </div>
   </div>
+  <!-- v59: el mando de voz vive aqui, donde se usa con las manos ocupadas -->
+  <button type="button" id="vozCamBtn" class="vozcam">&#127908; Habl&aacute; con Tikora</button>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
   <!-- v54: los tres se apilan en UNA columna anclada abajo. Antes cada uno tenia su propio
@@ -1044,7 +1050,19 @@ function initCamera(){
     /* linterna si el hardware la tiene */
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
-      if (caps.torch){ $('torchBtn').style.visibility = 'visible'; $('torchLbl').textContent = 'linterna'; }
+      if (caps.torch){
+        $('torchBtn').style.visibility = 'visible'; $('torchLbl').textContent = 'linterna';
+        /* v59: se enciende sola al entrar en Capturar. En un bar la factura suele estar a
+           media luz y con linterna la foto sale legible, que es de lo que vive el motor.
+           Si el usuario la apaga a mano, se queda apagada la proxima vez. */
+        var quiereLuz = true;
+        try { quiereLuz = localStorage.getItem('tikora_linterna') !== '0'; } catch(e){}
+        if (quiereLuz && !torchOn){
+          track.applyConstraints({ advanced: [{ torch: true }] })
+            .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
+            .catch(function(){});
+        }
+      }
       if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
         track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function(){});
       }
@@ -1055,6 +1073,7 @@ function initCamera(){
 $('torchBtn').addEventListener('click', function(){
   if (!track) return;
   torchOn = !torchOn;
+  try { localStorage.setItem('tikora_linterna', torchOn ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
   track.applyConstraints({ advanced: [{ torch: torchOn }] })
     .then(function(){ $('torchBtn').classList.toggle('active', torchOn); })
     .catch(function(){ toast('La linterna no está disponible', true); torchOn = false; });
@@ -1691,6 +1710,8 @@ $('vozBtn').addEventListener('click', function(){
   oidoPinta();
 });
 vozPinta();
+/* v59: el mismo interruptor, tocable desde Capturar sin ir al panel */
+(function(){ var b = $('vozCamBtn'); if (b) b.addEventListener('click', function(){ $('vozBtn').click(); }); })();
 
 /* ============ MANOS LIBRES (v57) ============
    Detras de una barra las manos estan llenas o mojadas. Con la voz encendida la app
@@ -1702,55 +1723,82 @@ vozPinta();
    cuenta si la frase entera ES la orden ("efectivo" a secas), o si va precedida de
    "tikora". Asi, "cobrale en efectivo" a un cliente no marca ninguna factura. */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-var oido = null, modoOido = false, oidoPausa = false;
+var oido = null;            /* la instancia del reconocedor */
+var modoOido = false;       /* el usuario QUIERE escuchar */
+var oidoPausa = false;      /* pausa corta mientras la app habla */
+var oidoVivo = false;       /* el reconocedor esta corriendo DE VERDAD (onstart/onend) */
+var oidoPausaTimer = null;
 
 function sinTildes(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
-function oidoPinta(){ var c = $('micChip'); if (c) c.classList.toggle('on', modoOido && !oidoPausa); }
+function oidoPinta(){
+  var c = $('micChip'); if (c) c.classList.toggle('on', modoOido && !oidoPausa);
+  var b = $('vozCamBtn');
+  if (b){
+    b.classList.toggle('on', modoOido);
+    b.textContent = modoOido ? '🎤 Te escucho' : '🎤 Hablá con Tikora';
+  }
+}
 
 function oidoCrear(){
   var r = new SR();
   r.lang = 'es-ES'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+  r.onstart = function(){ oidoVivo = true; oidoPinta(); };
+  r.onend   = function(){ oidoVivo = false; oidoPinta(); };   /* no reintenta aqui: lo hace el vigilante */
   r.onresult = function(e){
     for (var i = e.resultIndex; i < e.results.length; i++){
       if (e.results[i].isFinal) ejecutarOrden(e.results[i][0].transcript);
     }
   };
   r.onerror = function(e){
+    /* 'no-speech', 'network' y 'aborted' son constantes y normales: se ignoran y el
+       vigilante vuelve a levantarlo. Solo el permiso denegado apaga el modo. */
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
-      modoOido = false; oidoPinta();
+      oidoPara();
       toast('Sin permiso de micrófono — dáselo para manejarla hablando', true);
     }
-  };
-  r.onend = function(){
-    if (modoOido && !oidoPausa) setTimeout(function(){ try { r.start(); } catch(err){} }, 300);
-    oidoPinta();
   };
   return r;
 }
 function oidoArranca(){
-  if (!SR || !modoOido) return;
+  if (!SR || !modoOido || oidoPausa || oidoVivo) return;
   if (!oido) oido = oidoCrear();
-  oidoPausa = false;
-  try { oido.start(); } catch(e){}
-  oidoPinta();
+  try { oido.start(); } catch(e){}      /* si peta por solaparse, el vigilante reintenta en 3s */
 }
 function oidoPara(){
-  modoOido = false; oidoPausa = false;
-  if (oido) { try { oido.stop(); } catch(e){} }
+  modoOido = false; oidoPausa = false; oidoVivo = false;
+  clearTimeout(oidoPausaTimer);
+  if (oido) { try { oido.abort(); } catch(e){} }
   oidoPinta();
 }
 function oidoPausar(){
   if (!modoOido || !oido) return false;
   oidoPausa = true;
-  try { oido.stop(); } catch(e){}
+  try { oido.abort(); } catch(e){}     /* abort corta ya; stop se queda masticando audio */
   oidoPinta();
+  /* red de seguridad: si el TTS no avisa de que termino (pasa al cancelarlo), volvemos igual */
+  clearTimeout(oidoPausaTimer);
+  oidoPausaTimer = setTimeout(oidoSeguir, 12000);
   return true;
 }
 function oidoSeguir(){
+  clearTimeout(oidoPausaTimer);
   if (!modoOido) return;
-  oidoPausa = false;
-  setTimeout(function(){ try { oido.start(); } catch(e){} oidoPinta(); }, 250);
+  oidoPausa = false; oidoPinta();
+  setTimeout(oidoArranca, 250);
 }
+
+/* ===== EL VIGILANTE =====
+   Esta es la razon de que el micro "se cortara y estuviera medio raro". El reconocedor
+   de Chrome se para SOLO, y por muchos motivos: silencio, un fallo de red, cambiar de
+   app, o porque start() reviento mientras el anterior aun se cerraba. Nadie avisa.
+   La v57 confiaba en onend para revivirlo, asi que en cuanto UN reinicio fallaba el
+   micro quedaba muerto hasta volver a tocar el boton.
+   Ahora hay una sola verdad — oidoVivo, que ponen onstart y onend — y esto la mira cada
+   3 segundos: si tiene que estar escuchando y no lo esta, lo levanta. Se recupera solo
+   de cualquiera de esos fallos sin que el usuario se entere. */
+setInterval(function(){ if (modoOido && !oidoPausa && !oidoVivo) oidoArranca(); }, 3000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) oidoArranca(); });
+window.addEventListener('online', function(){ oidoArranca(); });
 
 function clic(id, siNo){
   var e = $(id);
@@ -1812,9 +1860,17 @@ function ejecutarOrden(bruto){
       }
     }
   }
+  /* v59: SOLO con el prefijo "tikora ..." — si no era una orden conocida, es una PREGUNTA para la IA.
+     La regla estricta de frase-entera para órdenes sueltas queda intacta: sin prefijo, jamás se pregunta. */
+  if (conNombre && t.length >= 4 && typeof chatPorVoz === 'function'){
+    toast('🎤 Preguntando…');
+    chatPorVoz(bruto.replace(/^(?:oye\s+|hey\s+)?tikora[, ]+/i, '').trim());
+    return;
+  }
 }
 /* si quedo encendida de la sesion anterior, que siga escuchando al abrir */
 if (vozOn && SR){ modoOido = true; oidoArranca(); }
+oidoPinta();
 /* v53: avisos push — suscripción de ESTE teléfono a la notificación por factura nueva */
 if (TOKEN) idbTikora(function(db){ try { db.transaction('kv', 'readwrite').objectStore('kv').put(TOKEN, 'token'); } catch(e){} });
 function b64aBytes(b64){
@@ -1962,7 +2018,18 @@ function chatHello(){
   chatMsg('Hola — preguntame lo que quieras sobre tus facturas: totales, IVA, proveedores, fechas. Respondo solo con tus datos.', 'bot');
   sugAbrir(true);   /* primera visita: las sugerencias a la vista; despues se pliegan solas */
 }
-function sendChat(q){
+/* v59: limpiar la respuesta para LEERLA en voz alta — sin URLs, sin markdown, corta */
+function limpiarParaVoz(t){
+  var s = String(t || '');
+  s = s.replace(/https?:\/\/[^\s]+/g, '');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+  s = s.replace(/^\s*Fotos:\s*$/gmi, '');
+  s = s.replace(/^\s*[-·*]\s*$/gm, '');
+  s = s.replace(/\s+/g, ' ').trim();
+  if (s.length > 300) s = s.slice(0, 300).replace(/\s\S*$/, '') + '. Te dejé el detalle completo en Preguntar.';
+  return s;
+}
+function sendChat(q, porVoz){
   q = (q || $('chatInput').value || '').trim();
   if (!q || chatPend || !TOKEN) return;
   $('chatInput').value = '';
@@ -1983,9 +2050,20 @@ function sendChat(q){
       pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
       chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
       if (chatHist.length > 12) chatHist = chatHist.slice(-12);
+      if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
     })
-    .catch(function(){ pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend'); })
+    .catch(function(){
+      pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend');
+      if (porVoz) { try { vozDecir('No pude responder ahora mismo.'); } catch(e){} }
+    })
     .then(function(){ chatPend = false; $('chatSend').disabled = false; $('chatMsgs').scrollTop = 999999; });
+}
+/* v59: pregunta libre por voz — "tikora, ¿cuánto llevo esta semana?" → chat → respuesta HABLADA */
+function chatPorVoz(pregunta){
+  if (!pregunta || ES_EMPLEADO) return;
+  try { clic('tabChat'); } catch(e){}
+  try { chatHello(); } catch(e){}
+  sendChat(pregunta, true);
 }
 $('chatSend').addEventListener('click', function(){ sendChat(); });
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
@@ -2357,7 +2435,13 @@ function boot(){
   if (!TOKEN){ show('screenToken'); return; }
   var deepPanel = false;
   try { deepPanel = new URLSearchParams(location.search).get('v') === 'panel'; } catch(e){}
-  if (deepPanel){ show('screenPanel'); loadPanel(false); }   /* solo para pruebas; la app abre SIEMPRE en cámara */
+  /* v59: si el aviso tocado con la app CERRADA ya nos llevo al chat de una factura,
+     el arranque no lo pisa. Antes lo pisaba y el enlace en frio no funcionaba nunca. */
+  if (typeof qsChat !== 'undefined' && qsChat && $('screenChat').classList.contains('on')){
+    processQueue(false); return;
+  }
+  /* v59: cada uno entra donde trabaja — el dueno a mirar sus numeros, el empleado a disparar */
+  if (deepPanel || !ES_EMPLEADO){ show('screenPanel'); loadPanel(false); }
   else { bootCameraScreen(); }
   processQueue(false);
 }
@@ -2402,7 +2486,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v58';
+var APP_VER = 'v59';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1067,17 +1067,22 @@ var sending = false, torchOn = false;
    sueltos y si el usuario apagaba la luz a mano en ese primer segundo y medio, el intento
    pendiente se la volvia a encender en la cara. */
 var torchGen = 0, torchTimers = [];
-/* v125 — LA HISTORIA COMPLETA DE LA LINTERNA EN EL IPHONE, para no repetirla:
-   en el iPhone de Matías la linterna FUNCIONABA (v59-v115): se encendía sola en Capturar,
-   se apagaba al ir al Panel, y el botón la apagaba a mano. La v116 añadió una "verificación"
-   (getSettings().torch) después de encender... y el iPhone CONTESTA MAL a esa pregunta, así
-   que el código creía que no había prendido e INSISTÍA — y ese martilleo de applyConstraints
-   es lo que dejaba el visor negro y el "No se pudo capturar". Las v122/v124 lo empeoraron
-   quitando la linterna entera (diagnóstico equivocado: culpamos a iOS, era nuestra verificación).
-   v125 = la semántica vieja que funcionaba: encender UNA vez por intento, CREERSE la promesa,
-   sin getSettings, sin martilleo. ES_IOS queda por si hace falta distinguir a futuro. */
+/* v126 — LA LINTERNA EN IPHONE, CERRADO POR EVIDENCIA (no por teoría). El experimento quedó
+   hecho con el teléfono de Matías la noche del 13-ago, y esto es lo que dijo el aparato:
+     · v124 (CERO toques al torch en iOS)  -> las fotos SALEN.
+     · v123 y v125 (torch por applyConstraints, con y sin verificación) -> cámara ROTA,
+       visor negro, "No se pudo capturar".
+   Conclusión: en ese iPhone, CUALQUIER applyConstraints de torch rompe el stream — dio igual
+   la cadencia, la verificación o el blindaje. Entre luz y fotos, fotos (dicho por Matías).
+   En iOS: ni intento automático, ni botón; el flash ahí es la cámara nativa 📷, a un toque.
+   Si un día se quiere reintentar, hay que probarlo EN ESE TELÉFONO antes de publicar —
+   tres versiones de ping-pong en una noche enseñaron que el changelog de WebKit no vale
+   como evidencia. Android conserva todo: prende sola en Capturar, botón para apagar. */
 var ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') ||
              (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+if (ES_IOS){
+  try { $('torchBtn').parentNode.style.display = 'none'; } catch(e){}
+}
 var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
@@ -1794,10 +1799,9 @@ function initCamera(){
        v122: TODO lo de la linterna dentro de try/catch — la cámara tiene que abrir aunque el
        torch reviente de la forma más rara: initCamera no puede caerse por un accesorio. */
     try {
-      /* v125: TODOS los teléfonos vuelven al circuito — iPhone incluido, que con la semántica
-         vieja (creerse la promesa) encendía bien. Capturar prende, el resto apaga. */
-      $('torchLbl').textContent = 'linterna';
-      encenderLuz();
+      /* v126: en iPhone ni etiqueta ni intento (evidencia en el bloque ES_IOS); en el resto,
+         Capturar prende y el botón apaga, como siempre. */
+      if (!ES_IOS){ $('torchLbl').textContent = 'linterna'; encenderLuz(); }
     } catch(e){}
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
@@ -2285,7 +2289,7 @@ function encenderLuz(){
      vuelve a 0/600/1500; la comprobación de capacidades sigue POR INTENTO (el arreglo bueno
      de la v116: en Android la lista llega tarde). */
   try {
-    if (!track) return;
+    if (ES_IOS || !track) return;   /* v126: en iPhone NI UN toque al torch — evidencia arriba */
     try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
     torchCancelar();
     var g = torchGen;
@@ -4375,7 +4379,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v125';
+var APP_VER = 'v126';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v125'; /* v125: la linterna vuelve a TODOS los telefonos con la semantica vieja que funcionaba - encender y creerse la promesa; la "verificacion" de la v116 (getSettings) contestaba mal en el iPhone y el martilleo de reintentos era lo que rompia la camara */
+var VERSION = 'tikora-captura-v126'; /* v126: iPhone sin linterna EN LA APP BUENA (v124 probo que asi las fotos salen); la variante con la semantica vieja (encender al abrir y no tocar mas) se prueba en la rama pruebas ANTES de volver a producción */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

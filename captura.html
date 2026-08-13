@@ -1067,18 +1067,17 @@ var sending = false, torchOn = false;
    sueltos y si el usuario apagaba la luz a mano en ese primer segundo y medio, el intento
    pendiente se la volvia a encender en la cara. */
 var torchGen = 0, torchTimers = [];
-/* v124 — EN IPHONE, CERO LINTERNA. PROBADO EN EL TELÉFONO DE MATÍAS Y CERRADO (13-ago noche):
-   la v123 intentó el torch en iOS 17+ porque WebKit dice soportarlo... y en el iPhone real
-   getCapabilities ANUNCIA torch, el applyConstraints no enciende nada, y el intento DEJA LA
-   CÁMARA ROTA — visor negro y "No se pudo capturar". Palabras de Matías: "volvete a como
-   estaba, que ahí podía sacar fotos". Así que en iOS: ni intento automático, ni botón; el
-   flash ahí es la cámara nativa 📷, a un toque. NO volver a intentarlo por releer las notas
-   de WebKit: lo que manda es el aparato del bar, no el changelog. Android conserva todo. */
+/* v125 — LA HISTORIA COMPLETA DE LA LINTERNA EN EL IPHONE, para no repetirla:
+   en el iPhone de Matías la linterna FUNCIONABA (v59-v115): se encendía sola en Capturar,
+   se apagaba al ir al Panel, y el botón la apagaba a mano. La v116 añadió una "verificación"
+   (getSettings().torch) después de encender... y el iPhone CONTESTA MAL a esa pregunta, así
+   que el código creía que no había prendido e INSISTÍA — y ese martilleo de applyConstraints
+   es lo que dejaba el visor negro y el "No se pudo capturar". Las v122/v124 lo empeoraron
+   quitando la linterna entera (diagnóstico equivocado: culpamos a iOS, era nuestra verificación).
+   v125 = la semántica vieja que funcionaba: encender UNA vez por intento, CREERSE la promesa,
+   sin getSettings, sin martilleo. ES_IOS queda por si hace falta distinguir a futuro. */
 var ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') ||
              (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
-if (ES_IOS){
-  try { $('torchBtn').parentNode.style.display = 'none'; } catch(e){}
-}
 var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
@@ -1795,8 +1794,10 @@ function initCamera(){
        v122: TODO lo de la linterna dentro de try/catch — la cámara tiene que abrir aunque el
        torch reviente de la forma más rara: initCamera no puede caerse por un accesorio. */
     try {
-      /* v124: en iPhone ni etiqueta ni intento — el botón sigue escondido desde el arranque */
-      if (!ES_IOS){ $('torchLbl').textContent = 'linterna'; encenderLuz(); }
+      /* v125: TODOS los teléfonos vuelven al circuito — iPhone incluido, que con la semántica
+         vieja (creerse la promesa) encendía bien. Capturar prende, el resto apaga. */
+      $('torchLbl').textContent = 'linterna';
+      encenderLuz();
     } catch(e){}
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
@@ -2277,25 +2278,25 @@ function torchReal(){
 }
 function encenderLuz(){
   /* v122: el cuerpo entero en try/catch — pase lo que pase aquí dentro, jamás salpica a quien
-     nos llamó (initCamera, visibilitychange, done). v124: iOS FUERA del circuito otra vez —
-     el iPhone de Matías anuncia el torch, no lo enciende, y el intento le rompía la cámara. */
+     nos llamó (initCamera, visibilitychange, done).
+     v125: SE ACABÓ LA VERIFICACIÓN. Encender y creerse la promesa, como la v99 que funcionó
+     meses en todos los teléfonos. El getSettings().torch de la v116 contesta mal en el iPhone
+     de Matías y convertía cada encendido en un martilleo que rompía la cámara. La cadencia
+     vuelve a 0/600/1500; la comprobación de capacidades sigue POR INTENTO (el arreglo bueno
+     de la v116: en Android la lista llega tarde). */
   try {
-    if (ES_IOS || !track) return;
+    if (!track) return;
     try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
     torchCancelar();
     var g = torchGen;
-    [0, 400, 900, 1500, 2500].forEach(function(ms){
+    [0, 600, 1500].forEach(function(ms){
       torchTimers.push(setTimeout(function(){
         try {
           if (g !== torchGen || torchOn || !track) return;
           if (sending) return;   /* v121: jamás tocar el stream en mitad de una captura */
           if (!torchDisponible()) return;            /* todavía no la publica: lo intenta el paso siguiente */
           track.applyConstraints({ advanced: [{ torch: true }] })
-            .then(function(){
-              var real = torchReal();
-              if (real === false) return;            /* dijo que sí y no se encendió: que insista el siguiente */
-              torchOn = true; pintarTorch();
-            })
+            .then(function(){ torchOn = true; pintarTorch(); })
             .catch(function(){});
         } catch(e){}   /* un applyConstraints que reviente en seco muere aquí, solo */
       }, ms));
@@ -2321,18 +2322,11 @@ $('torchBtn').addEventListener('click', function(){
   var quiere = !torchOn;
   torchOn = quiere; pintarTorch();     /* respuesta inmediata: detrás de una barra el botón tiene que reaccionar */
   try { localStorage.setItem('tikora_linterna', quiere ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
-  /* v122: el applyConstraints también puede reventar EN SECO (no como promesa) en navegadores
-     que no lo implementan — mismo destino que el fallo asíncrono, nunca un error suelto */
+  /* v125: sin verificación con getSettings — la promesa manda (el iPhone contesta mal a esa
+     pregunta y el botón decía "no responde" con la luz encendida). v122: el applyConstraints
+     también puede reventar EN SECO en navegadores raros — mismo destino, nunca un error suelto. */
   try {
     track.applyConstraints({ advanced: [{ torch: quiere }] })
-      .then(function(){
-        var real = torchReal();
-        if (real === quiere) return;                       /* confirmado por el hardware */
-        if (real === null && torchDisponible()) return;     /* calla, pero dice tenerla: se le cree */
-        torchOn = (real === null) ? !quiere : real;
-        pintarTorch();
-        if (quiere) sinLinterna();
-      })
       .catch(function(){
         torchOn = !quiere; pintarTorch();
         if (quiere) sinLinterna();
@@ -2501,7 +2495,8 @@ function tsFecha(f){
 }
 function ordenarFilas(rows){
   var c = (rows || []).slice();
-  if (panelOrden === 'llegada')      c.sort(function(a, b){ return tsEntro(b.entro) - tsEntro(a.entro); });
+  if (panelOrden === 'dudosas')      c.sort(function(a, b){ return confDe(a) - confDe(b); });
+  else if (panelOrden === 'llegada') c.sort(function(a, b){ return tsEntro(b.entro) - tsEntro(a.entro); });
   else if (panelOrden === 'importe') c.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
   else if (panelOrden === 'nombre')  c.sort(function(a, b){ return String(a.emisor || '').localeCompare(String(b.emisor || ''), 'es'); });
   else c.sort(function(a, b){        /* fecha, y si empatan la que entró después */
@@ -3320,8 +3315,18 @@ var ORDENES_PANEL = [
   { v: 'fecha',   t: 'Fecha de la factura' },
   { v: 'llegada', t: 'Cuándo ingresó' },
   { v: 'importe', t: 'Importe, de mayor a menor' },
-  { v: 'nombre',  t: 'Proveedor, de la A a la Z' }
+  { v: 'nombre',  t: 'Proveedor, de la A a la Z' },
+  /* v116: el motor guarda desde siempre cuánta confianza tuvo al leer cada papel, y ese
+     dato no se usaba para nada. Ahora se puede poner arriba lo que leyó con más dudas —
+     que es exactamente lo que conviene repasar a ojo antes de enseñárselo a un gestor. */
+  { v: 'dudosas', t: 'Las que leí con más dudas' }
 ];
+/* la confianza llega a veces como "0,72" y a veces como "0.7": las dos valen */
+function confDe(r){
+  var v = (r && r.conf !== undefined && r.conf !== null) ? String(r.conf).replace(',', '.') : '';
+  var n = parseFloat(v);
+  return isNaN(n) ? 1 : n;   /* sin dato = no se marca como dudosa */
+}
 function pintarMenuOrden(){
   var m = $('ordMenu'); if (!m) return;
   /* v87: el botón dice en qué orden estás. Un icono mudo obliga a abrirlo para saberlo. */
@@ -4370,7 +4375,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v124';
+var APP_VER = 'v125';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

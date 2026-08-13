@@ -1261,7 +1261,26 @@ function conClave(alPasar){
    Se puede cambiar cuando se quiera desde "Mis datos". */
 var QUIEN_KEY = 'tikora_quien', TURNO_KEY = 'tikora_turno';
 var TURNO_HORAS = 8;
-var NOMBRES = ['Matías', 'Medina', 'Mia', 'Leo', 'Ailen', 'Inés'];
+/* v117: LA LISTA DEPENDE DE LA LLAVE.
+   /sp y /spcam NO son dos apps: son esta misma captura.html abierta con distinto token (ver
+   _redirects en el repo). Por eso una lista única no podía servir: el móvil de Matías y el
+   móvil compartido de la estación enseñaban la misma gente. Ahora cada llave enseña a la suya.
+   Se mira solo el PREFIJO del token, nunca el token entero: si se escribieran las llaves
+   completas aquí, cualquiera que abriera la app con una llave podría leer las de los demás
+   clientes en el código fuente. */
+var NOMBRES_TODOS = ['Matías', 'Martín', 'Medina', 'Mía', 'Leo', 'Ailén', 'Inés'];
+var NOMBRES_POR_LLAVE = [
+  { pre: 'CAM', gente: ['Medina', 'Mía', 'Leo', 'Ailén', 'Inés'] },   /* /spcam — el móvil compartido, el de los empleados */
+  { pre: 'SP',  gente: ['Matías', 'Martín'] }                         /* /sp y /1949 — el móvil de Matías */
+];
+function nombresDeEsteMovil(){
+  var t = String(TOKEN || '').toUpperCase();
+  for (var i = 0; i < NOMBRES_POR_LLAVE.length; i++){       /* CAM antes que SP: no se solapan, pero el orden manda */
+    if (t.indexOf(NOMBRES_POR_LLAVE[i].pre) === 0) return NOMBRES_POR_LLAVE[i].gente;
+  }
+  return NOMBRES_TODOS;   /* llave desconocida (DEMO, un cliente nuevo): mejor que sobre un
+                             nombre a que alguien no pueda firmar su foto */
+}
 /* v115: ocho horas sin abrir la app = turno nuevo = se vuelve a preguntar quién es.
    Es como fichar en el TPV: una vez al empezar y no molesta más en todo el turno. */
 function turnoCaducado(){
@@ -1271,6 +1290,18 @@ function turnoCaducado(){
   } catch(e){ return false; }
 }
 function marcarTurno(){ try { localStorage.setItem(TURNO_KEY, String(Date.now())); } catch(e){} }
+/* v117: el nombre guardado tiene que valer para ESTA llave. Los teléfonos ya traen uno
+   guardado de la v115, y ese nombre viaja firmando cada foto: si hoy cambia la lista y no se
+   comprueba, el móvil de la estación seguiría mandando fotos firmadas "Matías" para siempre.
+   Un nombre escrito a mano con "Otro nombre…" se respeta — si no, volvería a preguntar en
+   cada arranque y sería insoportable. */
+function nombreValidoAqui(){
+  var q = quienUsaEsteMovil();
+  if (!q) return true;                                     /* no hay nada: ya lo pregunta la otra guardia */
+  if (nombresDeEsteMovil().indexOf(q) >= 0) return true;   /* está en la lista de esta llave */
+  if (NOMBRES_TODOS.indexOf(q) < 0) return true;           /* nombre escrito a mano: es suyo, se deja */
+  return false;                                            /* es de otra llave → se vuelve a preguntar */
+}
 function quienUsaEsteMovil(){
   try { return localStorage.getItem(QUIEN_KEY) || ''; } catch(e){ return ''; }
 }
@@ -1286,7 +1317,7 @@ function preguntarQuienSoy(alCerrar){
   caja.appendChild(t); caja.appendChild(s);
   var actual = quienUsaEsteMovil();
   var cerrar = function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); if (alCerrar) alCerrar(); };
-  NOMBRES.forEach(function(n){
+  nombresDeEsteMovil().forEach(function(n){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'qpB';
     b.textContent = n + (n === actual ? '  ✓' : '');
     b.addEventListener('click', function(){ guardarQuien(n); cerrar(); toast('Este móvil es de ' + n); });
@@ -4178,7 +4209,7 @@ function boot(){
      cogió primero. Ocho horas sin usarlo = turno nuevo = se vuelve a preguntar.
      Va después de abrir la cámara a propósito: la ley de cero fricción manda, y se
      contesta en un toque con la cámara ya lista detrás. */
-  if (!quienUsaEsteMovil() || turnoCaducado()){
+  if (!quienUsaEsteMovil() || !nombreValidoAqui() || turnoCaducado()){
     setTimeout(function(){ preguntarQuienSoy(marcarTurno); }, 900);
   } else { marcarTurno(); }
 }
@@ -4238,7 +4269,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v116';
+var APP_VER = 'v117';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1971,7 +1971,9 @@ function pintarSinIva(){
                    + (s.fecha ? ' · ' + s.fecha : '');
     gg.appendChild(h1);
     var q = document.createElement('div'); q.className = 'quien';
-    q.textContent = (s.quien === 'yo') ? 'lo pagaste vos' : 'lo pagó el bar';
+    q.textContent = (s.quien === 'yo') ? 'lo pagaste vos'
+      : (String(s.quien || '').indexOf('tarjeta') >= 0 ? 'lo pagó el bar — tarjeta'
+      : (String(s.quien || '').indexOf('efectivo') >= 0 ? 'lo pagó el bar — efectivo' : 'lo pagó el bar'));
     gg.appendChild(q);
     row.appendChild(gg);
     var fid = '';
@@ -1997,7 +1999,10 @@ function preguntarQuienPago(alElegir){
   s.textContent = 'Se guarda con el importe y la fecha que ya se leyeron, sale de la lista de revisar, y NO suma al IVA que se le pasa a la gestoría.';
   caja.appendChild(t); caja.appendChild(s);
   var cerrar = function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); };
-  [['bar', 'La pagó el bar'], ['yo', 'La pagaste vos, de tu bolsillo']].forEach(function(o){
+  /* v129 (pedido de Matías 22:2x, en pleno repaso): el bar se parte en efectivo/tarjeta.
+     El valor viaja entero en la columna de quién pagó; todo lo que compara solo mira
+     si es 'yo', así que los totales y las listas no se enteran del apellido. */
+  [['bar - efectivo', 'La pagó el bar — en efectivo'], ['bar - tarjeta', 'La pagó el bar — con tarjeta'], ['yo', 'La pagaste vos, de tu bolsillo']].forEach(function(o){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'qpB'; b.textContent = o[1];
     b.addEventListener('click', function(){ cerrar(); alElegir(o[0]); });
     caja.appendChild(b);
@@ -2020,7 +2025,8 @@ function enviarASinIva(c, quien, alCerrar){
       if (!res.ok || (res.j && res.j.ok === false)){
         toast((res.j && res.j.motivo) ? res.j.motivo : 'No se pudo mover', true); return;
       }
-      toast(quien === 'yo' ? 'Guardada en Sin IVA — la pagaste vos' : 'Guardada en Sin IVA');
+      toast(quien === 'yo' ? 'Guardada en Sin IVA — la pagaste vos'
+        : ('Guardada en Sin IVA — el bar' + (String(quien).indexOf('tarjeta') >= 0 ? ', con tarjeta' : (String(quien).indexOf('efectivo') >= 0 ? ', en efectivo' : ''))));
       if (alCerrar) alCerrar();
       sinIvaDatos = null; cargarSinIva();
       loadPanel(true);
@@ -4409,7 +4415,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v128';
+var APP_VER = 'v129';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1,0 +1,39 @@
+# ------------------------------------------------------------------------------
+#  Tikora — configuración del sitio en Netlify
+#
+#  Por qué existe (13-ago-2026, 04:5x): las fotos de las facturas las sirve el
+#  proxy de n8n, y sirve el FICHERO ENTERO — hay fotos de 2,3 MB. Poner una
+#  miniatura en cada fila de Revisar habría significado bajarse 40 fotos
+#  completas para pintar una pantalla: casi 90 MB. Lo contrario de lo que se
+#  buscaba.
+#
+#  Netlify sabe hacer eso él solo: su CDN de imágenes va a buscar la foto,
+#  la reduce en su servidor y manda solo la pequeña. La foto grande no llega
+#  nunca al móvil. Sin tocar el motor y sin cambiar nada en n8n.
+#
+#  Uso desde la app:
+#     /.netlify/images?url=<url del proxy, codificada>&w=240&fit=cover
+#
+#  La lista de abajo es la ley: Netlify solo acepta transformar imágenes de los
+#  dominios que estén aquí. Sin esta línea devuelve 400 y no se ve nada.
+# ------------------------------------------------------------------------------
+
+[images]
+  remote_images = [
+    "https://malagacoretech\\.app\\.n8n\\.cloud/webhook/.*"
+  ]
+
+[build]
+  publish = "."
+
+# Las cabeceras de siempre: la app es un fichero suelto y el service worker
+# manda sobre la caché, así que ninguno de los dos debe quedarse pegado.
+[[headers]]
+  for = "/captura.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/captura-sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

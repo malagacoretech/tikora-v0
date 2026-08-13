@@ -248,6 +248,11 @@ input[type=file]{display:none}
 /* v73: la factura recién llegada se destaca al abrirla desde el aviso */
 /* v109: el número de cada factura dentro de la vista actual. Pequeño, gris y tabular
    para que no compita con el importe y las cifras queden alineadas. */
+/* v110: la miniatura dentro del boton de Foto. Cuadrada y pequena: se ve QUE papel es
+   de un vistazo, sin abrir nada. La reduce Netlify en su servidor, no el movil. */
+.copybtn.conmini{display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.55rem 0.3rem 0.3rem}
+.copybtn.conmini .mini{width:34px;height:34px;border-radius:7px;object-fit:cover;background:#0A1628;flex:0 0 auto;display:block}
+.caprow.rev .copybtn.conmini{justify-content:center}
 .prow .nu{flex:0 0 auto;min-width:1.6rem;text-align:right;font-size:0.72rem;font-weight:700;color:var(--text-muted);font-variant-numeric:tabular-nums;opacity:0.75}
 .prow.destacada{outline:2px solid var(--accent);border-radius:14px;animation:destello 1.3s ease 3}
 @keyframes destello{50%{outline-color:transparent}}
@@ -2063,10 +2068,15 @@ function pintarMeses(){
          medio de la lista y PARECÍA que no se había actualizado, que fue peor.
          Ahora se va al principio de LAS FACTURAS: se ve el primer renglón cambiar,
          que es la prueba de que el mes se aplicó, y no hay que bajar nada. */
+      /* v110: el ancla es el BUSCADOR, no la lista. En la v108 anclaba en las facturas y
+         las pastillas de mes se iban fuera de pantalla: para cambiar de mes otra vez había
+         que subir con el dedo (Matías 04:4x, con las dos fotos). Anclando aquí quedan a la
+         vista el buscador, los meses, el "Ordenar por" y las seis primeras facturas — que
+         es exactamente donde se trabaja: se cambia de mes y se sigue tocando sin moverse. */
       var sp = $('screenPanel');
-      var lista = $('panelRows');
-      if (sp && lista){
-        var arriba = lista.offsetTop - 8;          /* un pelín de aire por encima */
+      var ancla = $('panelSearch') || $('panelRows');
+      if (sp && ancla){
+        var arriba = ancla.offsetTop - 8;
         var tope = Math.max(0, sp.scrollHeight - sp.clientHeight);
         sp.scrollTop = Math.max(0, Math.min(arriba, tope));
       } else if (sp) { sp.scrollTop = 0; }
@@ -2332,8 +2342,19 @@ function filaRevisar(c){
   }
   row.appendChild(g);
   if (c.f){
-    var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
-    vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); });
+    /* v110: la foto EN CHIQUITO dentro de la fila (pedido de Matías 04:5x). El proxy de n8n
+       sirve el fichero ENTERO —hay fotos de 2,3 MB—, así que 40 miniaturas hubieran sido
+       casi 90 MB para pintar una pantalla. Se pide por el CDN de imágenes de Netlify, que la
+       reduce EN SU SERVIDOR: al móvil solo le llega la pequeña. Y con loading="lazy" solo se
+       bajan las que se están viendo. Si no la puede servir, se cae al botón de siempre. */
+    var urlFoto = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f);
+    var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn conmini';
+    var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    im.src = '/.netlify/images?url=' + encodeURIComponent(urlFoto) + '&w=120&h=120&fit=cover';
+    im.addEventListener('error', function(){ vf.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+    vf.appendChild(im);
+    var et = document.createElement('span'); et.className = 'mtx'; et.textContent = 'Foto'; vf.appendChild(et);
+    vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(urlFoto); });
     row.appendChild(vf);
     /* v50: 'corregir' = la foto estaba bien, falta un dato -> se arregla en la hoja, no con otra foto */
     if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
@@ -3671,7 +3692,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v109';
+var APP_VER = 'v110';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

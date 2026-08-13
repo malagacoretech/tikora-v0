@@ -1067,11 +1067,12 @@ var sending = false, torchOn = false;
    sueltos y si el usuario apagaba la luz a mano en ese primer segundo y medio, el intento
    pendiente se la volvia a encender en la cara. */
 var torchGen = 0, torchTimers = [];
-/* v122: EN IPHONE NO HAY LINTERNA POR WEB. Safari de iOS no expone el torch a las páginas
-   (ni getCapabilities lo anuncia nunca), así que el botón ⚡ ahí es un botón que jamás va a
-   funcionar: fuera de la vista y ni un intento de encendido. La detección es por sistema, no
-   por capacidades: las capacidades en Android llegan tarde y esconder por su ausencia
-   resucitaría el bug de la v116 (el botón invisible). El flash en iPhone: la cámara nativa. */
+/* v122: en iPhone el botón ⚡ nace escondido. v123, LA CORRECCIÓN: iOS 17+ SÍ deja encender
+   el torch por web — por applyConstraints sobre el track, el mismo camino que ya usamos — así
+   que el encendido automático se intenta TAMBIÉN en iPhone (blindado: si el aparato no puede,
+   no pasa nada de nada). El botón se revela solo cuando el aparato DEMUESTRA tener torch
+   (torchDisponible() tras abrir la cámara): en un iPhone viejo no aparece jamás y el flash
+   ahí sigue siendo la cámara nativa 📷, a un toque. */
 var ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') ||
              (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
 if (ES_IOS){
@@ -1793,7 +1794,17 @@ function initCamera(){
        v122: TODO lo de la linterna dentro de try/catch — la cámara tiene que abrir aunque el
        torch reviente de la forma más rara: initCamera no puede caerse por un accesorio. */
     try {
-      if (!ES_IOS){ $('torchLbl').textContent = 'linterna'; encenderLuz(); }
+      $('torchLbl').textContent = 'linterna';
+      encenderLuz();
+      /* v123: en iPhone, el botón ⚡ se revela solo si el aparato demuestra tener torch
+         (iOS 17+). Se mira dos veces porque las capacidades tardan en llegar (lección v116). */
+      if (ES_IOS){
+        [1200, 2600].forEach(function(ms){
+          setTimeout(function(){
+            try { if (torchDisponible()) $('torchBtn').parentNode.style.display = ''; } catch(e){}
+          }, ms);
+        });
+      }
     } catch(e){}
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
@@ -2273,10 +2284,12 @@ function torchReal(){
   } catch(e){ return null; }
 }
 function encenderLuz(){
-  /* v122: en iOS ni un intento — y el cuerpo entero en try/catch: pase lo que pase aquí
-     dentro, jamás puede salpicar a quien nos llamó (initCamera, visibilitychange, done). */
+  /* v122: el cuerpo entero en try/catch — pase lo que pase aquí dentro, jamás salpica a quien
+     nos llamó (initCamera, visibilitychange, done). v123: iOS vuelve al circuito — iOS 17+
+     soporta el torch por applyConstraints; en los viejos torchDisponible() dice que no y los
+     intentos mueren solos, exactamente igual que en un Android sin linterna. */
   try {
-    if (ES_IOS || !track) return;
+    if (!track) return;
     try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
     torchCancelar();
     var g = torchGen;
@@ -4366,7 +4379,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v122';
+var APP_VER = 'v123';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

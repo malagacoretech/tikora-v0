@@ -79,6 +79,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #repaso .rpTop .corrX{flex:0 0 auto;width:56px;height:56px;min-width:56px;min-height:56px;font-size:1.4rem;display:inline-flex;align-items:center;justify-content:center}
 #repaso .rpFoto{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #repaso .rpFoto img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+/* v132: pellizco EN SITIO — la clase .zum convierte cualquier marco de foto en zona con zoom:
+   la imagen crece por encima del marco y el dedo la recorre con el scroll nativo. */
+.zum{overflow:auto !important;-webkit-overflow-scrolling:touch;align-items:flex-start !important;justify-content:flex-start !important}
+.zum img{max-width:none !important;max-height:none !important;object-fit:unset !important}
+/* con zoom, el marco del corrector se planta en 42vh: la foto crece POR DENTRO y los campos no se van de la pantalla */
+#corr .corrFoto.zum{height:42vh}
 #repaso .rpDatos{padding:0.6rem 0.9rem 0.3rem;text-align:center}
 #repaso .rpQuien{font-size:0.9rem;font-weight:700}
 #repaso .rpMotivo{font-size:0.85rem;font-weight:700;color:#ff8f93;margin-top:0.2rem}
@@ -1887,6 +1893,7 @@ function rpPintar(){
   /* por el CDN de Netlify: la foto de 2,8 MB llega en unos 200 KB y entra al instante */
   $('rpImg').src = '/.netlify/images?url=' + encodeURIComponent(url) + '&w=1100&fit=contain';
   $('rpImg').onerror = function(){ $('rpImg').onerror = null; $('rpImg').src = url; };
+  zumReset($('rpImg').parentNode, $('rpImg'));   /* v132: factura nueva, zoom a cero */
   $('rpQuien').textContent = (c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'proveedor sin leer')
     + (c.entro ? ' · ingresó ' + String(c.entro).slice(0, 5) + ' ' + String(c.entro).slice(11, 16) : '');
   $('rpMotivo').textContent = motivoCoherente(c);
@@ -1908,12 +1915,43 @@ $('rpLupa').addEventListener('click', function(){
   var c = rpActual();
   if (c && c.f){ if (!fvAbrirRemota(c.f, c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'La factura')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); }
 });
+/* v132: pellizco EN SITIO, reutilizable — dos dedos agrandan la foto dentro de su propio
+   marco (100→400%), un dedo la recorre (scroll nativo). Pedido de Matías 22:4x: leer el CIF
+   sin salir a la pantalla grande, ni en el Repaso ni en el corrector. */
+function pinchEnSitio(cont, img){
+  if (!cont || !img) return;
+  var pinch = null;
+  function dist(e){
+    var a = e.touches[0], b = e.touches[1];
+    return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2));
+  }
+  cont.addEventListener('touchstart', function(e){
+    if (e.touches.length === 2){
+      var w = parseFloat(img.style.width);
+      pinch = { d: dist(e), pct: isNaN(w) ? 100 : w };
+    }
+  }, { passive: true });
+  cont.addEventListener('touchmove', function(e){
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();   /* el pellizco no pelea con el scroll */
+    var n = Math.max(100, Math.min(400, pinch.pct * (dist(e) / pinch.d)));
+    if (n > 108){ cont.classList.add('zum'); img.style.width = n + '%'; }
+    else { cont.classList.remove('zum'); img.style.width = ''; }
+  }, { passive: false });
+  cont.addEventListener('touchend', function(e){ if (e.touches.length < 2) pinch = null; }, { passive: true });
+}
+function zumReset(cont, img){
+  if (!cont || !img) return;
+  cont.classList.remove('zum'); img.style.width = ''; cont.scrollLeft = 0; cont.scrollTop = 0;
+}
 /* v131 (pedido de Matías 22:3x, en pleno repaso): el dedo manda.
    - Deslizar la foto a la izquierda = siguiente; a la derecha = anterior. Los botones siguen.
-   - Tocarla (sin arrastrar) = se abre en grande, igual que la lupa. */
+   - Tocarla (sin arrastrar) = se abre en grande, igual que la lupa.
+   v132: con el zoom puesto, el dedo RECORRE la foto — ni pasa de factura ni la abre. */
 (function(){
   var zona = $('rpImg') ? $('rpImg').parentNode : null;
   if (!zona) return;
+  pinchEnSitio(zona, $('rpImg'));
   var x0 = 0, y0 = 0, movio = false;
   zona.addEventListener('touchstart', function(e){
     if (e.touches.length !== 1) return;
@@ -1924,6 +1962,7 @@ $('rpLupa').addEventListener('click', function(){
     if (Math.abs(e.touches[0].clientX - x0) > 15 || Math.abs(e.touches[0].clientY - y0) > 15) movio = true;
   }, { passive: true });
   zona.addEventListener('touchend', function(e){
+    if (zona.classList.contains('zum')) return;   /* v132: con zoom, el dedo recorre */
     if (!e.changedTouches || !e.changedTouches.length) return;
     var dx = e.changedTouches[0].clientX - x0;
     var dy = e.changedTouches[0].clientY - y0;
@@ -1932,7 +1971,7 @@ $('rpLupa').addEventListener('click', function(){
     }
   }, { passive: true });
   zona.addEventListener('click', function(){
-    if (movio) return;   /* fue un arrastre, no un toque */
+    if (movio || zona.classList.contains('zum')) return;   /* arrastre o zoom: no abrir */
     $('rpLupa').click();
   });
 })();
@@ -2240,10 +2279,10 @@ function abrirCorrector(c){
   $('corrTodos').textContent = 'Ver todos los campos';
   corrPinta();
   $('corr').classList.add('on');
-  /* v128 (pedido de Matías 22:1x): al entrar a corregir, la foto se abre EN GRANDE directamente
-     — primero se mira el papel, se toca Volver, y los campos están esperando detrás. La lupa
-     de arriba sigue ahí para volver a verla las veces que haga falta. */
-  fvAbrirRemota(c.f, 'Mirala y tocá Volver — los campos te esperan');
+  /* v132 (Matías 22:4x, y anula el auto-abrir de la v128 que él mismo pidió una hora antes —
+     al usarlo de verdad sobraba el paso): entrar a corregir va DIRECTO a los campos, con la
+     foto arriba que se agranda pellizcándola ahí mismo. La pantalla grande sigue en la lupa. */
+  zumReset($('corrImg').parentNode, $('corrImg'));
 }
 function cerrarCorrector(){ $('corr').classList.remove('on'); corrActual = null; $('corrImg').src = ''; }
 function guardarCorreccion(promover){
@@ -2294,8 +2333,14 @@ $('corrVerFoto').addEventListener('click', function(){
   /* v128: tambien al visor de la app */
   if (corrActual && corrActual.f){ if (!fvAbrirRemota(corrActual.f, 'Mirala y tocá Volver — los campos te esperan')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f)); }
 });
-/* v131: tocar la tira de la foto hace lo mismo que la lupa — lo que se ve se toca */
-$('corrImg').addEventListener('click', function(){ $('corrVerFoto').click(); });
+/* v131: tocar la tira de la foto hace lo mismo que la lupa — lo que se ve se toca.
+   v132: y con dos dedos se agranda AHÍ MISMO (para leer el CIF sin salir de los campos);
+   con el zoom puesto, el toque recorre, no abre. */
+pinchEnSitio($('corrImg').parentNode, $('corrImg'));
+$('corrImg').addEventListener('click', function(){
+  if ($('corrImg').parentNode.classList.contains('zum')) return;
+  $('corrVerFoto').click();
+});
 /* v103: un solo botón — la app mira si está completa y decide ella si la promueve */
 $('corrGuardar').addEventListener('click', function(){ guardarCorreccion(faltaEnCorrector().length === 0); });
 $('corrSinIva').addEventListener('click', function(){ if (corrActual) mandarASinIva(corrActual, cerrarCorrector); });
@@ -4483,7 +4528,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v131';
+var APP_VER = 'v132';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

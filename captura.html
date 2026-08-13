@@ -505,6 +505,18 @@ button.capbadge:active{transform:scale(0.95)}
 .sivTot .nota{font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.35}
 .caprow .quien{font-size:0.72rem;color:var(--text-muted)}
 /* v104: la pregunta de quién pagó. Botones grandes: se contesta detrás de una barra. */
+/* v115: el teclado de la clave */
+.pinFondo{position:fixed;inset:0;z-index:90;background:rgba(4,10,20,0.97);display:flex;align-items:center;justify-content:center;padding:1rem}
+.pinCaja{width:100%;max-width:20rem;text-align:center}
+.pinT{font-size:1.1rem;font-weight:800;margin-bottom:1.1rem}
+.pinPts{display:flex;gap:0.9rem;justify-content:center;margin-bottom:0.5rem}
+.pinPt{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);display:inline-block}
+.pinPt.on{background:var(--accent);border-color:var(--accent)}
+.pinErr{min-height:1.2rem;font-size:0.82rem;color:#FF6B6B;font-weight:700;margin-bottom:0.6rem}
+.pinTec{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+.pinB{min-height:66px;border-radius:16px;font-size:1.5rem;font-weight:700;font-family:inherit;background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.pinB:active{background:var(--accent);color:#0A1628}
+.pinSalir{margin-top:1rem;width:100%;min-height:46px;background:transparent;border:1px dashed var(--border);border-radius:12px;color:var(--text-muted);font-family:inherit;font-size:0.85rem}
 .qpFondo{position:fixed;inset:0;z-index:80;background:rgba(4,10,20,0.82);display:flex;align-items:flex-end;justify-content:center;padding:1rem}
 .qpCaja{width:100%;max-width:26rem;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1rem calc(1rem + env(safe-area-inset-bottom))}
 .qpT{font-size:1.05rem;font-weight:800;margin-bottom:0.35rem}
@@ -627,7 +639,12 @@ div:has(> #segProv) > button{min-height:44px}
     </div>
   </div>
   <div class="bottombar">
-    <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" style="visibility:hidden">&#9889;</button><span class="lbl" id="torchLbl"></span></div>
+    <!-- v116: el boton de linterna YA NO NACE ESCONDIDO. Nacia con visibility:hidden y el unico
+         sitio de toda la app que lo enseñaba era una linea dentro de initCamera() condicionada a
+         que getCapabilities() dijera `torch` EN ESE INSTANTE. En Android esa lista llega tarde
+         (el driver la rellena unos cientos de ms despues), asi que en la mitad de los arranques
+         salia vacia y el boton se quedaba invisible PARA SIEMPRE. Leccion del `.refreshbtn` (37). -->
+    <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" aria-label="Linterna">&#9889;</button><span class="lbl" id="torchLbl">linterna</span></div>
     <button id="shutter" type="button" aria-label="Capturar" disabled></button>
     <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button><span class="lbl">c&aacute;mara nativa</span></div>
   </div>
@@ -902,6 +919,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
 
   <!-- v114: quién usa este móvil. Se cambia desde aquí cuando el teléfono cambia de manos. -->
   <button class="dbtn sec" type="button" id="dQuienBtn" style="width:100%;margin-bottom:0.6rem">&#128100; Este m&oacute;vil lo usa: <b id="dQuienTxt">&mdash;</b></button>
+  <!-- v115: la clave de 4 cifras. Protege el dinero, no la cámara. -->
+  <button class="dbtn sec" type="button" id="dPinBtn" style="width:100%;margin-bottom:0.6rem">&#128274; Clave de 4 cifras: <b id="dPinTxt">&mdash;</b></button>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.9rem">
     <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
@@ -1016,6 +1035,10 @@ var RETRY_MS    = 20000;                     /* reintento automático de la cola
 /* ================== ESTADO ================== */
 var stream = null, track = null, usingImageCapture = false;
 var sending = false, torchOn = false;
+/* v116: los reintentos de linterna se pueden cancelar. Antes se soltaban tres setTimeout
+   sueltos y si el usuario apagaba la luz a mano en ese primer segundo y medio, el intento
+   pendiente se la volvia a encender en la cara. */
+var torchGen = 0, torchTimers = [];
 var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
@@ -1116,13 +1139,138 @@ function refreshQueueUI(){
   });
 }
 
+/* ===== v115: LA CLAVE DE 4 CIFRAS =====
+   Hoy quien coge el móvil ve el panel entero: 14.118 € y todos los proveedores.
+   Esto pone una puerta delante de LO QUE ES DINERO — panel, preguntar y mis datos —
+   y deja Capturar SIEMPRE libre. Es la ley de cero fricción: sacar la foto no puede
+   pedir nada nunca; mirar el dinero, sí.
+
+   Qué es y qué NO es, dicho claro: es un cerrojo LOCAL, para que quien coja el
+   teléfono no vea las cuentas. NO protege el enlace: quien tenga la dirección con
+   la llave puede abrirla en otro sitio. Eso se arregla el día que la llave deje de
+   viajar en la URL (la función intermedia de Netlify, después del 20).
+
+   Solo para el dueño: el panel del empleado ya va sin un euro (decisión #28). */
+var PIN_KEY = 'tikora_pin', PIN_HASTA = 'tikora_pin_hasta';
+var PIN_MINUTOS = 30;
+function pinPuesto(){ try { return !!localStorage.getItem(PIN_KEY); } catch(e){ return false; } }
+function pinAbierto(){
+  try { return Date.now() < parseInt(localStorage.getItem(PIN_HASTA) || '0', 10); } catch(e){ return false; }
+}
+function pinAbrir(){ try { localStorage.setItem(PIN_HASTA, String(Date.now() + PIN_MINUTOS*60000)); } catch(e){} }
+function pinCerrar(){ try { localStorage.removeItem(PIN_HASTA); } catch(e){} }
+function pinHash(n){
+  /* SHA-256: no se guarda la clave, se guarda su huella */
+  try {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode('tikora:' + n)).then(function(b){
+      return Array.prototype.map.call(new Uint8Array(b), function(x){ return ('0'+x.toString(16)).slice(-2); }).join('');
+    });
+  } catch(e){ return Promise.resolve('x' + n); }
+}
+function pedirPin(titulo, alAcertar, alCancelar){
+  var fondo = document.createElement('div'); fondo.className = 'pinFondo';
+  var caja = document.createElement('div'); caja.className = 'pinCaja';
+  var t = document.createElement('div'); t.className = 'pinT'; t.textContent = titulo || 'Poné tu clave';
+  var pts = document.createElement('div'); pts.className = 'pinPts';
+  var d = [];
+  for (var i=0;i<4;i++){ var p = document.createElement('span'); p.className='pinPt'; pts.appendChild(p); d.push(p); }
+  var err = document.createElement('div'); err.className = 'pinErr';
+  caja.appendChild(t); caja.appendChild(pts); caja.appendChild(err);
+  var tec = document.createElement('div'); tec.className = 'pinTec';
+  var puesto = '';
+  var pinta = function(){ for (var i=0;i<4;i++) d[i].classList.toggle('on', i < puesto.length); };
+  var comprobar = function(){
+    pinHash(puesto).then(function(h){
+      var guardado = null; try { guardado = localStorage.getItem(PIN_KEY); } catch(e){}
+      if (h === guardado){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); pinAbrir(); if (alAcertar) alAcertar(); }
+      else { err.textContent = 'No es esa'; puesto = ''; pinta(); try { navigator.vibrate && navigator.vibrate(120); } catch(e){} }
+    });
+  };
+  ['1','2','3','4','5','6','7','8','9','','0','←'].forEach(function(n){
+    var b = document.createElement('button'); b.type='button'; b.className='pinB'; b.textContent = n;
+    if (!n){ b.style.visibility='hidden'; }
+    b.addEventListener('click', function(){
+      err.textContent = '';
+      if (n === '←'){ puesto = puesto.slice(0,-1); pinta(); return; }
+      if (!n || puesto.length >= 4) return;
+      puesto += n; pinta();
+      if (puesto.length === 4) setTimeout(comprobar, 120);
+    });
+    tec.appendChild(b);
+  });
+  caja.appendChild(tec);
+  if (alCancelar){
+    var x = document.createElement('button'); x.type='button'; x.className='pinSalir'; x.textContent = 'Volver a la cámara';
+    x.addEventListener('click', function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); alCancelar(); });
+    caja.appendChild(x);
+  }
+  fondo.appendChild(caja); document.body.appendChild(fondo);
+}
+/* poner o cambiar la clave: se pide dos veces, para no quedarse fuera por un dedo */
+function ponerPin(alTerminar){
+  var uno = '';
+  var pedir = function(titulo, alTener){
+    var fondo = document.createElement('div'); fondo.className = 'pinFondo';
+    var caja = document.createElement('div'); caja.className = 'pinCaja';
+    var t = document.createElement('div'); t.className='pinT'; t.textContent = titulo;
+    var pts = document.createElement('div'); pts.className='pinPts'; var d=[];
+    for (var i=0;i<4;i++){ var p=document.createElement('span'); p.className='pinPt'; pts.appendChild(p); d.push(p); }
+    var err = document.createElement('div'); err.className='pinErr';
+    caja.appendChild(t); caja.appendChild(pts); caja.appendChild(err);
+    var tec = document.createElement('div'); tec.className='pinTec'; var puesto='';
+    var pinta = function(){ for (var i=0;i<4;i++) d[i].classList.toggle('on', i < puesto.length); };
+    ['1','2','3','4','5','6','7','8','9','','0','←'].forEach(function(n){
+      var b=document.createElement('button'); b.type='button'; b.className='pinB'; b.textContent=n;
+      if (!n) b.style.visibility='hidden';
+      b.addEventListener('click', function(){
+        err.textContent='';
+        if (n === '←'){ puesto = puesto.slice(0,-1); pinta(); return; }
+        if (!n || puesto.length >= 4) return;
+        puesto += n; pinta();
+        if (puesto.length === 4) setTimeout(function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); alTener(puesto); }, 140);
+      });
+      tec.appendChild(b);
+    });
+    caja.appendChild(tec);
+    var x = document.createElement('button'); x.type='button'; x.className='pinSalir'; x.textContent='Dejarlo';
+    x.addEventListener('click', function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); if (alTerminar) alTerminar(); });
+    caja.appendChild(x);
+    fondo.appendChild(caja); document.body.appendChild(fondo);
+  };
+  pedir('Elegí una clave de 4 cifras', function(a){
+    uno = a;
+    pedir('Ponela otra vez', function(b){
+      if (a !== b){ toast('No coinciden — probá de nuevo', true); if (alTerminar) alTerminar(); return; }
+      pinHash(a).then(function(h){
+        try { localStorage.setItem(PIN_KEY, h); } catch(e){}
+        pinAbrir(); toast('Clave puesta');
+        if (alTerminar) alTerminar();
+      });
+    });
+  });
+}
+/* la puerta: se llama antes de enseñar cualquier pantalla con dinero */
+function conClave(alPasar){
+  if (ES_EMPLEADO || !pinPuesto() || pinAbierto()){ alPasar(); return; }
+  pedirPin('Tu clave', alPasar, function(){ bootCameraScreen(); });
+}
 /* ===== v114: ¿QUIÉN USA ESTE MÓVIL? =====
    Detrás de una barra un teléfono pasa de mano en mano. La llave dice QUÉ móvil;
    esto dice QUIÉN. Se pregunta una vez, se guarda en el propio teléfono y viaja con
    cada foto. No se manda nada más: ni ubicación, ni contactos, ni nada del cliente.
    Se puede cambiar cuando se quiera desde "Mis datos". */
-var QUIEN_KEY = 'tikora_quien';
+var QUIEN_KEY = 'tikora_quien', TURNO_KEY = 'tikora_turno';
+var TURNO_HORAS = 8;
 var NOMBRES = ['Matías', 'Medina', 'Mia', 'Leo', 'Ailen', 'Inés'];
+/* v115: ocho horas sin abrir la app = turno nuevo = se vuelve a preguntar quién es.
+   Es como fichar en el TPV: una vez al empezar y no molesta más en todo el turno. */
+function turnoCaducado(){
+  try {
+    var t = parseInt(localStorage.getItem(TURNO_KEY) || '0', 10);
+    return !t || (Date.now() - t) > TURNO_HORAS * 3600000;
+  } catch(e){ return false; }
+}
+function marcarTurno(){ try { localStorage.setItem(TURNO_KEY, String(Date.now())); } catch(e){} }
 function quienUsaEsteMovil(){
   try { return localStorage.getItem(QUIEN_KEY) || ''; } catch(e){ return ''; }
 }
@@ -1534,6 +1682,13 @@ function flashOK(){
 /* ================== CÁMARA ================== */
 function stopCamera(){
   if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; track = null; }
+  /* v116: bajar la bandera SIEMPRE. Antes torchOn se quedaba en true al apagar la camara (ir
+     al Panel, por ejemplo) y al volver a Capturar encenderLuz() se auto-bloqueaba en su propia
+     guardia `if (torchOn) return`: track nuevo, linterna apagada, boton pintado como encendido,
+     y hacia falta pulsarlo DOS veces para tener luz. */
+  torchCancelar();
+  torchOn = false;
+  pintarTorch();
 }
 function initCamera(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ return Promise.reject(new Error('no-gum')); }
@@ -1561,20 +1716,15 @@ function initCamera(){
     var st = track.getSettings ? track.getSettings() : {};
     var res = (st.width||video.videoWidth||0) + '×' + (st.height||video.videoHeight||0);
     $('resBadge').textContent = usingImageCapture ? 'foto nativa del sensor' : ('vídeo ' + res);
-    /* linterna si el hardware la tiene */
+    /* v59: la linterna se enciende sola al entrar en Capturar. En un bar la factura suele estar
+       a media luz y con linterna la foto sale legible, que es de lo que vive el motor. Si el
+       usuario la apaga a mano, se queda apagada la proxima vez.
+       v116: el boton ya esta visible desde el HTML y la comprobacion de capacidades vive dentro
+       de encenderLuz(), que la repite en cada intento. Aqui no se esconde nada. */
+    $('torchLbl').textContent = 'linterna';
+    encenderLuz();
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
-      if (caps.torch){
-        $('torchBtn').style.visibility = 'visible'; $('torchLbl').textContent = 'linterna';
-        /* v59: se enciende sola al entrar en Capturar. En un bar la factura suele estar a
-           media luz y con linterna la foto sale legible, que es de lo que vive el motor.
-           Si el usuario la apaga a mano, se queda apagada la proxima vez. */
-        var quiereLuz = true;
-        try { quiereLuz = localStorage.getItem('tikora_linterna') !== '0'; } catch(e){}
-        /* v64: al VOLVER a Capturar muchos Android rechazan el torch recién abierto el stream y el
-           intento único moría en silencio — ahora insiste a 0/600/1500ms. Capturar prende, el resto apaga. */
-        if (quiereLuz) encenderLuz();
-      }
       if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
         track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function(){});
       }
@@ -2004,29 +2154,96 @@ function cerrarListaSinIva(){
    automático (que vivía dentro) no se ejecutaba nunca. Resultado: la cámara aparecía
    pero SIN luz, y no había forma de que volviera sola. En una barra a media luz eso es
    la diferencia entre una foto que el motor lee y una que acaba en Revisar.
-   Insiste a 0/600/1500 ms porque muchos Android rechazan el torch recién abierto el stream. */
+   Insiste a 0/400/900/1500/2500 ms porque muchos Android rechazan el torch recién abierto el stream.
+
+   v116 — LOS DOS FALLOS QUE LA DEJABAN MUERTA AL ABRIR LA APP:
+   (a) `getCapabilities()` se miraba UNA sola vez, en el instante justo de abrir el stream. En
+       Android esa lista la rellena el driver de la cámara unos cientos de ms más tarde, así que
+       muchas veces salía sin `torch` y esta función se rendía en su primera línea. Los tres
+       reintentos no salvaban nada porque reintentaban el applyConstraints, no la comprobación.
+       Ahora las capacidades se vuelven a mirar EN CADA INTENTO.
+   (b) `torchOn` se quedaba en true al apagar la cámara (ver stopCamera). Al volver a Capturar,
+       la guardia `if (torchOn) return` de aquí dentro bloqueaba el encendido con un track nuevo
+       que estaba a oscuras. Ya se baja la bandera en stopCamera().
+   Y el estado se lee de getSettings(), no de que la promesa resuelva: un constraint `advanced`
+   que el móvil no puede cumplir se descarta EN SILENCIO y la promesa resuelve igual. */
+/* v116 — LIMPIEZA DE UNA SOLA VEZ. El bug (b) dejaba el botón pintado como ENCENDIDO con el
+   LED apagado. El gesto natural entonces es tocarlo… y ese toque, en el código viejo, guardaba
+   `tikora_linterna = '0'`: el teléfono se quedaba registrado como "no la quiere" por un fallo,
+   no por una decisión, y a partir de ahí no se encendía sola NUNCA MÁS. Se borra esa marca una
+   vez al pasar a la v116. Si de verdad no la quiere, la apaga otra vez y se respeta. */
+try {
+  if (localStorage.getItem('tikora_luz_limpia_v116') !== '1'){
+    localStorage.removeItem('tikora_linterna');
+    localStorage.setItem('tikora_luz_limpia_v116', '1');
+  }
+} catch(e){}
+function torchDisponible(){
+  try {
+    if (!track || track.readyState === 'ended') return false;
+    var caps = track.getCapabilities ? track.getCapabilities() : null;
+    return !!(caps && caps.torch);
+  } catch(e){ return false; }
+}
+function pintarTorch(){
+  var b = $('torchBtn'); if (b) b.classList.toggle('active', !!torchOn);
+}
+function torchCancelar(){
+  torchGen++;
+  torchTimers.forEach(function(t){ clearTimeout(t); });
+  torchTimers = [];
+}
+/* la verdad del hardware después de aplicar: true/false si el móvil lo cuenta, null si calla */
+function torchReal(){
+  try {
+    var st = track && track.getSettings ? track.getSettings() : {};
+    return (typeof st.torch === 'boolean') ? st.torch : null;
+  } catch(e){ return null; }
+}
 function encenderLuz(){
   if (!track) return;
-  try {
-    var caps = track.getCapabilities ? track.getCapabilities() : {};
-    if (!caps.torch) return;
-    if (localStorage.getItem('tikora_linterna') === '0') return;   /* apagada a mano: se respeta */
-  } catch(e){}
-  var intenta = function(){
-    if (torchOn || !track) return;
-    track.applyConstraints({ advanced: [{ torch: true }] })
-      .then(function(){ torchOn = true; $('torchBtn').classList.add('active'); })
-      .catch(function(){});
-  };
-  intenta(); setTimeout(intenta, 600); setTimeout(intenta, 1500);
+  try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
+  torchCancelar();
+  var g = torchGen;
+  [0, 400, 900, 1500, 2500].forEach(function(ms){
+    torchTimers.push(setTimeout(function(){
+      if (g !== torchGen || torchOn || !track) return;
+      if (!torchDisponible()) return;            /* todavía no la publica: lo intenta el paso siguiente */
+      track.applyConstraints({ advanced: [{ torch: true }] })
+        .then(function(){
+          var real = torchReal();
+          if (real === false) return;            /* dijo que sí y no se encendió: que insista el siguiente */
+          torchOn = true; pintarTorch();
+        })
+        .catch(function(){});
+    }, ms));
+  });
 }
 $('torchBtn').addEventListener('click', function(){
-  if (!track) return;
-  torchOn = !torchOn;
-  try { localStorage.setItem('tikora_linterna', torchOn ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
-  track.applyConstraints({ advanced: [{ torch: torchOn }] })
-    .then(function(){ $('torchBtn').classList.toggle('active', torchOn); })
-    .catch(function(){ toast('La linterna no está disponible', true); torchOn = false; });
+  if (!track){ toast('La cámara todavía no está abierta', true); return; }
+  torchCancelar();                     /* v116: corta los reintentos automáticos — si no, el intento
+                                          programado a 1500 ms volvía a encenderla justo después de
+                                          que el usuario la apagara a mano */
+  if (!torchDisponible()){
+    $('torchLbl').textContent = 'sin linterna';
+    toast('Este móvil no deja encender la linterna desde la app', true);
+    return;
+  }
+  var quiere = !torchOn;
+  torchOn = quiere; pintarTorch();     /* respuesta inmediata: detrás de una barra el botón tiene que reaccionar */
+  try { localStorage.setItem('tikora_linterna', quiere ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
+  track.applyConstraints({ advanced: [{ torch: quiere }] })
+    .then(function(){
+      var real = torchReal();
+      if (real !== null && real !== quiere){
+        torchOn = real; pintarTorch();
+        if (quiere) toast('El móvil no encendió la linterna', true);
+      }
+    })
+    .catch(function(){
+      torchOn = !quiere; pintarTorch();
+      toast('La linterna no está disponible', true);
+    });
 });
 
 /* Captura con máxima nitidez:
@@ -3420,9 +3637,12 @@ $('tabCam').addEventListener('click', function(){
 });
 $('tabPanel').addEventListener('click', function(){
   if ($('screenPanel').classList.contains('on')) return;
-  stopCamera();                     /* cámara apagada mientras se mira el panel */
-  show('screenPanel');
-  loadPanel(false);
+  /* v115: la puerta de la clave. Capturar NUNCA la pide; el dinero SÍ. */
+  conClave(function(){
+    stopCamera();                   /* cámara apagada mientras se mira el panel */
+    show('screenPanel');
+    loadPanel(false);
+  });
 });
 
 /* ================== CHAT "PREGUNTALE A TUS FACTURAS" (v11) ================== */
@@ -3537,9 +3757,11 @@ $('sugToggle').addEventListener('click', function(){ sugAbrir(!$('chatSug').clas
 $('chatCtxX').addEventListener('click', function(){ setChatCtx(null); });
 $('tabChat').addEventListener('click', function(){
   if ($('screenChat').classList.contains('on')) return;
-  stopCamera();
-  show('screenChat');
-  chatHello();
+  conClave(function(){
+    stopCamera();
+    show('screenChat');
+    chatHello();
+  });
 });
 
 /* ================== CAPA 1 — MIS DATOS (v22) ==================
@@ -3745,11 +3967,14 @@ document.querySelectorAll('#screenDatos .acc > button').forEach(function(b){
 });
 $('tabDatos').addEventListener('click', function(){
   if ($('screenDatos').classList.contains('on')) return;
-  stopCamera();
-  dCargar();                 /* por si el token se activo despues de cargar la pagina */
-  show('screenDatos');
-  renderDatos();
-  pintarQuien();
+  conClave(function(){
+    stopCamera();
+    dCargar();               /* por si el token se activo despues de cargar la pagina */
+    show('screenDatos');
+    renderDatos();
+    pintarQuien();
+    pintarPin();
+  });
 });
 /* v114: quién usa este móvil — se ve y se cambia desde Mis datos */
 function pintarQuien(){
@@ -3757,6 +3982,20 @@ function pintarQuien(){
   var e = $('dQuienTxt'); if (e) e.textContent = q || 'sin poner';
 }
 $('dQuienBtn').addEventListener('click', function(){ preguntarQuienSoy(pintarQuien); });
+/* v115: poner, cambiar o quitar la clave */
+function pintarPin(){
+  var e = $('dPinTxt'); if (e) e.textContent = pinPuesto() ? 'puesta' : 'sin poner';
+}
+$('dPinBtn').addEventListener('click', function(){
+  if (!pinPuesto()){ ponerPin(pintarPin); return; }
+  /* para cambiarla o quitarla hay que saber la actual */
+  pedirPin('Poné la clave de ahora', function(){
+    if (confirm('¿Querés QUITAR la clave?\n\nAceptar = quitarla.\nCancelar = cambiarla por otra.')){
+      try { localStorage.removeItem(PIN_KEY); } catch(e){}
+      pinCerrar(); toast('Clave quitada'); pintarPin();
+    } else { ponerPin(pintarPin); }
+  }, function(){});
+});
 
 /* ============ QR (libreria qrcode-generator, MIT â€” la estandar, probada) ============
    v26: el codificador artesanal de v20-v25 generaba QR INVALIDOS (bug de colocacion de
@@ -3933,10 +4172,15 @@ function boot(){
   if (deepPanel){ show('screenPanel'); loadPanel(false); }   /* solo el enlace de pruebas ?v=panel */
   else { bootCameraScreen(); }
   processQueue(false);
-  /* v114: la primera vez en este teléfono, y SOLO la primera, se pregunta quién lo usa.
-     Va después de abrir la cámara a propósito: la ley de cero fricción manda, y la
-     pregunta se contesta en un toque encima de la cámara ya lista. */
-  if (!quienUsaEsteMovil()){ setTimeout(function(){ preguntarQuienSoy(); }, 900); }
+  /* v114: la primera vez en este teléfono se pregunta quién lo usa.
+     v115: y AL EMPEZAR CADA TURNO. Detrás de una barra el móvil pasa de mano en mano;
+     si no se vuelve a preguntar, todas las fotos del día quedan firmadas por quien lo
+     cogió primero. Ocho horas sin usarlo = turno nuevo = se vuelve a preguntar.
+     Va después de abrir la cámara a propósito: la ley de cero fricción manda, y se
+     contesta en un toque con la cámara ya lista detrás. */
+  if (!quienUsaEsteMovil() || turnoCaducado()){
+    setTimeout(function(){ preguntarQuienSoy(marcarTurno); }, 900);
+  } else { marcarTurno(); }
 }
 $('bigShot').addEventListener('click', openNative);
 $('tokenSave').addEventListener('click', function(){
@@ -3963,9 +4207,13 @@ document.addEventListener('visibilitychange', function(){
     processQueue(false);
   } else {
     /* v99: además de bajar la bandera, se apaga DE VERDAD — antes solo se marcaba
-       apagada y el LED podía quedarse encendido con el móvil en el bolsillo. */
+       apagada y el LED podía quedarse encendido con el móvil en el bolsillo.
+       v116: y se cancelan los reintentos pendientes, que si no encendían el LED con la app
+       ya en segundo plano. Ojo: aquí NO se toca tikora_linterna — esto es la app apagándose
+       sola, no el usuario diciendo que no la quiere. */
+    torchCancelar();
     if (torchOn && track){
-      torchOn = false; $('torchBtn').classList.remove('active');
+      torchOn = false; pintarTorch();
       try { track.applyConstraints({ advanced: [{ torch: false }] }).catch(function(){}); } catch(e){}
     }
   }
@@ -3990,7 +4238,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v114';
+var APP_VER = 'v116';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

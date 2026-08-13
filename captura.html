@@ -64,6 +64,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 /* v52: visor de fotos de la sesión — tocá la miniatura y repasá en grande lo que sacaste */
 #fotoVis{position:fixed;inset:0;z-index:60;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
 #fotoVis.on{display:flex}
+/* v111: EL REPASO — una foto a pantalla completa y las decisiones debajo. */
+#repaso{position:fixed;inset:0;z-index:65;background:var(--bg,#0A1628);display:none;flex-direction:column}
+#repaso.on{display:flex}
+#repaso .rpTop{display:flex;align-items:center;gap:0.6rem;padding:calc(0.7rem + env(safe-area-inset-top)) 0.9rem 0.6rem;border-bottom:1px solid var(--border)}
+#repaso .rpCuenta{flex:1;text-align:center;font-weight:800;font-size:0.95rem;font-variant-numeric:tabular-nums}
+#repaso .rpFoto{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#repaso .rpFoto img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+#repaso .rpDatos{padding:0.6rem 0.9rem 0.3rem;text-align:center}
+#repaso .rpQuien{font-size:0.9rem;font-weight:700}
+#repaso .rpMotivo{font-size:0.85rem;font-weight:700;color:#ff8f93;margin-top:0.2rem}
+#repaso .rpBotones{display:flex;flex-wrap:wrap;gap:0.45rem;padding:0.5rem 0.9rem 0}
+#repaso .rpB{flex:1 1 calc(50% - 0.25rem);min-height:52px;border-radius:14px;font-size:0.9rem;font-weight:800;font-family:inherit;background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
+#repaso .rpSiv{background:rgba(148,163,184,0.18);border-color:#94A3B8;color:#CBD5E1}
+#repaso .rpCor{background:var(--accent);border-color:var(--accent);color:#0A1628}
+#repaso .rpQuit{border-color:rgba(255,107,107,0.5);color:#FF6B6B}
+#repaso .rpPie{display:flex;gap:0.5rem;padding:0.55rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom))}
+#repaso .rpNav{flex:1;min-height:46px;border-radius:12px;font-size:0.86rem;font-weight:700;font-family:inherit;background:transparent;border:1px solid var(--border);color:var(--text-muted)}
+#repaso .rpB[disabled],#repaso .rpNav[disabled]{opacity:0.4}
+/* el botón que lo abre, arriba del todo de la lista de revisar */
+.repasoBtn{display:block;width:100%;min-height:50px;margin-bottom:0.6rem;border-radius:14px;background:var(--accent);border:1px solid var(--accent);color:#0A1628;font-size:0.95rem;font-weight:800;font-family:inherit}
 /* v100: el corrector. Mismo criterio que el visor: vive fuera de las pantallas. */
 #corr{position:fixed;inset:0;z-index:70;background:var(--bg,#0A1628);display:none;flex-direction:column}
 #corr.on{display:flex}
@@ -426,6 +446,8 @@ input[type=file]{display:none}
 .caprow.ok .cm{color:var(--accent)}
 .revhead{font-size:0.78rem;font-weight:800;letter-spacing:0.02em;color:var(--text-muted);margin:0.7rem 0 0.4rem;text-transform:uppercase}
 .revhead:first-child{margin-top:0}
+.revcalma.comobtn{display:block;width:100%;text-align:left;font-family:inherit;cursor:pointer}
+.vercuales{display:block;margin-top:0.35rem;color:var(--accent);font-weight:700;font-size:0.8rem}
 .revcalma{font-size:0.8rem;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.8rem;margin-bottom:0.5rem;line-height:1.35}
 .capbadge{flex-shrink:0;font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;border-radius:999px;padding:0.3rem 0.6rem;font-family:inherit}
 button.capbadge{cursor:pointer}
@@ -626,6 +648,33 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
 buscar la fila, hacer zoom y escribir en una celda de tres milímetros. Ahora se arregla aquí,
 con la foto delante. Vive FUERA de las pantallas por la misma razón que el visor (v90):
 un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
+<!-- v111: EL REPASO. En vez de bajar por una lista y entrar y salir de cada una, se ven
+     las fotos de una en una, a pantalla completa, y se decide ahí mismo. Al decidir pasa
+     sola a la siguiente. Pedido de Matías (05:0x): "revisar todas las fotos de una e ir
+     poniendo sin IVA o corregir". Vive fuera de las pantallas, como el visor (lección v90). -->
+<div id="repaso">
+  <div class="rpTop">
+    <button type="button" class="corrX" id="rpCerrar" aria-label="Cerrar">&#10005;</button>
+    <span class="rpCuenta" id="rpCuenta">&mdash;</span>
+    <button type="button" class="corrX" id="rpLupa" aria-label="Ver la foto grande">&#128269;</button>
+  </div>
+  <div class="rpFoto"><img id="rpImg" alt="La factura"></div>
+  <div class="rpDatos">
+    <div class="rpQuien" id="rpQuien">&mdash;</div>
+    <div class="rpMotivo" id="rpMotivo">&mdash;</div>
+  </div>
+  <div class="rpBotones">
+    <button type="button" class="rpB rpSiv" id="rpSinIva">&#128230; Sin IVA</button>
+    <button type="button" class="rpB rpCor" id="rpCorregir">&#9999;&#65039; Corregir</button>
+    <button type="button" class="rpB" id="rpRepetir">&#9888; Repetir foto</button>
+    <button type="button" class="rpB rpQuit" id="rpQuitar">&#128465; Quitar</button>
+  </div>
+  <div class="rpPie">
+    <button type="button" class="rpNav" id="rpAnt">&#8249; Anterior</button>
+    <button type="button" class="rpNav rpSig" id="rpSig">Saltar &#8250;</button>
+  </div>
+</div>
+
 <div id="corr">
   <div class="corrTop">
     <button type="button" class="corrX" id="corrCerrar" aria-label="Cerrar">&#10005;</button>
@@ -1483,6 +1532,78 @@ function initCamera(){
   });
 }
 
+/* ================== v111: EL REPASO ==================
+   Bajar por la lista, entrar en una, salir, buscar la siguiente… con 43 pendientes eso
+   son 43 idas y venidas. Aquí se ven de una en una: foto grande arriba, decisión abajo,
+   y al decidir pasa sola a la siguiente. Es la diferencia entre vaciarlas en diez minutos
+   o no vaciarlas nunca. Reutiliza lo que ya existe: mandarASinIva, abrirCorrector,
+   iniciarRehacer y el mismo endpoint de descartar. */
+var rpLista = [], rpIdx = 0, rpDesdeRepaso = false;
+function abrirRepaso(){
+  var pend = (panelData && panelData.pendientes) || [];
+  rpLista = pend.filter(function(c){ return c && c.f; });
+  if (!rpLista.length){ toast('No hay nada que repasar'); return; }
+  rpIdx = 0;
+  $('repaso').classList.add('on');
+  rpPintar();
+}
+function cerrarRepaso(){
+  $('repaso').classList.remove('on');
+  $('rpImg').src = '';
+  loadPanel(true);
+}
+function rpActual(){ return rpLista[rpIdx] || null; }
+function rpPintar(){
+  var c = rpActual();
+  if (!c){ toast('Repasadas todas'); cerrarRepaso(); return; }
+  $('rpCuenta').textContent = (rpIdx + 1) + ' de ' + rpLista.length;
+  var url = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f);
+  /* por el CDN de Netlify: la foto de 2,8 MB llega en unos 200 KB y entra al instante */
+  $('rpImg').src = '/.netlify/images?url=' + encodeURIComponent(url) + '&w=1100&fit=contain';
+  $('rpImg').onerror = function(){ $('rpImg').onerror = null; $('rpImg').src = url; };
+  $('rpQuien').textContent = (c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'proveedor sin leer')
+    + (c.entro ? ' · ingresó ' + String(c.entro).slice(0, 5) + ' ' + String(c.entro).slice(11, 16) : '');
+  $('rpMotivo').textContent = motivoCoherente(c);
+  $('rpCorregir').style.display = (c.tipo === 'corregir' && c.fila) ? '' : 'none';
+  $('rpRepetir').style.display  = (c.tipo === 'corregir' && c.fila) ? 'none' : '';
+  $('rpAnt').disabled = (rpIdx === 0);
+}
+/* al resolver una, sale de la baraja y aparece la siguiente sin tocar nada */
+function rpResuelta(){
+  rpLista.splice(rpIdx, 1);
+  if (rpIdx >= rpLista.length) rpIdx = rpLista.length - 1;
+  if (rpIdx < 0 || !rpLista.length){ toast('No queda ninguna — repasadas todas'); cerrarRepaso(); return; }
+  rpPintar();
+}
+$('rpCerrar').addEventListener('click', cerrarRepaso);
+$('rpLupa').addEventListener('click', function(){
+  var c = rpActual(); if (c) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f));
+});
+$('rpSig').addEventListener('click', function(){
+  if (rpIdx < rpLista.length - 1){ rpIdx++; rpPintar(); } else { toast('Es la última'); }
+});
+$('rpAnt').addEventListener('click', function(){ if (rpIdx > 0){ rpIdx--; rpPintar(); } });
+$('rpSinIva').addEventListener('click', function(){
+  var c = rpActual(); if (c) mandarASinIva(c, rpResuelta);
+});
+$('rpCorregir').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  rpDesdeRepaso = true;      /* al guardar en el corrector, se vuelve aquí y pasa a la siguiente */
+  abrirCorrector(c);
+});
+$('rpRepetir').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  cerrarRepaso(); iniciarRehacer(c);
+});
+$('rpQuitar').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  if (!confirm('¿Quitar esta de la lista?\n\nDesaparece de la app, pero la foto NO se borra: se conserva guardada en el sistema.')) return;
+  fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(){ toast('Quitada — la foto sigue guardada'); rpResuelta(); })
+    .catch(function(){ toast('No se pudo quitar', true); });
+});
+
 /* ================== v101: LA CARPETA SIN IVA ==================
    Fase 1: SOLO el desagüe manual. Un toque en una fila de Revisar y se va a la carpeta,
    sin rellenar nada. La IA no decide: decide él con la foto delante — por eso esto no
@@ -1782,6 +1903,12 @@ function guardarCorreccion(promover){
       }
       toast(promover ? 'Guardada y pasada a facturas' : 'Guardado');
       cerrarCorrector();
+      /* v111: si veníamos del repaso, no se vuelve al panel: sale la siguiente foto.
+         Solo si quedó completa — si falta algo se sigue viendo, que para eso se dejó abierta. */
+      if (rpDesdeRepaso){
+        rpDesdeRepaso = false;
+        if ($('repaso').classList.contains('on')){ if (promover) rpResuelta(); return; }
+      }
       loadPanel(true);
     })
     .catch(function(){
@@ -2017,6 +2144,40 @@ function esDeHoy(entro){
   if (!m) return false;
   var h = new Date();
   return (+m[1]) === h.getDate() && (+m[2]) === (h.getMonth() + 1) && (+m[3]) === h.getFullYear();
+}
+/* v111: los proveedores, sumados desde las filas que se están viendo — no desde el
+   histórico entero. Devuelve la misma forma que manda el servidor (clave, nombre, nif,
+   n, base, iva, total) para que la vista de proveedores no se entere del cambio.
+   La clave se saca igual que el servidor: nombre normalizado, que es lo que agrupa
+   "Coca-Cola European Partners" con "Coca-Cola Europacific" cuando llegan escritos distinto. */
+function provsDeLasFilas(data){
+  var filas = filasDelMes((data && data.rows) || []);
+  if (panelFiltroPago){
+    filas = filas.filter(function(r){
+      var pg = String(r.pago || '').toLowerCase();
+      return panelFiltroPago === 'nada' ? !pg : (pg === panelFiltroPago);
+    });
+  }
+  if (!filas.length) return null;
+  var mapa = {}, orden = [];
+  filas.forEach(function(r){
+    var nom = String(r.emisor || '').trim() || '(proveedor sin leer)';
+    var k = normTxt(nom);
+    if (!mapa[k]){
+      mapa[k] = { clave: k, nombre: nom, nif: r.nif || '', n: 0, base: 0, iva: 0, total: 0 };
+      orden.push(k);
+    }
+    var p = mapa[k];
+    p.n++; p.base += (r.base || 0); p.iva += (r.iva || 0); p.total += (r.total || 0);
+    if (!p.nif && r.nif) p.nif = r.nif;
+  });
+  return orden.map(function(k){
+    var p = mapa[k];
+    p.base = Math.round(p.base * 100) / 100;
+    p.iva  = Math.round(p.iva  * 100) / 100;
+    p.total = Math.round(p.total * 100) / 100;
+    return p;
+  });
 }
 function filasDelMes(rows){
   rows = rows || [];
@@ -2453,12 +2614,57 @@ function renderPanel(data, cachedNote){
     var gRep  = pend.filter(function(c){ return gCorr.indexOf(c) < 0; });
     /* lo primero que se lee: cuántos papeles quedaron archivados SIN que haya nada que hacer.
        Es la mitad de la respuesta a "qué tengo que revisar" — saber qué NO hay que revisar. */
+    /* v111: el botón que abre el repaso. Va lo primero, porque es la forma rápida:
+       la lista de abajo sigue estando para el que prefiera ir picoteando. */
+    var brp = document.createElement('button'); brp.type = 'button'; brp.className = 'repasoBtn';
+    brp.textContent = '👀 Repasarlas una por una (' + pend.length + ')';
+    brp.addEventListener('click', abrirRepaso);
+    rr.appendChild(brp);
     if (nOtros){
-      var calma = document.createElement('div'); calma.className = 'revcalma';
-      calma.textContent = 'Además hay ' + nOtros + (nOtros === 1
+      /* v111: la línea deja de ser un callejón sin salida. Decía "hay 73 papeles archivados"
+         y no había forma de verlos (Matías 05:1x: "¿y dónde están? ¿cuáles son?"). Ahora se
+         toca y se abren, con su foto pequeña. Siguen sin pedir nada: es para mirarlos. */
+      var calma = document.createElement('button'); calma.type = 'button'; calma.className = 'revcalma comobtn';
+      var ctx = document.createElement('span');
+      ctx.textContent = 'Además hay ' + nOtros + (nOtros === 1
         ? ' papel archivado que no era una factura. No hay nada que hacer con él.'
         : ' papeles archivados que no eran facturas. No hay nada que hacer con ellos.');
+      calma.appendChild(ctx);
+      var ver = document.createElement('span'); ver.className = 'vercuales'; ver.textContent = 'Ver cuáles ›';
+      calma.appendChild(ver);
+      var cajaOtros = document.createElement('div'); cajaOtros.style.display = 'none';
+      calma.addEventListener('click', function(){
+        var abierto = cajaOtros.style.display === 'block';
+        if (abierto){ cajaOtros.style.display = 'none'; ver.textContent = 'Ver cuáles ›'; return; }
+        if (!cajaOtros.childNodes.length){
+          (data.otros || []).forEach(function(o){
+            var row = document.createElement('div'); row.className = 'caprow';
+            var gg = document.createElement('div'); gg.className = 'cg';
+            var t1 = document.createElement('div'); t1.className = 'ce';
+            t1.textContent = o.tipo || o.emisor || 'papel';
+            gg.appendChild(t1);
+            var t2 = document.createElement('div'); t2.className = 'ch';
+            t2.textContent = [o.emisor, o.fecha].filter(Boolean).join(' · ') || 'sin datos leídos';
+            gg.appendChild(t2);
+            row.appendChild(gg);
+            if (o.fid){
+              var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(o.fid);
+              var b = document.createElement('button'); b.type = 'button'; b.className = 'copybtn conmini';
+              var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+              im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=120&h=120&fit=cover';
+              im.addEventListener('error', function(){ b.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+              b.appendChild(im);
+              var sp2 = document.createElement('span'); sp2.textContent = 'Foto'; b.appendChild(sp2);
+              b.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(u); });
+              row.appendChild(b);
+            }
+            cajaOtros.appendChild(row);
+          });
+        }
+        cajaOtros.style.display = 'block'; ver.textContent = 'Ocultar ˅';
+      });
       rr.appendChild(calma);
+      rr.appendChild(cajaOtros);
     }
     var pintar = function(lista, titulo){
       if (!lista.length) return;
@@ -2553,7 +2759,12 @@ function renderLista(){
   $('cardDebe').classList.toggle('filtro', panelFiltroPago === 'pendiente');
   $('debeHint').textContent = panelFiltroPago === 'pendiente' ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
   if (panelModo === 'prov'){
-    var provs = ordenarProveedores(data.proveedores || []);   /* v84 */
+    /* v111: "Por proveedor" NO hacía caso al mes. Los proveedores llegaban ya sumados del
+       servidor —de todo el histórico— así que cambiabas de agosto a julio y la lista se
+       quedaba clavada (Matías 05:1x). Ahora se suman aquí, desde LAS MISMAS filas que ve
+       la otra vista: el mes, la semana y el filtro de pago mandan también aquí.
+       Si por lo que sea no hay filas, se cae a lo que mande el servidor. */
+    var provs = ordenarProveedores(provsDeLasFilas(data) || data.proveedores || []);   /* v84 */
     if (panelQuery && !panelProvSel){
       provs = provs.filter(function(p){ return normTxt(p.nombre + ' ' + (p.nif || '')).indexOf(panelQuery) >= 0; });
     }
@@ -2603,7 +2814,12 @@ function renderLista(){
         fp.appendChild(bg);
         cont.appendChild(fp);
       }
-      var suyas = (data.rows || []).filter(function(r){ return r.clave === panelProvSel; });
+      /* v111: al entrar en un proveedor también manda el mes. Y se compara por la clave
+         calculada aquí, que es la misma con la que se agrupó arriba — antes se usaba
+         r.clave, que la pone el servidor y no existe si el agrupado lo hacemos nosotros. */
+      var suyas = filasDelMes(data.rows || []).filter(function(r){
+        return (r.clave === panelProvSel) || (normTxt(String(r.emisor || '').trim() || '(proveedor sin leer)') === panelProvSel);
+      });
       if (!suyas.length){
         var v = document.createElement('div'); v.className = 'pempty';
         v.textContent = 'Sin facturas visibles de este proveedor.';
@@ -3692,7 +3908,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v110';
+var APP_VER = 'v111';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

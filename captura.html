@@ -1067,6 +1067,16 @@ var sending = false, torchOn = false;
    sueltos y si el usuario apagaba la luz a mano en ese primer segundo y medio, el intento
    pendiente se la volvia a encender en la cara. */
 var torchGen = 0, torchTimers = [];
+/* v122: EN IPHONE NO HAY LINTERNA POR WEB. Safari de iOS no expone el torch a las páginas
+   (ni getCapabilities lo anuncia nunca), así que el botón ⚡ ahí es un botón que jamás va a
+   funcionar: fuera de la vista y ni un intento de encendido. La detección es por sistema, no
+   por capacidades: las capacidades en Android llegan tarde y esconder por su ausencia
+   resucitaría el bug de la v116 (el botón invisible). El flash en iPhone: la cámara nativa. */
+var ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') ||
+             (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+if (ES_IOS){
+  try { $('torchBtn').parentNode.style.display = 'none'; } catch(e){}
+}
 var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
@@ -1779,9 +1789,12 @@ function initCamera(){
        a media luz y con linterna la foto sale legible, que es de lo que vive el motor. Si el
        usuario la apaga a mano, se queda apagada la proxima vez.
        v116: el boton ya esta visible desde el HTML y la comprobacion de capacidades vive dentro
-       de encenderLuz(), que la repite en cada intento. Aqui no se esconde nada. */
-    $('torchLbl').textContent = 'linterna';
-    encenderLuz();
+       de encenderLuz(), que la repite en cada intento. Aqui no se esconde nada.
+       v122: TODO lo de la linterna dentro de try/catch — la cámara tiene que abrir aunque el
+       torch reviente de la forma más rara: initCamera no puede caerse por un accesorio. */
+    try {
+      if (!ES_IOS){ $('torchLbl').textContent = 'linterna'; encenderLuz(); }
+    } catch(e){}
     try {
       var caps = track.getCapabilities ? track.getCapabilities() : {};
       if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0){
@@ -2260,24 +2273,30 @@ function torchReal(){
   } catch(e){ return null; }
 }
 function encenderLuz(){
-  if (!track) return;
-  try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
-  torchCancelar();
-  var g = torchGen;
-  [0, 400, 900, 1500, 2500].forEach(function(ms){
-    torchTimers.push(setTimeout(function(){
-      if (g !== torchGen || torchOn || !track) return;
-      if (sending) return;   /* v121: jamás tocar el stream en mitad de una captura */
-      if (!torchDisponible()) return;            /* todavía no la publica: lo intenta el paso siguiente */
-      track.applyConstraints({ advanced: [{ torch: true }] })
-        .then(function(){
-          var real = torchReal();
-          if (real === false) return;            /* dijo que sí y no se encendió: que insista el siguiente */
-          torchOn = true; pintarTorch();
-        })
-        .catch(function(){});
-    }, ms));
-  });
+  /* v122: en iOS ni un intento — y el cuerpo entero en try/catch: pase lo que pase aquí
+     dentro, jamás puede salpicar a quien nos llamó (initCamera, visibilitychange, done). */
+  try {
+    if (ES_IOS || !track) return;
+    try { if (localStorage.getItem('tikora_linterna') === '0') return; } catch(e){}   /* apagada a mano: se respeta */
+    torchCancelar();
+    var g = torchGen;
+    [0, 400, 900, 1500, 2500].forEach(function(ms){
+      torchTimers.push(setTimeout(function(){
+        try {
+          if (g !== torchGen || torchOn || !track) return;
+          if (sending) return;   /* v121: jamás tocar el stream en mitad de una captura */
+          if (!torchDisponible()) return;            /* todavía no la publica: lo intenta el paso siguiente */
+          track.applyConstraints({ advanced: [{ torch: true }] })
+            .then(function(){
+              var real = torchReal();
+              if (real === false) return;            /* dijo que sí y no se encendió: que insista el siguiente */
+              torchOn = true; pintarTorch();
+            })
+            .catch(function(){});
+        } catch(e){}   /* un applyConstraints que reviente en seco muere aquí, solo */
+      }, ms));
+    });
+  } catch(e){}
 }
 /* v118: cuando de verdad no hay linterna, se dice bajito y se dice QUÉ HACER.
    La v116 soltaba un cartel rojo, "Este móvil no deja encender la linterna desde la app",
@@ -2298,19 +2317,26 @@ $('torchBtn').addEventListener('click', function(){
   var quiere = !torchOn;
   torchOn = quiere; pintarTorch();     /* respuesta inmediata: detrás de una barra el botón tiene que reaccionar */
   try { localStorage.setItem('tikora_linterna', quiere ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
-  track.applyConstraints({ advanced: [{ torch: quiere }] })
-    .then(function(){
-      var real = torchReal();
-      if (real === quiere) return;                       /* confirmado por el hardware */
-      if (real === null && torchDisponible()) return;     /* calla, pero dice tenerla: se le cree */
-      torchOn = (real === null) ? !quiere : real;
-      pintarTorch();
-      if (quiere) sinLinterna();
-    })
-    .catch(function(){
-      torchOn = !quiere; pintarTorch();
-      if (quiere) sinLinterna();
-    });
+  /* v122: el applyConstraints también puede reventar EN SECO (no como promesa) en navegadores
+     que no lo implementan — mismo destino que el fallo asíncrono, nunca un error suelto */
+  try {
+    track.applyConstraints({ advanced: [{ torch: quiere }] })
+      .then(function(){
+        var real = torchReal();
+        if (real === quiere) return;                       /* confirmado por el hardware */
+        if (real === null && torchDisponible()) return;     /* calla, pero dice tenerla: se le cree */
+        torchOn = (real === null) ? !quiere : real;
+        pintarTorch();
+        if (quiere) sinLinterna();
+      })
+      .catch(function(){
+        torchOn = !quiere; pintarTorch();
+        if (quiere) sinLinterna();
+      });
+  } catch(e){
+    torchOn = !quiere; pintarTorch();
+    if (quiere) sinLinterna();
+  }
 });
 
 /* Captura con máxima nitidez:
@@ -4340,7 +4366,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v121';
+var APP_VER = 'v122';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

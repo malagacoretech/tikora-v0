@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v119'; /* v119: la confianza del motor por fin se enseña - "leida con dudas" en ambar en las filas que el motor leyo con menos seguridad (umbral 0,85) */
+var VERSION = 'tikora-captura-v120'; /* v120: el parte de la noche dice cuando la pasada semanal del catalogo dejo cosas apuntadas (sin estrenar aviso nuevo, regla del 00/38) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -174,6 +174,17 @@ self.addEventListener('push', function(e){
                 if (pendTxt) cuerpo += ' ' + pendTxt.charAt(0).toUpperCase() + pendTxt.slice(1) + '.';
                 if (nPap) cuerpo += ' ' + nPap + (nPap === 1 ? ' papel archivado' : ' papeles archivados') + ', nada que hacer.';
                 if (!nHoy && !pendTxt && !nPap) cuerpo = 'Dia sin movimientos. Todo al dia.';
+                /* v120: la pasada semanal del catalogo (lunes 21:17) deja su recuento en el panel
+                   y el parte lo dice AQUI - regla del 00/38: lo que encuentre no estrena aviso
+                   nuevo. Solo si encontro algo, y solo si la pasada tiene menos de 8 dias:
+                   una nota vieja repetida cada noche es ruido que entrena a ignorar. */
+                var cat = (d && d.catalogo) || null;
+                if (cat && cat.hallazgos > 0){
+                  var mSel = String(cat.sello || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                  var fresca = true;
+                  if (mSel){ var dSel = new Date(+mSel[3], +mSel[2] - 1, +mSel[1]); fresca = (ahora - dSel) < 8 * 86400000; }
+                  if (fresca) cuerpo += ' La revision semanal dejo ' + cat.hallazgos + (cat.hallazgos === 1 ? ' cosa apuntada' : ' cosas apuntadas') + ' en la hoja.';
+                }
               } else {
                 cuerpo = pendTxt ? (pendTxt.charAt(0).toUpperCase() + pendTxt.slice(1) + '.') : 'Nada pendiente - todo al dia.';
               }

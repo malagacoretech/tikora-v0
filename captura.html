@@ -586,6 +586,8 @@ body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,b
 .cuadrelinea.bien{color:#4FBF7B}
 .cuadrelinea.mal{color:#E5484D;font-weight:700}
 .albtag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(91,141,239,0.18);border:1px solid #5B8DEF;color:#9CC0FF;border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em}
+/* v119: la duda del motor, por fin visible. Ambar, no rojo: es "mirala", no "esta mal". */
+.dudatag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(244,201,93,0.14);border:1px solid rgba(244,201,93,0.65);color:var(--accent);border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em;white-space:nowrap}
 .pgleida{font-size:0.66rem;color:var(--text-muted);white-space:nowrap;margin-top:0.1rem}
 .prow a.foto{color:var(--accent);text-decoration:none;font-size:1.1rem;flex-shrink:0;padding:0.2rem}
 .pbanner{background:rgba(244,201,93,0.08);border:1px solid rgba(244,201,93,0.3);color:var(--accent);border-radius:12px;padding:0.7rem 1rem;font-size:0.82rem;margin-bottom:0.9rem;text-align:center}
@@ -2722,6 +2724,16 @@ function renderFilas(cont, rowsArr){
       ab.title = 'Nota de entrega con desglose de IVA completo. Cuenta como IVA identificado; el deducible definitivo llega con la factura.';
       e1.appendChild(ab);
     }
+    /* v119: "ésta la leí segura / ésta dudo" — la confianza del motor existía desde el primer
+       día (col L) y no se pintaba. Solo se marca la duda (umbral 0,85: hoy señala ~31 de 300):
+       una lista donde todo avisa es una lista donde nada avisa. Ámbar, no rojo — es "mirala
+       cuando puedas", no "está mal". */
+    var cf = parseFloat(String(r.conf || '').replace(',', '.'));
+    if (cf > 0 && cf < 0.85){
+      var du = document.createElement('span'); du.className = 'dudatag'; du.textContent = 'leída con dudas';
+      du.title = 'El motor leyó esta factura con menos seguridad que el resto (' + String(r.conf) + '). Tocá la fila y comparala con la foto: algún dato puede venir con baile.';
+      e1.appendChild(du);
+    }
     /* v89: el numero de factura FUERA de la tarjeta (Matias lo confundia con un CIF y come
        espacio); sigue en la ficha al tocar y el buscador sigue encontrandolo. */
     var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = fmtFecha(r.fecha);
@@ -4308,7 +4320,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v118';
+var APP_VER = 'v119';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

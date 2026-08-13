@@ -62,7 +62,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #zonaInferior:has(#postShot.on){top:50%;bottom:auto;transform:translateY(-50%)}
 #thumb{align-self:flex-start;width:78px;border-radius:14px;overflow:hidden;border:2px solid rgba(255,255,255,0.35);background:#000;display:none;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:border-color 0.25s;cursor:pointer;flex-shrink:0}
 /* v52: visor de fotos de la sesión — tocá la miniatura y repasá en grande lo que sacaste */
-#fotoVis{position:fixed;inset:0;z-index:60;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
+/* v128: el visor SUBE a la capa 80 — estaba en la 60, DEBAJO del Repaso (65) y del corrector
+   (70), y por eso sus lupas mandaban al navegador con window.open: dentro de la app el visor
+   quedaba tapado. Ahora la foto se ve encima de lo que sea, y Volver te deja donde estabas. */
+#fotoVis{position:fixed;inset:0;z-index:80;background:rgba(4,10,20,0.96);display:none;flex-direction:column;align-items:center;justify-content:center}
+.fvVolver{position:absolute;bottom:calc(1.0rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:52px;border-radius:14px;border:1px solid var(--accent);background:rgba(20,34,56,0.92);color:var(--accent);font-family:inherit;font-size:1rem;font-weight:800;cursor:pointer;z-index:2}
 #fotoVis.on{display:flex}
 /* v111: EL REPASO — una foto a pantalla completa y las decisiones debajo. */
 #repaso{position:fixed;inset:0;z-index:65;background:var(--bg,#0A1628);display:none;flex-direction:column}
@@ -129,8 +133,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,34,56,0.85);border:1px solid var(--border);color:#fff;border-radius:14px;min-width:48px;min-height:56px;font-size:1.4rem;font-family:inherit;cursor:pointer}
 #fotoVis .fvPrev{left:0.6rem}
 #fotoVis .fvNext{right:0.6rem}
-#fotoVis .fvPreg{position:absolute;bottom:calc(3.4rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:48px;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.92rem;font-weight:800;cursor:pointer}
-#fotoVis .fvHint{position:absolute;bottom:calc(1.2rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
+#fotoVis .fvPreg{position:absolute;bottom:calc(5.4rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:48px;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.92rem;font-weight:800;cursor:pointer}
+#fotoVis .fvHint{position:absolute;bottom:calc(9.6rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
 #thumb.on{display:block}
 #thumb img{display:block;width:100%;height:78px;object-fit:cover}
 #thumb .st{display:block;font-size:0.6rem;font-weight:700;text-align:center;padding:0.22rem 0.2rem;background:rgba(10,22,40,0.92);color:var(--text-muted);letter-spacing:0.02em}
@@ -690,6 +694,9 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
 <button type="button" class="fvNav fvNext" id="fvNext" aria-label="Siguiente">&#8250;</button>
 <!-- v89: desde la foto se puede preguntar por ESA factura, sin volver atrás ni buscarla -->
 <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
+<!-- v128: Volver GRANDE abajo, donde llega el pulgar - pedido de Matias 22:1x: "que no tenga
+     que ir a la cruz de arriba de todo". La cruz sigue arriba para quien la busque. -->
+<button type="button" class="fvVolver" id="fvVolver">&#10229; Volver</button>
 <div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
 </div>
 
@@ -1711,6 +1718,7 @@ $('fvPreg').addEventListener('click', function(){
   if (fid) abrirChatFactura(fid);
 });
 $('fvX').addEventListener('click', function(){ fvZoom(false); $('fotoVis').classList.remove('on'); });
+$('fvVolver').addEventListener('click', function(){ fvZoom(false); $('fotoVis').classList.remove('on'); });
 $('fvPrev').addEventListener('click', function(){ fvZoom(false); fvIdx--; fvPinta(); });
 $('fvNext').addEventListener('click', function(){ fvZoom(false); fvIdx++; fvPinta(); });
 $('fotoVis').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
@@ -1857,7 +1865,10 @@ function rpResuelta(){
 }
 $('rpCerrar').addEventListener('click', cerrarRepaso);
 $('rpLupa').addEventListener('click', function(){
-  var c = rpActual(); if (c) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f));
+  /* v128: al visor DE LA APP (con zoom y Volver abajo), no al navegador — el visor ya puede
+     ponerse encima del Repaso */
+  var c = rpActual();
+  if (c && c.f){ if (!fvAbrirRemota(c.f, c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'La factura')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); }
 });
 $('rpSig').addEventListener('click', function(){
   if (rpIdx < rpLista.length - 1){ rpIdx++; rpPintar(); } else { toast('Es la última'); }
@@ -2157,6 +2168,10 @@ function abrirCorrector(c){
   $('corrTodos').textContent = 'Ver todos los campos';
   corrPinta();
   $('corr').classList.add('on');
+  /* v128 (pedido de Matías 22:1x): al entrar a corregir, la foto se abre EN GRANDE directamente
+     — primero se mira el papel, se toca Volver, y los campos están esperando detrás. La lupa
+     de arriba sigue ahí para volver a verla las veces que haga falta. */
+  fvAbrirRemota(c.f, 'Mirala y tocá Volver — los campos te esperan');
 }
 function cerrarCorrector(){ $('corr').classList.remove('on'); corrActual = null; $('corrImg').src = ''; }
 function guardarCorreccion(promover){
@@ -2204,7 +2219,8 @@ $('corrTodos').addEventListener('click', function(){
   corrPinta();
 });
 $('corrVerFoto').addEventListener('click', function(){
-  if (corrActual && corrActual.f) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f));
+  /* v128: tambien al visor de la app */
+  if (corrActual && corrActual.f){ if (!fvAbrirRemota(corrActual.f, 'Mirala y tocá Volver — los campos te esperan')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f)); }
 });
 /* v103: un solo botón — la app mira si está completa y decide ella si la promueve */
 $('corrGuardar').addEventListener('click', function(){ guardarCorreccion(faltaEnCorrector().length === 0); });
@@ -4227,7 +4243,12 @@ function abrirFicha(r){
 }
 $('fichaCerrar').addEventListener('click', function(){ $('ficha').classList.remove('on'); });
 $('ficha').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
-$('fichaFoto').addEventListener('click', function(){ if (fichaRow) abrirFoto(fotoSegura(fichaRow.foto)); });
+$('fichaFoto').addEventListener('click', function(){
+  /* v128: al visor de la app; el navegador solo si no hay fid legible */
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid || !fvAbrirRemota(fid, fichaRow.emisor || 'Factura')) abrirFoto(fotoSegura(fichaRow.foto));
+});
 $('fichaPreg').addEventListener('click', function(){
   if (!fichaRow) return;
   $('ficha').classList.remove('on');
@@ -4388,7 +4409,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v127';
+var APP_VER = 'v128';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

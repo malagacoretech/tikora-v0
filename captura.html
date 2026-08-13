@@ -2051,18 +2051,19 @@ function pintarMeses(){
       if (o.entro){ panelEntro = (panelEntro === o.v) ? '' : o.v; }   /* volver a tocarlo lo apaga */
       else { panelEntro = ''; panelMes = o.v; }
       panelFiltroSemana = false;   /* dos periodos a la vez no se entienden */
-      /* v107: NO saltar arriba. Antes cada toque de mes te devolvía al principio, así que
-         si estabas mirando unas facturas concretas y cambiabas de agosto a Todo, las perdías
-         de vista y había que volver a bajar (Matías 04:3x). Ahora se queda donde estaba.
-         Y si la lista nueva es más corta que la vieja, se pega al final en vez de tirarte
-         al principio — la posición nunca se pierde del todo. */
-      var sp = $('screenPanel');
-      var donde = sp ? sp.scrollTop : 0;
       pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
-      if (sp){
+      /* v108: ni al principio de todo, ni quedarse quieto. Las dos estaban mal:
+         subir del todo obligaba a bajar otra vez; quedarse quieto (v107) te dejaba en
+         medio de la lista y PARECÍA que no se había actualizado, que fue peor.
+         Ahora se va al principio de LAS FACTURAS: se ve el primer renglón cambiar,
+         que es la prueba de que el mes se aplicó, y no hay que bajar nada. */
+      var sp = $('screenPanel');
+      var lista = $('panelRows');
+      if (sp && lista){
+        var arriba = lista.offsetTop - 8;          /* un pelín de aire por encima */
         var tope = Math.max(0, sp.scrollHeight - sp.clientHeight);
-        sp.scrollTop = Math.min(donde, tope);
-      }
+        sp.scrollTop = Math.max(0, Math.min(arriba, tope));
+      } else if (sp) { sp.scrollTop = 0; }
     });
     cont.appendChild(b);
   });
@@ -3658,7 +3659,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v107';
+var APP_VER = 'v108';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

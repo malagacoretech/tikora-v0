@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v123'; /* v123: la linterna tambien en iPhone - iOS 17+ la deja encender por web (applyConstraints) asi que el encendido automatico se intenta tambien ahi, y el boton se revela solo si el aparato demuestra tener torch */
+var VERSION = 'tikora-captura-v124'; /* v124: iPhone sin linterna DEFINITIVO (probado en el telefono de Matias: anuncia torch, no enciende, y el intento rompia la camara) - iOS queda como antes de la v116, que sacaba fotos bien; Android conserva todo */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

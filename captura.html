@@ -482,12 +482,25 @@ button.capbadge:active{transform:scale(0.95)}
 /* v98: la tarjeta de fotos de hoy habla en tono normal, no en titular */
 .pcard .val2.chico{font-size:1.02rem;line-height:1.45;font-weight:700}
 /* v97: el motivo de Revisar debajo de los botones, a lo ancho y centrado */
-.caprow.rev{flex-wrap:wrap}
-.caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.4rem}
+/* v107: la fila de Revisar llegó a tener CUATRO botones (Foto · corregir · Sin IVA · papelera)
+   y en 375 px se montaban unos encima de otros y encima del texto (Matías 04:29, con la foto).
+   Se deja de pelear por el ancho: el texto arriba a lo largo, y los botones DEBAJO en su
+   propia línea, repartidos. Cabe todo y cada cosa se toca sin apuntar. */
+.caprow.rev{flex-wrap:wrap;align-items:flex-start}
+.caprow.rev .cg{flex:1 1 100%}
+.caprow.rev .copybtn,.caprow.rev .capbadge{flex:1 1 0;min-width:0;margin:0;white-space:nowrap;min-height:44px;padding-left:0.35rem;padding-right:0.35rem;font-size:0.74rem}
+.caprow.rev .peligro{flex:0 0 auto;margin-left:0;min-height:44px;width:42px}
+
+.caprow.rev > button{margin-top:0.55rem}
+.caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.5rem}
 /* v94: modo empleado — el panel sin dinero (el servidor ya manda ceros; esto evita ensenarlos) */
 body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,body.emp .prow .who .iva{display:none !important}
-.seg{display:flex;gap:0.4rem;margin:1.25rem 0 0.65rem}   /* v89: flex para que quepa la pastilla de repetir */
-.seg button{flex:1 1 0;min-width:0;padding:0.6rem 0.45rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}
+/* v107: con CUATRO pastillas el reparto a partes iguales las aplastaba unas sobre otras
+   (Matias 04:29, con la foto: "Ulti... Por pro..." pisandose). Ahora es un carril que se
+   desliza de lado: cada una ocupa lo que necesita y ninguna se parte. */
+.seg{display:flex;gap:0.4rem;margin:1.25rem 0 0.65rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0.15rem}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:0 0 auto;white-space:nowrap;padding:0.6rem 0.45rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer}
 .seg button.on{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 .prow .who .iva{font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem}
 .prow{display:flex;align-items:center;gap:0.7rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
@@ -2038,8 +2051,18 @@ function pintarMeses(){
       if (o.entro){ panelEntro = (panelEntro === o.v) ? '' : o.v; }   /* volver a tocarlo lo apaga */
       else { panelEntro = ''; panelMes = o.v; }
       panelFiltroSemana = false;   /* dos periodos a la vez no se entienden */
+      /* v107: NO saltar arriba. Antes cada toque de mes te devolvía al principio, así que
+         si estabas mirando unas facturas concretas y cambiabas de agosto a Todo, las perdías
+         de vista y había que volver a bajar (Matías 04:3x). Ahora se queda donde estaba.
+         Y si la lista nueva es más corta que la vieja, se pega al final en vez de tirarte
+         al principio — la posición nunca se pierde del todo. */
+      var sp = $('screenPanel');
+      var donde = sp ? sp.scrollTop : 0;
       pintarMeses(); pintarHero(); pintarContadoresPago(); renderLista();
-      var sp = $('screenPanel'); if (sp) sp.scrollTop = 0;
+      if (sp){
+        var tope = Math.max(0, sp.scrollHeight - sp.clientHeight);
+        sp.scrollTop = Math.min(donde, tope);
+      }
     });
     cont.appendChild(b);
   });
@@ -3635,7 +3658,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v106';
+var APP_VER = 'v107';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

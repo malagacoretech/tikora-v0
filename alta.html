@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tikora — Pedí tu alta</title>
+<style>
+  :root{--bg:#0A1628;--card:#101E33;--line:#1E3A5F;--text:#EAF1FA;--sub:#8FA3BD;--accent:#F5B301;--azul:#5B8DEF}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.2rem}
+  .caja{width:100%;max-width:430px}
+  h1{font-size:1.9rem;letter-spacing:-0.02em}
+  h1 .punto{color:var(--accent)}
+  .sub{color:var(--sub);margin:0.5rem 0 1.4rem;line-height:1.5;font-size:0.98rem}
+  form{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.3rem}
+  label{display:block;font-size:0.8rem;color:var(--sub);margin:0.9rem 0 0.3rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+  label:first-child{margin-top:0}
+  input,select,textarea{width:100%;background:#0C1930;border:1px solid var(--line);border-radius:12px;color:var(--text);padding:0.75rem 0.85rem;font-size:1rem;font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);border-color:transparent}
+  textarea{min-height:70px;resize:vertical}
+  button{width:100%;margin-top:1.2rem;background:var(--accent);color:#0A1628;border:0;border-radius:12px;padding:0.95rem;font-size:1.05rem;font-weight:800;cursor:pointer}
+  button:active{transform:scale(0.99)}
+  .pie{color:var(--sub);font-size:0.78rem;margin-top:1rem;line-height:1.5;text-align:center}
+  .oculto{position:absolute;left:-5000px}
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>Tikora<span class="punto">.</span></h1>
+  <p class="sub">Sacale una foto a cada factura de compra y listo: quedan leídas, ordenadas y listas para tu gestor. Dejá tus datos y te doy de alta — sin compromiso.</p>
+  <form name="altas" method="POST" action="/gracias.html" data-netlify="true" netlify-honeypot="apellido2">
+    <input type="hidden" name="form-name" value="altas">
+    <p class="oculto"><label>No llenar<input name="apellido2"></label></p>
+    <label for="f-nombre">Tu nombre</label>
+    <input id="f-nombre" name="nombre" required autocomplete="name">
+    <label for="f-negocio">Tu negocio</label>
+    <input id="f-negocio" name="negocio" required placeholder="Bar, restaurante, tienda…">
+    <label for="f-wa">WhatsApp</label>
+    <input id="f-wa" name="whatsapp" required inputmode="tel" autocomplete="tel" placeholder="6XX XXX XXX">
+    <label for="f-email">Email (opcional)</label>
+    <input id="f-email" name="email" type="email" autocomplete="email">
+    <label for="f-vol">¿Cuántas facturas de compra recibís al mes, más o menos?</label>
+    <select id="f-vol" name="facturas_mes">
+      <option>Menos de 30</option>
+      <option selected>Entre 30 y 100</option>
+      <option>Entre 100 y 300</option>
+      <option>Más de 300</option>
+    </select>
+    <label for="f-msg">Algo que quieras contarme (opcional)</label>
+    <textarea id="f-msg" name="mensaje" placeholder="Cómo las manejás hoy, qué te duele…"></textarea>
+    <button type="submit">Pedir mi alta</button>
+    <p class="pie">Te escribo yo personalmente, normalmente el mismo día.<br>Tus datos solo se usan para darte de alta — nada de listas ni spam.</p>
+  </form>
+</div>
+</body>
+</html>

@@ -68,7 +68,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #repaso{position:fixed;inset:0;z-index:65;background:var(--bg,#0A1628);display:none;flex-direction:column}
 #repaso.on{display:flex}
 #repaso .rpTop{display:flex;align-items:center;gap:0.6rem;padding:calc(0.7rem + env(safe-area-inset-top)) 0.9rem 0.6rem;border-bottom:1px solid var(--border)}
-#repaso .rpCuenta{flex:1;text-align:center;font-weight:800;font-size:0.95rem;font-variant-numeric:tabular-nums}
+#repaso .rpCuenta{flex:1;min-width:0;text-align:center;font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
+/* v112: la ✕ y la lupa se aplastaban — el contador se llevaba todo el ancho y ellas
+   quedaban en un dedo de grosor (Matías 04:54, con la foto). Ahora tienen su tamaño
+   fijo y son botones de verdad: 56 px, que es lo que ocupa un pulgar. */
+#repaso .rpTop .corrX{flex:0 0 auto;width:56px;height:56px;min-width:56px;min-height:56px;font-size:1.4rem;display:inline-flex;align-items:center;justify-content:center}
 #repaso .rpFoto{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #repaso .rpFoto img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 #repaso .rpDatos{padding:0.6rem 0.9rem 0.3rem;text-align:center}
@@ -3908,7 +3912,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v111';
+var APP_VER = 'v112';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

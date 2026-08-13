@@ -727,7 +727,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   </div>
   <div class="rpPie">
     <button type="button" class="rpNav" id="rpAnt">&#8249; Anterior</button>
-    <button type="button" class="rpNav rpSig" id="rpSig">Saltar &#8250;</button>
+    <!-- v130: "Siguiente", no "Saltar" (pedido de Matias 22:34) - avanza sin decidir, igual que antes -->
+    <button type="button" class="rpNav rpSig" id="rpSig">Siguiente &#8250;</button>
   </div>
 </div>
 
@@ -4415,7 +4416,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v129';
+var APP_VER = 'v130';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

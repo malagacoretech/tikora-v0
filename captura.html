@@ -900,6 +900,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <div class="ddir" id="dDir">Rellená tus datos abajo y tenelos siempre a mano.</div>
   </div>
 
+  <!-- v114: quién usa este móvil. Se cambia desde aquí cuando el teléfono cambia de manos. -->
+  <button class="dbtn sec" type="button" id="dQuienBtn" style="width:100%;margin-bottom:0.6rem">&#128100; Este m&oacute;vil lo usa: <b id="dQuienTxt">&mdash;</b></button>
+
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.9rem">
     <button class="dbtn sec" type="button" id="dQrBtn">&#9635; Ver QR</button>
     <button class="dbtn sec" type="button" id="dShareBtn">&#128228; Compartir</button>
@@ -1113,6 +1116,43 @@ function refreshQueueUI(){
   });
 }
 
+/* ===== v114: ¿QUIÉN USA ESTE MÓVIL? =====
+   Detrás de una barra un teléfono pasa de mano en mano. La llave dice QUÉ móvil;
+   esto dice QUIÉN. Se pregunta una vez, se guarda en el propio teléfono y viaja con
+   cada foto. No se manda nada más: ni ubicación, ni contactos, ni nada del cliente.
+   Se puede cambiar cuando se quiera desde "Mis datos". */
+var QUIEN_KEY = 'tikora_quien';
+var NOMBRES = ['Matías', 'Medina', 'Mia', 'Leo', 'Ailen', 'Inés'];
+function quienUsaEsteMovil(){
+  try { return localStorage.getItem(QUIEN_KEY) || ''; } catch(e){ return ''; }
+}
+function guardarQuien(n){
+  try { localStorage.setItem(QUIEN_KEY, String(n || '').trim().slice(0, 30)); } catch(e){}
+}
+function preguntarQuienSoy(alCerrar){
+  var fondo = document.createElement('div'); fondo.className = 'qpFondo';
+  var caja = document.createElement('div'); caja.className = 'qpCaja';
+  var t = document.createElement('div'); t.className = 'qpT'; t.textContent = '¿Quién usa este móvil?';
+  var s = document.createElement('div'); s.className = 'qpS';
+  s.textContent = 'Solo para saber quién sacó cada foto y poder avisarte a vos si alguna sale movida. Se pregunta una vez y se cambia cuando quieras.';
+  caja.appendChild(t); caja.appendChild(s);
+  var actual = quienUsaEsteMovil();
+  var cerrar = function(){ if (fondo.parentNode) fondo.parentNode.removeChild(fondo); if (alCerrar) alCerrar(); };
+  NOMBRES.forEach(function(n){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'qpB';
+    b.textContent = n + (n === actual ? '  ✓' : '');
+    b.addEventListener('click', function(){ guardarQuien(n); cerrar(); toast('Este móvil es de ' + n); });
+    caja.appendChild(b);
+  });
+  var otro = document.createElement('button'); otro.type = 'button'; otro.className = 'qpB qpX'; otro.textContent = 'Otro nombre…';
+  otro.addEventListener('click', function(){
+    var n = prompt('¿Quién usa este móvil?', actual || '');
+    if (n && n.trim()){ guardarQuien(n); cerrar(); toast('Este móvil es de ' + n.trim()); }
+  });
+  caja.appendChild(otro);
+  fondo.appendChild(caja);
+  document.body.appendChild(fondo);
+}
 /* blob → base64 (sin cabecera dataURL) */
 function toB64(blob){
   return new Promise(function(res, rej){
@@ -1151,7 +1191,13 @@ function sendItem(item, onProgress){
       };
       xhr.onerror = function(){ res({ ok:false, dead:false, why:'red' }); };
       xhr.ontimeout = function(){ res({ ok:false, dead:false, why:'timeout' }); };
-      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '' }));
+      /* v114: quién sacó la foto viaja con ella. El motor todavía no lo guarda —es un
+         campo de más y no rompe nada—, y el día que lo guarde se enciende sin tocar la app.
+         Para qué sirve, y NO es vigilar (02/83 §5.3): si las fotos de una persona acaban
+         en Revisar el triple que las demás, no es que trabaje peor — es que nadie le
+         explicó cómo encuadrar. Y el aviso de "salió movida" tiene que llegarle a quien
+         la sacó, no al dueño a las tres de la mañana. */
+      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '', quien: quienUsaEsteMovil() }));
     });
   });
 }
@@ -3703,7 +3749,14 @@ $('tabDatos').addEventListener('click', function(){
   dCargar();                 /* por si el token se activo despues de cargar la pagina */
   show('screenDatos');
   renderDatos();
+  pintarQuien();
 });
+/* v114: quién usa este móvil — se ve y se cambia desde Mis datos */
+function pintarQuien(){
+  var q = quienUsaEsteMovil();
+  var e = $('dQuienTxt'); if (e) e.textContent = q || 'sin poner';
+}
+$('dQuienBtn').addEventListener('click', function(){ preguntarQuienSoy(pintarQuien); });
 
 /* ============ QR (libreria qrcode-generator, MIT â€” la estandar, probada) ============
    v26: el codificador artesanal de v20-v25 generaba QR INVALIDOS (bug de colocacion de
@@ -3880,6 +3933,10 @@ function boot(){
   if (deepPanel){ show('screenPanel'); loadPanel(false); }   /* solo el enlace de pruebas ?v=panel */
   else { bootCameraScreen(); }
   processQueue(false);
+  /* v114: la primera vez en este teléfono, y SOLO la primera, se pregunta quién lo usa.
+     Va después de abrir la cámara a propósito: la ley de cero fricción manda, y la
+     pregunta se contesta en un toque encima de la cámara ya lista. */
+  if (!quienUsaEsteMovil()){ setTimeout(function(){ preguntarQuienSoy(); }, 900); }
 }
 $('bigShot').addEventListener('click', openNative);
 $('tokenSave').addEventListener('click', function(){
@@ -3933,7 +3990,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v113';
+var APP_VER = 'v114';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

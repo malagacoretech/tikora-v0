@@ -2267,6 +2267,7 @@ function encenderLuz(){
   [0, 400, 900, 1500, 2500].forEach(function(ms){
     torchTimers.push(setTimeout(function(){
       if (g !== torchGen || torchOn || !track) return;
+      if (sending) return;   /* v121: jamás tocar el stream en mitad de una captura */
       if (!torchDisponible()) return;            /* todavía no la publica: lo intenta el paso siguiente */
       track.applyConstraints({ advanced: [{ torch: true }] })
         .then(function(){
@@ -2319,6 +2320,12 @@ $('torchBtn').addEventListener('click', function(){
 function capturePhoto(){
   if (!track || sending) return;
   sending = true;
+  /* v121: LA FOTO MANDA SOBRE LA LUZ. El encendido automático de la v116 insiste durante los
+     primeros 2,5 s, y en muchos Android el applyConstraints del torch reinicia el stream un
+     instante: disparar justo ahí tiraba takePhoto Y el canvas de respaldo → "No se pudo
+     capturar". Antes no pasaba porque el encendido... directamente no funcionaba (v116).
+     Se cancelan los reintentos al disparar y se rearman al terminar. */
+  torchCancelar();
   $('shutter').classList.add('busy');
   $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
   if (navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
@@ -2326,6 +2333,8 @@ function capturePhoto(){
   var done = function(blob){
     sending = false;
     $('shutter').classList.remove('busy');
+    /* v121: la luz vuelve a intentarse DESPUÉS de la foto (si ya está encendida, no hace nada) */
+    encenderLuz();
     if (!blob){ toast('No se pudo capturar, probá de nuevo', true); return; }
     setThumb(blob);                                    /* feedback inmediato, sin tapar el visor */
     enqueue(blob, blob.type || 'image/jpeg', tsName('jpg'), 'foto', true, VENTANA_PAGO_MS);
@@ -2333,11 +2342,22 @@ function capturePhoto(){
 
   var viaCanvas = function(){
     try {
+      /* v121: si el visor está congelado (el track murió o quedó mudo sin avisar), el canvas
+         no tiene de dónde sacar la imagen. En vez de fallar mudo, se revive la cámara sola:
+         el segundo toque ya sale. */
+      if (!video.videoWidth || !track || track.readyState !== 'live'){
+        done(null);
+        stopCamera(); initCamera().catch(function(){ show('screenShot'); });
+        return;
+      }
       var c = document.createElement('canvas');
       c.width = video.videoWidth; c.height = video.videoHeight;   /* resolución completa, jamás menos */
       c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
       c.toBlob(function(b){ done(b); }, 'image/jpeg', JPEG_Q);
-    } catch(e){ done(null); }
+    } catch(e){
+      done(null);
+      stopCamera(); initCamera().catch(function(){ show('screenShot'); });
+    }
   };
 
   if (usingImageCapture){
@@ -4320,7 +4340,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v120';
+var APP_VER = 'v121';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

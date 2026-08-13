@@ -2199,6 +2199,13 @@ function corrPinta(){
     inp.id = 'cc_' + d.k;
     /* lo que ya se sabe, puesto: no se le hace teclear algo que el sistema ya leyó */
     if (d.k === 'emisor' && corrActual.emisor && corrActual.emisor.charAt(0) !== '(') inp.value = corrActual.emisor;
+    /* v133 (Matías 22:5x): el servidor manda TODOS los valores leídos (Panel API v16) y el
+       corrector los tiraba — venía todo vacío y "faltan 4 datos" con la factura ya leída.
+       Ahora viene puesto: él solo corrige el que está mal. El valor dudoso también se pone
+       (ver 02/05/2026 y arreglarlo gana a teclearlo entero de cero). */
+    if (!inp.value && corrActual.valores && corrActual.valores[d.k] !== undefined && corrActual.valores[d.k] !== null && String(corrActual.valores[d.k]).trim() !== ''){
+      inp.value = String(corrActual.valores[d.k]);
+    }
     fila.appendChild(inp);
     if (d.tipo === 'text'){
       var mic = document.createElement('button'); mic.type = 'button'; mic.className = 'dictar';
@@ -2209,19 +2216,23 @@ function corrPinta(){
     wrap.appendChild(fila);
     cont.appendChild(wrap);
   });
-  /* ayuda visible, nunca silenciosa: rellena el IVA a partir de base y tipo, y él lo ve antes de guardar */
-  var b = $('cc_base'), ti = $('cc_tipoIva'), cu = $('cc_cuota');
-  if (b && ti && cu){
-    var calc = function(){
-      var nb = parseFloat(String(b.value).replace(/\./g,'').replace(',', '.'));
-      var nt = parseFloat(String(ti.value).replace(',', '.'));
-      if (!isNaN(nb) && !isNaN(nt) && !cu.value){
-        cu.value = (Math.round(nb * nt) / 100).toFixed(2).replace('.', ',');
-      }
-      pintarBotonCorr();
-    };
-    b.addEventListener('blur', calc); ti.addEventListener('blur', calc);
-  }
+  /* ayuda visible, nunca silenciosa — y v133: EL TRIÁNGULO COMPLETO. Con dos de los tres
+     números (sin IVA, IVA, total), el tercero se rellena solo; base+tipo también saca el IVA.
+     Solo rellena huecos VACÍOS: jamás pisa lo que él escribió, y lo ve antes de guardar. */
+  var b = $('cc_base'), ti = $('cc_tipoIva'), cu = $('cc_cuota'), to = $('cc_total');
+  var numDe = function(el){ if (!el) return NaN; return parseFloat(String(el.value).replace(/\./g, '').replace(',', '.')); };
+  var pon = function(el, v){ if (el && !String(el.value || '').trim() && isFinite(v) && v >= 0) el.value = v.toFixed(2).replace('.', ','); };
+  var calc = function(){
+    var nb = numDe(b), nc = numDe(cu), nt2 = numDe(to);
+    var tp = ti ? parseFloat(String(ti.value).replace(',', '.')) : NaN;
+    if (!isNaN(nb) && !isNaN(nc)) pon(to, nb + nc);          /* base + IVA -> total */
+    if (!isNaN(nb) && !isNaN(nt2)) pon(cu, nt2 - nb);        /* total - base -> IVA */
+    if (!isNaN(nc) && !isNaN(nt2)) pon(b, nt2 - nc);         /* total - IVA -> base */
+    if (!isNaN(nb) && !isNaN(tp)) pon(cu, Math.round(nb * tp) / 100);   /* base x tipo -> IVA */
+    pintarBotonCorr();
+  };
+  [b, ti, cu, to].forEach(function(el){ if (el) el.addEventListener('blur', calc); });
+  calc();   /* v133: con lo que vino del servidor ya puesto, el triángulo se completa al abrir */
   /* el botón se recalcula solo mientras escribe: él no decide nada */
   CAMPOS_DEF.forEach(function(d){
     var el = $('cc_' + d.k); if (!el) return;
@@ -4528,7 +4539,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v132';
+var APP_VER = 'v133';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

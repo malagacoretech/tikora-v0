@@ -433,7 +433,29 @@ input[type=file]{display:none}
 .baseline{font-size:0.66rem;color:var(--text-muted);margin-top:0.12rem;font-variant-numeric:tabular-nums}
 .baseline .bivaw{color:#F8D57E;font-weight:700}
 /* v36: panel de EMPLEADO — sin un solo importe; solo sus capturas con estado accionable */
-#screenPanel.modo-empleado .pcard.hero,#screenPanel.modo-empleado .mesfil,#screenPanel.modo-empleado .seg,#screenPanel.modo-empleado .pagofil,#screenPanel.modo-empleado .pcard.debe,#screenPanel.modo-empleado .psearch,#screenPanel.modo-empleado .legal{display:none}
+/* v118: EL PANEL DEL EMPLEADO. Decisión de Matías (13-ago, viendo el móvil de la estación):
+   un empleado saca la foto y ya. No tiene por qué ver con qué proveedores trabaja el bar, ni
+   a qué ritmo, ni un aviso rojo de 40 pendientes que no son suyos. Revierte la v39 ("panel
+   completo también para el empleado"), que se tomó sin haberlo visto en un teléfono de barra.
+   Tapar los importes no bastaba: la lista de proveedores con fecha ya es el negocio.
+   Queda lo suyo y nada más: sus fotos de hoy y lo que tenga que repetir.
+   Ojo — esta regla existía desde antes y estaba MUERTA: la clase se quitaba siempre y no se
+   ponía nunca (ver renderPanel). Tercer caso en este fichero de regla que no alcanza a nadie. */
+#screenPanel.modo-empleado .pcard.hero,
+#screenPanel.modo-empleado .mesfil,
+#screenPanel.modo-empleado .seg,
+#screenPanel.modo-empleado .pagowrap,
+#screenPanel.modo-empleado .psearch,
+#screenPanel.modo-empleado .ordbtn,
+#screenPanel.modo-empleado .ordmenu,
+#screenPanel.modo-empleado .legal,
+#screenPanel.modo-empleado .alertas,
+#screenPanel.modo-empleado .cuadrelinea,
+#screenPanel.modo-empleado #panelRows,
+#screenPanel.modo-empleado #sinIvaRows,
+#screenPanel.modo-empleado #cardCuadre{display:none}
+/* lo que SÍ ve, y ya desplegado: el botón que abría esta lista vive en .seg, que aquí no está */
+#screenPanel.modo-empleado #rehacerRows{display:block !important}
 .caphead{font-size:0.95rem;font-weight:800;margin:0.2rem 0}
 .capsub{font-size:0.74rem;color:var(--text-muted);margin-bottom:0.8rem;line-height:1.45}
 .caprow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
@@ -526,7 +548,11 @@ button.capbadge:active{transform:scale(0.95)}
 .debehint{font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
 /* v98: la tarjeta de fotos de hoy habla en tono normal, no en titular */
-.pcard .val2.chico{font-size:1.02rem;line-height:1.45;font-weight:700}
+/* v118: `white-space:normal` — .val2 lleva nowrap y esta tarjeta es la ÚNICA que escribe una
+   frase larga ("8 fotos hoy · 4 en facturas · 2 a revisar · 2 repetidas"): sin esto no puede
+   partir en dos renglones y se sale por la derecha de la pantalla. El line-height de 1.45 ya
+   estaba puesto para dos líneas que nunca llegaban a existir. */
+.pcard .val2.chico{font-size:1.02rem;line-height:1.45;font-weight:700;white-space:normal;overflow-wrap:anywhere}
 /* v97: el motivo de Revisar debajo de los botones, a lo ancho y centrado */
 /* v107: la fila de Revisar llegó a tener CUATRO botones (Foto · corregir · Sin IVA · papelera)
    y en 375 px se montaban unos encima de otros y encima del texto (Matías 04:29, con la foto).
@@ -2250,30 +2276,37 @@ function encenderLuz(){
     }, ms));
   });
 }
+/* v118: cuando de verdad no hay linterna, se dice bajito y se dice QUÉ HACER.
+   La v116 soltaba un cartel rojo, "Este móvil no deja encender la linterna desde la app",
+   a un empleado que no puede hacer nada con esa información. Y encima muchas veces era
+   mentira: se preguntaba por las capacidades ANTES de intentarlo, y en Android esa lista
+   tarda. La cámara nativa sí usa el flash del móvil, y su botón está justo al lado. */
+function sinLinterna(){
+  $('torchLbl').textContent = 'sin linterna';
+  toast('La linterna no responde — probá con 📷 cámara nativa, que usa el flash');
+}
 $('torchBtn').addEventListener('click', function(){
-  if (!track){ toast('La cámara todavía no está abierta', true); return; }
+  if (!track){ toast('La cámara todavía no está abierta'); return; }
   torchCancelar();                     /* v116: corta los reintentos automáticos — si no, el intento
                                           programado a 1500 ms volvía a encenderla justo después de
                                           que el usuario la apagara a mano */
-  if (!torchDisponible()){
-    $('torchLbl').textContent = 'sin linterna';
-    toast('Este móvil no deja encender la linterna desde la app', true);
-    return;
-  }
+  /* v118: se INTENTA siempre, aunque getCapabilities() todavía no diga `torch`. Preguntar antes
+     de intentar era declarar averiado un móvil que solo estaba tardando en contestar. */
   var quiere = !torchOn;
   torchOn = quiere; pintarTorch();     /* respuesta inmediata: detrás de una barra el botón tiene que reaccionar */
   try { localStorage.setItem('tikora_linterna', quiere ? '1' : '0'); } catch(e){}   /* v59: se recuerda */
   track.applyConstraints({ advanced: [{ torch: quiere }] })
     .then(function(){
       var real = torchReal();
-      if (real !== null && real !== quiere){
-        torchOn = real; pintarTorch();
-        if (quiere) toast('El móvil no encendió la linterna', true);
-      }
+      if (real === quiere) return;                       /* confirmado por el hardware */
+      if (real === null && torchDisponible()) return;     /* calla, pero dice tenerla: se le cree */
+      torchOn = (real === null) ? !quiere : real;
+      pintarTorch();
+      if (quiere) sinLinterna();
     })
     .catch(function(){
       torchOn = !quiere; pintarTorch();
-      toast('La linterna no está disponible', true);
+      if (quiere) sinLinterna();
     });
 });
 
@@ -2796,7 +2829,9 @@ function filaRevisar(c){
   var e1 = document.createElement('div'); e1.className = 'ce grande';
   e1.textContent = c.entro ? ('Ingresó ' + String(c.entro).slice(0, 5) + ' · ' + String(c.entro).slice(11, 16)) : 'Sin hora';
   g.appendChild(e1);
-  if (c.emisor && c.emisor.charAt(0) !== '('){
+  /* v118: al empleado no se le dice de qué proveedor es. Identifica la foto por la miniatura
+     y por la hora, que es lo que necesita para repetirla; el nombre del proveedor es del bar. */
+  if (!ES_EMPLEADO && c.emisor && c.emisor.charAt(0) !== '('){
     var h1 = document.createElement('div'); h1.className = 'ch'; h1.textContent = c.emisor;
     g.appendChild(h1);
   }
@@ -2859,8 +2894,12 @@ function filaRevisar(c){
   return row;
 }
 function renderPanel(data, cachedNote){
-  /* v39 (decision Matias): panel COMPLETO tambien para el empleado — misma vista para todos */
-  $('screenPanel').classList.remove('modo-empleado');
+  /* v118 (decision Matias 13-ago, mirando el movil de la estacion): el empleado vuelve a tener
+     su panel recortado. Deja sin efecto la v39 ("panel COMPLETO tambien para el empleado"),
+     que ademas se aplicaba quitando la clase SIEMPRE — la regla de CSS llevaba versiones sin
+     alcanzar a nadie. Lo que ve, en modo-empleado (ver el CSS): sus fotos de hoy y lo que
+     tenga que repetir. */
+  $('screenPanel').classList.toggle('modo-empleado', ES_EMPLEADO);
   if (data && data.negocio){
     /* precarga del negocio (empleados): Mis datos + Mis claves desde la pestaña Negocio */
     try {
@@ -4269,7 +4308,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v117';
+var APP_VER = 'v118';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

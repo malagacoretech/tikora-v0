@@ -89,6 +89,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #corr .corrPie button{flex:1;min-height:52px;border-radius:14px;font-size:0.95rem;font-weight:800;font-family:inherit}
 #corr .corrGuardar{background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
 #corr .corrBuena{background:var(--accent);border:1px solid var(--accent);color:#0A1628}
+/* v103: si todavía falta algo, el botón deja de ser dorado — el color dice el estado */
+#corr .corrBuena.media{background:var(--surface-2);border-color:var(--border);color:var(--text)}
 #corr .corrPie button[disabled]{opacity:0.5}
 #fotoVis img{max-width:96vw;max-height:76vh;object-fit:contain;border-radius:10px}
 /* v82: zona con scroll propio — al acercar, la foto se sale de la caja y se recorre arrastrando */
@@ -612,8 +614,11 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
        Antes la de Sin IVA vivia arriba con otro lenguaje y parecia otra cosa. -->
   <div class="corrPie">
     <button type="button" class="corrSiv" id="corrSinIva">&#128230; Guardar en Sin IVA</button>
-    <button type="button" class="corrGuardar" id="corrGuardar">Guardar</button>
-    <button type="button" class="corrBuena" id="corrBuena">Guardar y darla por buena</button>
+    <!-- v103: UN solo boton. Antes habia dos ("Guardar" y "Guardar y darla por buena") y
+         Matias dijo lo evidente: no se entiende la diferencia. Y tenia razon — era una
+         decision tecnica (¿la promuevo a Facturas o no?) disfrazada de pregunta. Ahora lo
+         mira la app: si esta todo relleno la da por buena, y si falta algo lo dice. -->
+    <button type="button" class="corrBuena" id="corrGuardar">Guardar</button>
   </div>
 </div>
 
@@ -1632,8 +1637,39 @@ function corrPinta(){
       if (!isNaN(nb) && !isNaN(nt) && !cu.value){
         cu.value = (Math.round(nb * nt) / 100).toFixed(2).replace('.', ',');
       }
+      pintarBotonCorr();
     };
     b.addEventListener('blur', calc); ti.addEventListener('blur', calc);
+  }
+  /* el botón se recalcula solo mientras escribe: él no decide nada */
+  CAMPOS_DEF.forEach(function(d){
+    var el = $('cc_' + d.k); if (!el) return;
+    el.addEventListener('input', pintarBotonCorr);
+    el.addEventListener('change', pintarBotonCorr);
+  });
+  pintarBotonCorr();
+}
+/* v103: qué falta todavía. "Cómo se pagó" no cuenta — una factura vale igual sin saberlo. */
+function faltaEnCorrector(){
+  var faltan = [];
+  CAMPOS_DEF.forEach(function(d){
+    if (d.k === 'pago') return;
+    var el = $('cc_' + d.k); if (!el) return;
+    if (!String(el.value || '').trim()) faltan.push(d.et.toLowerCase());
+  });
+  return faltan;
+}
+function pintarBotonCorr(){
+  var faltan = faltaEnCorrector();
+  var b = $('corrGuardar');
+  if (!faltan.length){
+    b.textContent = 'Guardar — ya está completa';
+    b.classList.remove('media');
+  } else {
+    b.textContent = (faltan.length === 1)
+      ? ('Guardar — falta ' + faltan[0])
+      : ('Guardar — faltan ' + faltan.length + ' datos');
+    b.classList.add('media');
   }
 }
 /* el dictado que ya existía desde la v12 en el chat, puesto donde de verdad hace falta */
@@ -1675,7 +1711,7 @@ function guardarCorreccion(promover){
     cambios[d.k] = v;
   });
   if (!Object.keys(cambios).length){ toast('No escribiste nada todavía', true); return; }
-  $('corrGuardar').disabled = true; $('corrBuena').disabled = true;
+  $('corrGuardar').disabled = true; $('corrSinIva').disabled = true;
   fetch(CORREGIR_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET },
@@ -1683,7 +1719,7 @@ function guardarCorreccion(promover){
   })
     .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
     .then(function(res){
-      $('corrGuardar').disabled = false; $('corrBuena').disabled = false;
+      $('corrGuardar').disabled = false; $('corrSinIva').disabled = false;
       if (!res.ok || (res.j && res.j.ok === false)){
         toast((res.j && res.j.motivo) ? res.j.motivo : 'No se pudo guardar', true); return;
       }
@@ -1692,7 +1728,7 @@ function guardarCorreccion(promover){
       loadPanel(true);
     })
     .catch(function(){
-      $('corrGuardar').disabled = false; $('corrBuena').disabled = false;
+      $('corrGuardar').disabled = false; $('corrSinIva').disabled = false;
       toast('No se pudo guardar — mirá la conexión', true);
     });
 }
@@ -1705,8 +1741,8 @@ $('corrTodos').addEventListener('click', function(){
 $('corrVerFoto').addEventListener('click', function(){
   if (corrActual && corrActual.f) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f));
 });
-$('corrGuardar').addEventListener('click', function(){ guardarCorreccion(false); });
-$('corrBuena').addEventListener('click', function(){ guardarCorreccion(true); });
+/* v103: un solo botón — la app mira si está completa y decide ella si la promueve */
+$('corrGuardar').addEventListener('click', function(){ guardarCorreccion(faltaEnCorrector().length === 0); });
 $('corrSinIva').addEventListener('click', function(){ if (corrActual) mandarASinIva(corrActual, cerrarCorrector); });
 /* v101: la pastilla despliega su lista, y apaga la de "para revisar" (exclusión mutua
    de la v82, extendida). Las dos vistas la apagan a ella — mismo criterio que la v93. */
@@ -3566,7 +3602,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v102';
+var APP_VER = 'v103';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

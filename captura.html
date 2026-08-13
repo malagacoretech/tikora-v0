@@ -453,6 +453,18 @@ button.capbadge:active{transform:scale(0.95)}
 /* v89: ahora es pastilla en la fila de vistas — rojo suave en reposo, amarillo al filtrar */
 #cardRehacer{flex:0 0 auto;border-color:rgba(229,72,77,0.55);color:#ff8f93;white-space:nowrap}
 #cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
+/* v101: Sin IVA en gris — ni el verde de "Todo" ni el amarillo de los meses.
+   Es a proposito: eso NO es dinero fiscal y no puede parecerlo. */
+#cardSinIva{flex:0 0 auto;white-space:nowrap;border-color:var(--border);color:var(--text-muted)}
+#cardSinIva.filtro{background:rgba(148,163,184,0.18);border-color:#94A3B8;color:#CBD5E1}
+.sivTot{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.8rem 0.9rem;margin-bottom:0.6rem}
+.sivTot .g{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sivTot .l{font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem;line-height:1.35}
+.sivTot .sep{border-top:1px solid var(--border);margin:0.65rem 0 0.55rem}
+.sivTot .comp{font-size:0.86rem;font-weight:700;line-height:1.4}
+.sivTot .comp b{color:var(--accent)}
+.sivTot .nota{font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.35}
+.caprow .quien{font-size:0.72rem;color:var(--text-muted)}
 .debehint{font-size:0.62rem;color:var(--text-muted);margin-top:0.2rem}
 .plist-head{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin:1.25rem 0 0.55rem}
 /* v98: la tarjeta de fotos de hoy habla en tono normal, no en titular */
@@ -592,6 +604,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <div class="corrAviso" id="corrAviso"></div>
     <div id="corrCampos"></div>
     <button type="button" class="corrTodos" id="corrTodos">Ver todos los campos</button>
+    <!-- v101: la salida de emergencia. Miras la foto, ves que no lleva IVA, y sales por
+         aqui sin escribir nada. Sin esto, esas filas se quedan en Revisar para siempre. -->
+    <button type="button" class="corrTodos" id="corrSinIva" style="margin-top:0.5rem">&#128230; Esta no lleva IVA &mdash; guardala aparte</button>
   </div>
   <div class="corrPie">
     <button type="button" class="corrGuardar" id="corrGuardar">Guardar</button>
@@ -653,6 +668,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
          al lado de las dos vistas (pedido de Matias 06:13: "asi no ocupa espacio de arriba
          hacia abajo"). Mismos ids y mismo comportamiento de filtro que la tarjeta vieja. -->
     <button type="button" id="cardRehacer" style="display:none">&#9888;&#65039;&nbsp;<span id="rehacerTxt">&mdash;</span><span id="rehacerHint" style="display:none"></span></button>
+    <!-- v101: la carpeta de lo que NO lleva IVA. Gris a proposito: no es dinero fiscal,
+         no suma al hero ni a lo que recibe la gestoria. Pedido de Matias (13-ago 02:0x). -->
+    <button type="button" id="cardSinIva" style="display:none">&#128230;&nbsp;<span id="sinIvaTxt">Sin IVA</span></button>
   </div>
   <!-- v63: el carril se deslizaba de lado pero nada lo indicaba, asi que "Efectivo" y
        "Tarjeta" no existian para quien no adivinara el gesto. Flechas que solo salen
@@ -688,6 +706,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <div class="debehint" id="cuadreHint"></div>
   </div>
   <div id="rehacerRows" style="display:none"></div>
+  <div id="sinIvaRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
   <!-- v86: periodo y orden JUNTOS y pegados a la lista, en UNA sola fila. El "Ordenar por"
@@ -1425,6 +1444,111 @@ function initCamera(){
   });
 }
 
+/* ================== v101: LA CARPETA SIN IVA ==================
+   Fase 1: SOLO el desagüe manual. Un toque en una fila de Revisar y se va a la carpeta,
+   sin rellenar nada. La IA no decide: decide él con la foto delante — por eso esto no
+   necesita comprobación en seco. La clasificación automática (exento / ticket que SÍ
+   lleva IVA dentro / gasto personal) es otra cosa, vive en el motor y esa SÍ lleva gate.
+   Razonamiento completo en 02-ESTRATEGIA-Y-MERCADO/81.
+   El total de aquí NO sube nunca al hero ni al fichero de la gestoría. */
+var SINIVA_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-siniva-5d1e93c4';
+var sinIvaDatos = null, sinIvaCargando = false;
+function sinIvaLlamar(cuerpo){
+  cuerpo.u = TOKEN;
+  return fetch(SINIVA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET },
+    body: JSON.stringify(cuerpo)
+  }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); });
+}
+function cargarSinIva(){
+  if (ES_EMPLEADO || sinIvaCargando) return;
+  sinIvaCargando = true;
+  sinIvaLlamar({ accion: 'listar' })
+    .then(function(res){
+      sinIvaCargando = false;
+      if (!res.ok || !res.j || res.j.ok === false) return;
+      sinIvaDatos = res.j;
+      pintarSinIva();
+    })
+    .catch(function(){ sinIvaCargando = false; });
+}
+function pintarSinIva(){
+  if (!sinIvaDatos) return;
+  var n = (sinIvaDatos.filas || []).length;
+  if (!n){ $('cardSinIva').style.display = 'none'; return; }
+  $('cardSinIva').style.display = 'block';
+  $('sinIvaTxt').textContent = 'Sin IVA · ' + fmtEur(sinIvaDatos.total || 0);
+  var cont = $('sinIvaRows'); cont.innerHTML = '';
+  /* el bloque de arriba: los dos totales, y la comparación — que dice "sería", no "es" */
+  var caja = document.createElement('div'); caja.className = 'sivTot';
+  var g = document.createElement('div'); g.className = 'g'; g.textContent = fmtEur(sinIvaDatos.total || 0);
+  caja.appendChild(g);
+  var l = document.createElement('div'); l.className = 'l';
+  l.textContent = 'Gasto sin IVA · ' + fmtEur(sinIvaDatos.totalBar || 0) + ' los pagó el bar · '
+                + fmtEur(sinIvaDatos.totalYo || 0) + ' los pagaste vos';
+  caja.appendChild(l);
+  /* la comparación con lo que se ve arriba, para el mes que esté elegido en el carril */
+  var basePanel = 0;
+  try {
+    var rr = filasDelMes((panelData && panelData.rows) || []);
+    /* el Panel API manda los importes ya como número (UNFORMATTED_VALUE) — misma
+       convención que usa el resto del panel para sumar. */
+    for (var i = 0; i < rr.length; i++) basePanel += (rr[i].base || 0);
+  } catch(e){}
+  if (basePanel > 0){
+    var sep = document.createElement('div'); sep.className = 'sep'; caja.appendChild(sep);
+    var comp = document.createElement('div'); comp.className = 'comp';
+    comp.innerHTML = 'Si esto se sumara a lo demás, el gasto sería <b>'
+      + fmtEur(Math.round((basePanel + (sinIvaDatos.total || 0)) * 100) / 100)
+      + '</b> · hoy en el panel: ' + fmtEur(Math.round(basePanel * 100) / 100);
+    caja.appendChild(comp);
+    var nota = document.createElement('div'); nota.className = 'nota';
+    nota.textContent = 'No se suma solo. El panel y lo que recibe la gestoría siguen contando únicamente lo que lleva IVA.';
+    caja.appendChild(nota);
+  }
+  cont.appendChild(caja);
+  (sinIvaDatos.filas || []).forEach(function(s){
+    var row = document.createElement('div'); row.className = 'caprow';
+    var gg = document.createElement('div'); gg.className = 'cg';
+    var e1 = document.createElement('div'); e1.className = 'ce grande';
+    e1.textContent = fmtEur(s.importe || 0);
+    gg.appendChild(e1);
+    var h1 = document.createElement('div'); h1.className = 'ch';
+    h1.textContent = (s.emisor && s.emisor.charAt(0) !== '(' ? s.emisor : 'sin proveedor leído')
+                   + (s.fecha ? ' · ' + s.fecha : '');
+    gg.appendChild(h1);
+    var q = document.createElement('div'); q.className = 'quien';
+    q.textContent = (s.quien === 'yo') ? 'lo pagaste vos' : 'lo pagó el bar';
+    gg.appendChild(q);
+    row.appendChild(gg);
+    var fid = '';
+    var m = String(s.foto || '').match(/\/d\/([A-Za-z0-9_\-]{20,})/);
+    if (m) fid = m[1];
+    if (fid){
+      var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
+      vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid)); });
+      row.appendChild(vf);
+    }
+    cont.appendChild(row);
+  });
+}
+/* el desagüe: un toque, sin rellenar nada */
+function mandarASinIva(c, alCerrar){
+  if (ES_EMPLEADO || !c || !c.f || !c.fila) return;
+  if (!confirm('¿Mandar esta a "Sin IVA"?\n\nSe guarda con el importe y la fecha que ya se leyeron, sale de la lista de revisar, y NO suma al IVA que se le pasa a la gestoría.')) return;
+  sinIvaLlamar({ accion: 'mover', f: c.f, fila: c.fila, quien: 'bar' })
+    .then(function(res){
+      if (!res.ok || (res.j && res.j.ok === false)){
+        toast((res.j && res.j.motivo) ? res.j.motivo : 'No se pudo mover', true); return;
+      }
+      toast('Guardada en Sin IVA');
+      if (alCerrar) alCerrar();
+      sinIvaDatos = null; cargarSinIva();
+      loadPanel(true);
+    })
+    .catch(function(){ toast('No se pudo mover — mirá la conexión', true); });
+}
 /* ================== v100: EL CORRECTOR ==================
    Hasta la v99, "corregir" abría Google Sheets en el navegador del móvil: buscar la fila,
    hacer zoom, escribir en una celda de tres milímetros. Deuda nuestra — era lo rápido,
@@ -1580,6 +1704,25 @@ $('corrVerFoto').addEventListener('click', function(){
 });
 $('corrGuardar').addEventListener('click', function(){ guardarCorreccion(false); });
 $('corrBuena').addEventListener('click', function(){ guardarCorreccion(true); });
+$('corrSinIva').addEventListener('click', function(){ if (corrActual) mandarASinIva(corrActual, cerrarCorrector); });
+/* v101: la pastilla despliega su lista, y apaga la de "para revisar" (exclusión mutua
+   de la v82, extendida). Las dos vistas la apagan a ella — mismo criterio que la v93. */
+$('cardSinIva').addEventListener('click', function(){
+  var abierto = $('sinIvaRows').style.display === 'block';
+  if (abierto){
+    $('sinIvaRows').style.display = 'none';
+    $('cardSinIva').classList.remove('filtro');
+  } else {
+    cerrarListaRehacer();
+    $('sinIvaRows').style.display = 'block';
+    $('cardSinIva').classList.add('filtro');
+    $('sinIvaRows').scrollIntoView({ block: 'nearest' });
+  }
+});
+function cerrarListaSinIva(){
+  $('sinIvaRows').style.display = 'none';
+  $('cardSinIva').classList.remove('filtro');
+}
 
 /* v99: la linterna, en UNA sola función que se puede llamar desde donde haga falta.
    El fallo que arreglaba: al bloquear el móvil y volver a abrirlo, el track de la cámara
@@ -2097,6 +2240,15 @@ function filaRevisar(c){
       b.addEventListener('click', function(ev){ ev.stopPropagation(); iniciarRehacer(c); });
       row.appendChild(b);
     }
+    /* v101: el escape. Un toque y se va a Sin IVA con lo que ya se sabe — sin teclear nada.
+       Estas son las que NUNCA se resolverían corrigiendo, porque el motor les pide un IVA
+       que ese papel no tiene: se quedarían en Revisar para siempre. */
+    if (!ES_EMPLEADO && c.fila){
+      var bs = document.createElement('button'); bs.type = 'button'; bs.className = 'copybtn';
+      bs.textContent = '📦 Sin IVA'; bs.title = 'No lleva IVA: guardar aparte, fuera de lo del gestor';
+      bs.addEventListener('click', function(ev){ ev.stopPropagation(); mandarASinIva(c, function(){ row.remove(); }); });
+      row.appendChild(bs);
+    }
     if (!ES_EMPLEADO){
       var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'copybtn peligro'; bx.textContent = '🗑';
       bx.title = 'Quitar de la lista (la foto se conserva guardada en el sistema)';
@@ -2193,6 +2345,8 @@ function renderPanel(data, cachedNote){
     $('rehacerRows').innerHTML = '';
   }
   renderLista();
+  /* v101: la carpeta Sin IVA se trae aparte (endpoint propio, no toca el Panel API) */
+  if (!ES_EMPLEADO){ if (sinIvaDatos) pintarSinIva(); else cargarSinIva(); }
   $('panelUpdated').textContent = cachedNote
     ? ('datos guardados ' + cachedNote)
     : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
@@ -2440,8 +2594,8 @@ function pintarMenuOrden(){
 })();
 /* v93: las vistas APAGAN "para repetir" solas — desde que es pastilla hermana (v91), tocar
    "Últimas facturas" o "Por proveedor" debe sacarte de la lista de repetir sin segundo toque. */
-$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; cerrarListaRehacer(); renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; cerrarListaRehacer(); pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; cerrarListaRehacer(); cerrarListaSinIva(); renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; cerrarListaRehacer(); cerrarListaSinIva(); pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
@@ -2461,6 +2615,7 @@ document.querySelectorAll('#pagoFil button').forEach(function(b){
 /* v39/v42: la tarjeta "Fotos para repetir" despliega su lista; al abrirla limpia el filtro de pago,
    y cualquier chip o "Sin pagar" la pliega — exclusión mutua, como pidió Matías */
 function cerrarListaRehacer(){
+  /* v101: y al reves — abrir una pliega la otra */
   $('rehacerRows').style.display = 'none';
   $('rehacerHint').textContent = 'Tocá y velas';
   $('cardRehacer').classList.remove('filtro');   /* v82: apagar el amarillo al plegar */
@@ -3408,7 +3563,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v100';
+var APP_VER = 'v101';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

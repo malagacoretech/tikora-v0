@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v126'; /* v126: iPhone sin linterna EN LA APP BUENA (v124 probo que asi las fotos salen); la variante con la semantica vieja (encender al abrir y no tocar mas) se prueba en la rama pruebas ANTES de volver a producción */
+var VERSION = 'tikora-captura-v127'; /* v127: cambiar de periodo (Hoy/Semana/Todo/Mes) ya no arrastra la pantalla si estas arriba - lo de arriba se sigue viendo y solo cambia la lista; el anclaje al buscador queda solo para cuando estas hundido en la lista */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

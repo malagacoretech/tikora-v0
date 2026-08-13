@@ -2617,13 +2617,22 @@ function pintarMeses(){
          que subir con el dedo (Matías 04:4x, con las dos fotos). Anclando aquí quedan a la
          vista el buscador, los meses, el "Ordenar por" y las seis primeras facturas — que
          es exactamente donde se trabaja: se cambia de mes y se sigue tocando sin moverse. */
+      /* v127 (Matías 13-ago 22:1x, con captura): si ya estás ARRIBA viendo el hero y los
+         chips, cambiar de período NO te arrastra a ningún lado — lo de arriba se sigue
+         viendo y solo cambia la lista de abajo. El anclaje al buscador queda SOLO para
+         cuando estás hundido en la lista (la lección v107: quedarse quieto en medio de
+         300 facturas parecía que no actualizaba). Las dos quejas eran verdad; cada una
+         manda en su tramo. */
       var sp = $('screenPanel');
       var ancla = $('panelSearch') || $('panelRows');
       if (sp && ancla){
         var arriba = ancla.offsetTop - 8;
-        var tope = Math.max(0, sp.scrollHeight - sp.clientHeight);
-        sp.scrollTop = Math.max(0, Math.min(arriba, tope));
-      } else if (sp) { sp.scrollTop = 0; }
+        if (sp.scrollTop > arriba){
+          var tope = Math.max(0, sp.scrollHeight - sp.clientHeight);
+          sp.scrollTop = Math.max(0, Math.min(arriba, tope));
+        }
+        /* por encima del ancla: ni un píxel de movimiento */
+      }
     });
     cont.appendChild(b);
   });
@@ -4379,7 +4388,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v126';
+var APP_VER = 'v127';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

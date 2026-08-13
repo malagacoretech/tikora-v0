@@ -26,6 +26,21 @@
 [build]
   publish = "."
 
+# ------------------------------------------------------------------------------
+#  /api/panel — el panel pasa por Netlify (13-ago-2026, 23:2x, ahorro de n8n)
+#
+#  n8n llegó al 100% de ejecuciones del mes. El panel se pedía directo al webhook
+#  y cada apertura era una ejecución. Ahora la app pide /api/panel en su propio
+#  dominio, Netlify lo proxya al webhook y CACHEA la respuesta 30 segundos
+#  (el s-maxage lo manda el propio Panel API): diez aperturas seguidas = UNA
+#  ejecución. De regalo, la URL de n8n deja de viajar en las peticiones del panel.
+# ------------------------------------------------------------------------------
+[[redirects]]
+  from = "/api/panel"
+  to = "https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70d26bc7d11fe857"
+  status = 200
+  force = true
+
 # Las cabeceras de siempre: la app es un fichero suelto y el service worker
 # manda sobre la caché, así que ninguno de los dos debe quedarse pegado.
 [[headers]]

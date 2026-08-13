@@ -1066,7 +1066,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 'use strict';
 /* ================== CONFIG ================== */
 var WEBHOOK_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-app-5c59254275b582c6';
-var PANEL_URL   = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70d26bc7d11fe857';
+/* v134: el panel va por /api/panel — Netlify lo proxya al webhook y lo cachea 30 s en su CDN.
+   n8n llegó al 100% de ejecuciones del mes (email de la noche): cada apertura era una
+   ejecución; ahora diez seguidas son una. La URL directa queda de respaldo comentada. */
+var PANEL_URL   = '/api/panel';
 var FOTO_URL    = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-foto-8e4e138a0cc20dc1';
 var APP_HEADER  = 'x-tikora-app';
 var APP_SECRET  = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420'; /* gate anti-bots; el alta real es el token de usuario */
@@ -1683,7 +1686,11 @@ var fvRemota = null;
 function fvAbrirRemota(fid, rotulo){
   if (!fid || !TOKEN) return false;
   fvRemota = fid;
-  $('fvImg').src = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+  /* v134: la foto grande también por el CDN de Netlify — n8n la sirve UNA vez por semana y el
+     resto lo pone el borde. Si el CDN no puede, cae al proxy directo, como las miniaturas. */
+  var fvUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+  $('fvImg').onerror = function(){ $('fvImg').onerror = null; $('fvImg').src = fvUrlDirecta; };
+  $('fvImg').src = '/.netlify/images?url=' + encodeURIComponent(fvUrlDirecta) + '&w=2000&fit=contain';
   $('fvN').textContent = rotulo || 'Factura';
   $('fvPrev').style.visibility = 'hidden';
   $('fvNext').style.visibility = 'hidden';
@@ -2285,7 +2292,10 @@ function dictarEn(input, btn){
 function abrirCorrector(c){
   if (ES_EMPLEADO || !c || !c.f) return;
   corrActual = c; corrTodo = false;
-  $('corrImg').src = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f);
+  /* v134: la tira del corrector por el CDN, con caída al directo */
+  var corrUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f);
+  $('corrImg').onerror = function(){ $('corrImg').onerror = null; $('corrImg').src = corrUrlDirecta; };
+  $('corrImg').src = '/.netlify/images?url=' + encodeURIComponent(corrUrlDirecta) + '&w=1400&fit=contain';
   $('corrAviso').textContent = motivoCoherente(c) + '. Escribí solo lo que falte mirando la foto — la foto se queda como está.';
   $('corrTodos').textContent = 'Ver todos los campos';
   corrPinta();
@@ -3065,7 +3075,8 @@ function filaRevisar(c){
     im.addEventListener('error', function(){ vf.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
     vf.appendChild(im);
     var et = document.createElement('span'); et.className = 'mtx'; et.textContent = 'Foto'; vf.appendChild(et);
-    vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(urlFoto); });
+    /* v134: al visor de la app (CDN incluido), no a una pestaña contra n8n */
+    vf.addEventListener('click', function(ev){ ev.stopPropagation(); if (!fvAbrirRemota(c.f, c.emisor || 'Factura')) abrirFoto(urlFoto); });
     row.appendChild(vf);
     /* v50: 'corregir' = la foto estaba bien, falta un dato -> se arregla en la hoja, no con otra foto */
     if (c.tipo === 'corregir' && !ES_EMPLEADO && c.fila){
@@ -4539,7 +4550,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v133';
+var APP_VER = 'v134';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

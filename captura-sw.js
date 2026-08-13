@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v133'; /* v133: el corrector viene RELLENO con lo que el motor ya leyo (los valores viajaban desde la v16 y se tiraban) y el triangulo de importes se completa solo: con dos de tres (sin IVA, IVA, total) sale el tercero; base x tipo tambien saca el IVA */
+var VERSION = 'tikora-captura-v134'; /* v134: n8n al 100 por cien del mes -> el panel va por /api/panel (Netlify proxy + cache 30 s en el borde) y TODAS las fotos grandes por el CDN (visor, corrector, revisar) - n8n sirve cada foto una vez por semana y el resto lo pone el borde */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -29,7 +29,7 @@ self.addEventListener('activate', function(e){
 
 /* v53: avisos push. El push llega SIN datos (así no hace falta cifrado de payload):
    el SW despierta, lee el token de IndexedDB, consulta el panel y arma la notificación él mismo. */
-var PANEL_URL_SW = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-panel-70d26bc7d11fe857';
+var PANEL_URL_SW = '/api/panel';   /* v134: por Netlify con cache de 30 s - mismo origen, misma respuesta */
 var APP_SECRET_SW = '309b95715f871dccf108c627fe3ff976ed58b22bc07ef420';
 function swToken(){
   return new Promise(function(res){

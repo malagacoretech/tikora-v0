@@ -246,6 +246,9 @@ input[type=file]{display:none}
 .pushask button{background:var(--accent);color:#0A1628;border:none;border-radius:10px;padding:0.5rem 0.7rem;font-family:inherit;font-weight:800;font-size:0.8rem;min-height:40px;cursor:pointer}
 .pushask button.no{background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);font-weight:600}
 /* v73: la factura recién llegada se destaca al abrirla desde el aviso */
+/* v109: el número de cada factura dentro de la vista actual. Pequeño, gris y tabular
+   para que no compita con el importe y las cifras queden alineadas. */
+.prow .nu{flex:0 0 auto;min-width:1.6rem;text-align:right;font-size:0.72rem;font-weight:700;color:var(--text-muted);font-variant-numeric:tabular-nums;opacity:0.75}
 .prow.destacada{outline:2px solid var(--accent);border-radius:14px;animation:destello 1.3s ease 3}
 @keyframes destello{50%{outline-color:transparent}}
 /* v61: entrada de marca (1,2s y se desvanece; luego el JS la retira del DOM) */
@@ -708,13 +711,16 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <button type="button" class="pgflecha der" id="pagoDer" aria-label="Ver m&aacute;s filtros">&#8250;</button>
   <div class="pagofil" id="pagoFil">
     <!-- v51: "Todas" sin cifras (ya están en los recuadros de arriba) y los accionables primero — así "Sin asignar" entra en pantalla -->
-    <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
+    <!-- v109: el orden lo pidio Matias (04:4x): los TRES principales juntos y al medio -
+         Efectivo, Todas y Tarjeta -, y detras los dos de excepcion. Antes empezaba por
+         "Todas, Sin pagar, Sin asignar" y lo que mas usa quedaba fuera de pantalla. -->
+    <button type="button" data-f="efectivo"><span class="pf"></span><span class="pn" data-n="efectivo">Efectivo</span></button>
     <!-- v92: el numero PRIMERO, luego que es, luego el total ("24 en efectivo · 4.982 €") —
          "Efectivo 24 · 4982" eran muchos numeros pegados y Matias se confundia (06:4x) -->
+    <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
+    <button type="button" data-f="tarjeta"><span class="pf"></span><span class="pn" data-n="tarjeta">Tarjeta</span></button>
     <button type="button" data-f="pendiente"><span class="pf"></span><span class="pn" data-n="pendiente">Sin pagar</span></button>
     <button type="button" data-f="nada"><span class="pf"></span><span class="pn" data-n="nada">Sin asignar</span></button>
-    <button type="button" data-f="efectivo"><span class="pf"></span><span class="pn" data-n="efectivo">Efectivo</span></button>
-    <button type="button" data-f="tarjeta"><span class="pf"></span><span class="pn" data-n="tarjeta">Tarjeta</span></button>
   </div>
   </div>
   <div class="alertas">
@@ -2190,8 +2196,14 @@ function entroHoy(s){
   return null;
 }
 function renderFilas(cont, rowsArr){
-  rowsArr.forEach(function(r){
+  rowsArr.forEach(function(r, idx){
     var row = document.createElement('div'); row.className = 'prow clickable';
+    /* v109: cada factura numerada dentro de lo que se está mirando (pedido de Matías 04:4x:
+       "al lado de cada una que diga 1, 2, 3, 4"). La 1 es la de arriba, así que el número
+       también dice cuántas llevás vistas sin tener que contarlas. Se renumera con cada
+       filtro, porque lo que cuenta es la lista que tenés delante. */
+    var nu = document.createElement('div'); nu.className = 'nu'; nu.textContent = (idx + 1);
+    row.appendChild(nu);
     var pg = String(r.pago || '').toLowerCase();
     if (pg === 'pendiente') row.classList.add('pg-pendiente');
     else if (pg === 'efectivo') row.classList.add('pg-efectivo');
@@ -3659,7 +3671,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v108';
+var APP_VER = 'v109';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

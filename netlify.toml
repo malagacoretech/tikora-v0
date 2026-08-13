@@ -37,3 +37,30 @@
   for = "/captura-sw.js"
   [headers.values]
     Cache-Control = "no-cache"
+
+# ------------------------------------------------------------------------------
+#  Seguridad — 13-ago-2026
+#
+#  La MÁS importante es Referrer-Policy, y por un motivo muy concreto de Tikora:
+#  la app se abre con la llave DENTRO de la dirección (`?u=SP…`). Sin esta cabecera,
+#  cada vez que desde la app se abre un enlace hacia fuera, el navegador manda la
+#  dirección completa —con la llave— al sitio de destino en la cabecera Referer.
+#  Con `no-referrer` no se manda nada. Es gratis y tapa una fuga real.
+#
+#  NO se pone Content-Security-Policy todavía a propósito: una CSP mal ajustada
+#  rompe la app en producción y hoy no hay entorno de pruebas donde comprobarlo.
+#  Se pone el día que estén las vistas previas — no antes.
+# ------------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()"
+
+# Las fotos ya reducidas no cambian nunca: que el móvil no las vuelva a pedir.
+[[headers]]
+  for = "/.netlify/images"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"

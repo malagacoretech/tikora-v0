@@ -1705,8 +1705,45 @@ function fvZoom(encender, xRel, yRel){
       z.scrollLeft = (z.scrollWidth - z.clientWidth) * mx;
       z.scrollTop  = (z.scrollHeight - z.clientHeight) * my;
     }, 20);
-  } else { z.scrollLeft = 0; z.scrollTop = 0; }
+  } else { z.scrollLeft = 0; z.scrollTop = 0; $('fvImg').style.width = ''; }
 }
+/* v131: ZOOM CON LOS DEDOS (pellizco), pedido de Matías en pleno repaso. El zoom de un toque
+   (v82) sigue igual; el pellizco regula el tamaño fino entre 100% y 500%. Como el corrector
+   abre la foto en este mismo visor (v128), "corregir y hacer zoom con los dedos de una" queda
+   cubierto aquí. El arrastre para recorrerla es el scroll nativo de siempre. */
+(function(){
+  var z = $('fvZona'), img = $('fvImg');
+  if (!z || !img) return;
+  var pinch = null;
+  function dist(e){
+    var a = e.touches[0], b = e.touches[1];
+    return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2));
+  }
+  function pctActual(){
+    if (!z.classList.contains('zoom')) return 100;
+    var w = parseFloat(img.style.width);
+    return isNaN(w) ? 290 : w;   /* 290 = el ancho del zoom clásico de la v82 */
+  }
+  z.addEventListener('touchstart', function(e){
+    if (e.touches.length === 2){ pinch = { d: dist(e), pct: pctActual() }; }
+  }, { passive: true });
+  z.addEventListener('touchmove', function(e){
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();   /* que el pellizco no pelee con el scroll */
+    var nuevo = Math.max(100, Math.min(500, pinch.pct * (dist(e) / pinch.d)));
+    if (nuevo > 108){
+      if (!z.classList.contains('zoom')){ z.classList.add('zoom'); var bt = $('fvZoom'); if (bt) bt.classList.add('activo'); }
+      img.style.width = nuevo + '%';
+    } else {
+      img.style.width = '';
+      z.classList.remove('zoom');
+      var b2 = $('fvZoom'); if (b2) b2.classList.remove('activo');
+    }
+  }, { passive: false });
+  z.addEventListener('touchend', function(e){
+    if (e.touches.length < 2) pinch = null;
+  }, { passive: true });
+})();
 $('fvImg').addEventListener('click', function(e){
   var r = $('fvZona').getBoundingClientRect();
   fvZoom(undefined, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
@@ -1871,6 +1908,34 @@ $('rpLupa').addEventListener('click', function(){
   var c = rpActual();
   if (c && c.f){ if (!fvAbrirRemota(c.f, c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'La factura')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(c.f)); }
 });
+/* v131 (pedido de Matías 22:3x, en pleno repaso): el dedo manda.
+   - Deslizar la foto a la izquierda = siguiente; a la derecha = anterior. Los botones siguen.
+   - Tocarla (sin arrastrar) = se abre en grande, igual que la lupa. */
+(function(){
+  var zona = $('rpImg') ? $('rpImg').parentNode : null;
+  if (!zona) return;
+  var x0 = 0, y0 = 0, movio = false;
+  zona.addEventListener('touchstart', function(e){
+    if (e.touches.length !== 1) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; movio = false;
+  }, { passive: true });
+  zona.addEventListener('touchmove', function(e){
+    if (e.touches.length !== 1) return;
+    if (Math.abs(e.touches[0].clientX - x0) > 15 || Math.abs(e.touches[0].clientY - y0) > 15) movio = true;
+  }, { passive: true });
+  zona.addEventListener('touchend', function(e){
+    if (!e.changedTouches || !e.changedTouches.length) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    var dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)){
+      if (dx < 0) $('rpSig').click(); else $('rpAnt').click();
+    }
+  }, { passive: true });
+  zona.addEventListener('click', function(){
+    if (movio) return;   /* fue un arrastre, no un toque */
+    $('rpLupa').click();
+  });
+})();
 $('rpSig').addEventListener('click', function(){
   if (rpIdx < rpLista.length - 1){ rpIdx++; rpPintar(); } else { toast('Es la última'); }
 });
@@ -2229,6 +2294,8 @@ $('corrVerFoto').addEventListener('click', function(){
   /* v128: tambien al visor de la app */
   if (corrActual && corrActual.f){ if (!fvAbrirRemota(corrActual.f, 'Mirala y tocá Volver — los campos te esperan')) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(corrActual.f)); }
 });
+/* v131: tocar la tira de la foto hace lo mismo que la lupa — lo que se ve se toca */
+$('corrImg').addEventListener('click', function(){ $('corrVerFoto').click(); });
 /* v103: un solo botón — la app mira si está completa y decide ella si la promueve */
 $('corrGuardar').addEventListener('click', function(){ guardarCorreccion(faltaEnCorrector().length === 0); });
 $('corrSinIva').addEventListener('click', function(){ if (corrActual) mandarASinIva(corrActual, cerrarCorrector); });
@@ -4416,7 +4483,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v130';
+var APP_VER = 'v131';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

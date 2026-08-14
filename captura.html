@@ -1665,9 +1665,12 @@ setTimeout(procesarPagosPend, 8000);
 var thumbItemId = null, thumbUrl = null, okTimer = null;
 /* v52: visor de fotos de la sesión (máx 25 en memoria; al cerrar la app se liberan — las facturas ya viajaron) */
 var sesionFotos = [], fvIdx = 0;
+/* v135: galería de varias fotos remotas a la vez (respuesta del chat con varias facturas) */
+var fvRemotas = [], fvRIdx = 0, fvModoRemotas = false;
 function fvPinta(){
   if (!sesionFotos.length) return;
   fvRemota = null;                                   /* v89: volvemos al modo sesion */
+  fvModoRemotas = false;
   if (fvIdx < 0) fvIdx = 0;
   if (fvIdx >= sesionFotos.length) fvIdx = sesionFotos.length - 1;
   $('fvImg').src = sesionFotos[fvIdx];
@@ -1685,6 +1688,7 @@ function fvPinta(){
 var fvRemota = null;
 function fvAbrirRemota(fid, rotulo){
   if (!fid || !TOKEN) return false;
+  fvModoRemotas = false;
   fvRemota = fid;
   /* v134: la foto grande también por el CDN de Netlify — n8n la sirve UNA vez por semana y el
      resto lo pone el borde. Si el CDN no puede, cae al proxy directo, como las miniaturas. */
@@ -1700,7 +1704,34 @@ function fvAbrirRemota(fid, rotulo){
   $('fotoVis').classList.add('on');
   return true;
 }
-function fvAbrir(){ if (!sesionFotos.length) return; fvIdx = sesionFotos.length - 1; fvPinta(); fvZoom(false); $('fotoVis').classList.add('on'); }
+/* v135: pinta la foto actual de una galería remota (varias fotos citadas en una misma
+   respuesta del chat), con las mismas flechas prev/next que ya usan las fotos de sesión. */
+function fvPintaRemotas(){
+  if (!fvRemotas.length) return;
+  if (fvRIdx < 0) fvRIdx = 0;
+  if (fvRIdx >= fvRemotas.length) fvRIdx = fvRemotas.length - 1;
+  var it = fvRemotas[fvRIdx];
+  fvRemota = it.fid;
+  var fvUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(it.fid);
+  $('fvImg').onerror = function(){ $('fvImg').onerror = null; $('fvImg').src = fvUrlDirecta; };
+  $('fvImg').src = '/.netlify/images?url=' + encodeURIComponent(fvUrlDirecta) + '&w=2000&fit=contain';
+  $('fvN').textContent = (it.rotulo || 'Factura') + ' · ' + (fvRIdx + 1) + '/' + fvRemotas.length;
+  $('fvPrev').style.visibility = fvRIdx > 0 ? 'visible' : 'hidden';
+  $('fvNext').style.visibility = fvRIdx < fvRemotas.length - 1 ? 'visible' : 'hidden';
+  $('fvPreg').style.display = 'none';
+  $('fvHint').textContent = 'Deslizá con las flechas para ver las demás fotos de esta respuesta';
+}
+function fvAbrirRemotasChat(lista, idx){
+  if (!lista || !lista.length || !TOKEN) return false;
+  fvModoRemotas = true;
+  fvRemotas = lista;
+  fvRIdx = idx || 0;
+  fvPintaRemotas();
+  fvZoom(false);
+  $('fotoVis').classList.add('on');
+  return true;
+}
+function fvAbrir(){ if (!sesionFotos.length) return; fvModoRemotas = false; fvIdx = sesionFotos.length - 1; fvPinta(); fvZoom(false); $('fotoVis').classList.add('on'); }
 $('thumb').addEventListener('click', fvAbrir);
 /* v82: zoom del visor. Tocar la foto acerca o aleja; el botón de la lupa hace lo mismo,
    para que se vea que se puede (media noche aprendiendo que lo que no se anuncia no existe). */
@@ -1770,8 +1801,8 @@ $('fvPreg').addEventListener('click', function(){
 });
 $('fvX').addEventListener('click', function(){ fvZoom(false); $('fotoVis').classList.remove('on'); });
 $('fvVolver').addEventListener('click', function(){ fvZoom(false); $('fotoVis').classList.remove('on'); });
-$('fvPrev').addEventListener('click', function(){ fvZoom(false); fvIdx--; fvPinta(); });
-$('fvNext').addEventListener('click', function(){ fvZoom(false); fvIdx++; fvPinta(); });
+$('fvPrev').addEventListener('click', function(){ fvZoom(false); if (fvModoRemotas){ fvRIdx--; fvPintaRemotas(); } else { fvIdx--; fvPinta(); } });
+$('fvNext').addEventListener('click', function(){ fvZoom(false); if (fvModoRemotas){ fvRIdx++; fvPintaRemotas(); } else { fvIdx++; fvPinta(); } });
 $('fotoVis').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
 function setThumb(blob){
   var t = $('thumb');
@@ -2061,14 +2092,22 @@ function pintarSinIva(){
     for (var i = 0; i < rr.length; i++) basePanel += (rr[i].base || 0);
   } catch(e){}
   if (basePanel > 0){
+    /* v135: esto era una HIPOTESIS ("si esto se sumara, el gasto seria X") y el numero
+       mas grande y mas llamativo de la pantalla era un numero que NO EXISTE. Encima se
+       explicaba con una negacion ("no se suma solo"). Tres saltos mentales para decir
+       algo sencillo. Matias, 14-ago: "esta raro, que se entienda de otra forma".
+       Ahora es una SUMA: un total de verdad, partido en sus dos trozos de verdad. */
     var sep = document.createElement('div'); sep.className = 'sep'; caja.appendChild(sep);
+    var sinIvaTot = Math.round((sinIvaDatos.total || 0) * 100) / 100;
+    var conIvaTot = Math.round(basePanel * 100) / 100;
     var comp = document.createElement('div'); comp.className = 'comp';
-    comp.innerHTML = 'Si esto se sumara a lo demás, el gasto sería <b>'
-      + fmtEur(Math.round((basePanel + (sinIvaDatos.total || 0)) * 100) / 100)
-      + '</b> · hoy en el panel: ' + fmtEur(Math.round(basePanel * 100) / 100);
+    comp.innerHTML = 'Gastado en total: <b>' + fmtEur(Math.round((conIvaTot + sinIvaTot) * 100) / 100) + '</b>';
     caja.appendChild(comp);
+    var partes = document.createElement('div'); partes.className = 'l';
+    partes.textContent = fmtEur(conIvaTot) + ' en facturas con IVA  +  ' + fmtEur(sinIvaTot) + ' en papeles sin IVA';
+    caja.appendChild(partes);
     var nota = document.createElement('div'); nota.className = 'nota';
-    nota.textContent = 'No se suma solo. El panel y lo que recibe la gestoría siguen contando únicamente lo que lleva IVA.';
+    nota.textContent = 'A la gestoría solo le llegan las facturas con IVA. Estos ' + fmtEur(sinIvaTot) + ' van aparte.';
     caja.appendChild(nota);
   }
   cont.appendChild(caja);
@@ -3985,12 +4024,35 @@ function chatFmt(t){
   var e = String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   e = e.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
   e = e.replace(/^\s*[-*] /gm, '· ');
-  /* v48: enlaces del proxy de fotos -> "ver foto" tocable (solo nuestro dominio, tras el escape) */
-  e = e.replace(/https:\/\/malagacoretech\.app\.n8n\.cloud\/webhook\/tikora-foto-[A-Za-z0-9]+\?u=[A-Za-z0-9%]+&amp;f=[A-Za-z0-9_-]+/g, function(u){
-    return '<a class="cfoto" href="' + u + '" target="_blank" rel="noopener">&#128206; ver foto</a>';
+  /* v48: enlaces del proxy de fotos -> "ver foto" tocable (solo nuestro dominio, tras el escape)
+     v135: ahora con su fid y su etiqueta (lo que dice la línea antes del link) — para que el
+     visor propio pueda abrir TODAS las fotos de la respuesta en una galería con flechas, en
+     vez de mandar cada una suelta al navegador del sistema (que en la PWA instalada, target=_blank
+     no siempre abre nada — la lección de la v90 con el visor de la cámara, repetida aquí). */
+  e = e.replace(/https:\/\/malagacoretech\.app\.n8n\.cloud\/webhook\/tikora-foto-[A-Za-z0-9]+\?u=[A-Za-z0-9%]+&amp;f=([A-Za-z0-9_-]+)/g, function(u, fid, offset, str){
+    var pre = str.slice(0, offset);
+    var linea = pre.slice(pre.lastIndexOf('\n') + 1).replace(/^\s*·\s*/, '').replace(/:\s*$/, '').trim();
+    var rot = (linea || 'Factura').replace(/"/g, '&quot;');
+    return '<a class="cfoto" href="' + u + '" target="_blank" rel="noopener" data-fid="' + fid + '" data-rotulo="' + rot + '">&#128206; ver foto</a>';
   });
   return e;
 }
+/* v135: un toque en "ver foto" abre TODAS las fotos de esa misma respuesta en el visor propio,
+   con flechas para pasar de una a otra — antes cada link abría su propia pestaña del navegador,
+   una por una. Delegado en el contenedor porque los mensajes se crean después de este momento. */
+$('chatMsgs').addEventListener('click', function(e){
+  var a = e.target.closest ? e.target.closest('.cfoto') : null;
+  if (!a) return;
+  e.preventDefault();
+  var burbuja = a.closest('.cmsg');
+  var enlaces = burbuja ? burbuja.querySelectorAll('.cfoto') : [a];
+  var lista = [], idx = 0;
+  for (var i = 0; i < enlaces.length; i++){
+    lista.push({ fid: enlaces[i].getAttribute('data-fid'), rotulo: enlaces[i].getAttribute('data-rotulo') });
+    if (enlaces[i] === a) idx = i;
+  }
+  if (!fvAbrirRemotasChat(lista, idx)) abrirFoto(a.href);
+});
 function chatMsg(texto, cls){
   var d = document.createElement('div'); d.className = 'cmsg ' + cls;
   if (cls.indexOf('bot') >= 0) d.innerHTML = chatFmt(texto); else d.textContent = texto;
@@ -4550,7 +4612,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v134';
+var APP_VER = 'v135';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

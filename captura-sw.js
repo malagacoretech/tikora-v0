@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v134'; /* v134: n8n al 100 por cien del mes -> el panel va por /api/panel (Netlify proxy + cache 30 s en el borde) y TODAS las fotos grandes por el CDN (visor, corrector, revisar) - n8n sirve cada foto una vez por semana y el resto lo pone el borde */
+var VERSION = 'tikora-captura-v135'; /* v135: la caja de gastos sin IVA deja de ser una hipotesis ("si esto se sumara, el gasto seria X") y pasa a ser una suma de verdad: total real partido en sus dos trozos reales. El numero grande ya no es un numero que no existe. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

@@ -730,6 +730,10 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" class="rpB rpCor" id="rpCorregir">&#9999;&#65039; Corregir</button>
     <button type="button" class="rpB" id="rpRepetir">&#9888; Repetir foto</button>
     <button type="button" class="rpB rpQuit" id="rpQuitar">&#128465; Quitar</button>
+    <!-- v136: el mismo Repaso sirve para los papeles ARCHIVADOS (Otros). Estos dos botones
+         solo existen en ese modo; los cuatro de arriba se ocultan. -->
+    <button type="button" class="rpB rpCor" id="rpEsFactura" style="display:none">&#8617; S&Iacute; ES FACTURA</button>
+    <button type="button" class="rpB rpQuit" id="rpBorrar" style="display:none">&#128465; Borrar del archivo</button>
   </div>
   <div class="rpPie">
     <button type="button" class="rpNav" id="rpAnt">&#8249; Anterior</button>
@@ -1909,10 +1913,27 @@ function initCamera(){
    o no vaciarlas nunca. Reutiliza lo que ya existe: mandarASinIva, abrirCorrector,
    iniciarRehacer y el mismo endpoint de descartar. */
 var rpLista = [], rpIdx = 0, rpDesdeRepaso = false;
+/* v136: el Repaso tiene dos modos — 'pend' (los pendientes de siempre) y 'otros' (los papeles
+   archivados como no-factura). Pedido de Matías 14-ago: "los 80 archivados quiero repasarlos
+   uno por uno igual, y al abrir que tenga sus opciones". Mismo overlay, misma foto grande,
+   mismos gestos; solo cambian los botones de decisión. */
+var rpModo = 'pend';
 function abrirRepaso(){
   var pend = (panelData && panelData.pendientes) || [];
   rpLista = pend.filter(function(c){ return c && c.f; });
   if (!rpLista.length){ toast('No hay nada que repasar'); return; }
+  rpModo = 'pend';
+  rpIdx = 0;
+  $('repaso').classList.add('on');
+  rpPintar();
+}
+function abrirRepasoOtros(){
+  var otros = (panelData && panelData.otros) || [];
+  rpLista = otros.filter(function(o){ return o && o.fid; }).map(function(o){
+    return { f: o.fid, emisor: o.emisor, tipoPapel: o.tipo, fecha: o.fecha, tipo: 'otros' };
+  });
+  if (!rpLista.length){ toast('No hay papeles archivados con foto'); return; }
+  rpModo = 'otros';
   rpIdx = 0;
   $('repaso').classList.add('on');
   rpPintar();
@@ -1920,6 +1941,7 @@ function abrirRepaso(){
 function cerrarRepaso(){
   $('repaso').classList.remove('on');
   $('rpImg').src = '';
+  rpModo = 'pend';
   loadPanel(true);
 }
 function rpActual(){ return rpLista[rpIdx] || null; }
@@ -1932,11 +1954,24 @@ function rpPintar(){
   $('rpImg').src = '/.netlify/images?url=' + encodeURIComponent(url) + '&w=1100&fit=contain';
   $('rpImg').onerror = function(){ $('rpImg').onerror = null; $('rpImg').src = url; };
   zumReset($('rpImg').parentNode, $('rpImg'));   /* v132: factura nueva, zoom a cero */
-  $('rpQuien').textContent = (c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'proveedor sin leer')
-    + (c.entro ? ' · ingresó ' + String(c.entro).slice(0, 5) + ' ' + String(c.entro).slice(11, 16) : '');
-  $('rpMotivo').textContent = motivoCoherente(c);
-  $('rpCorregir').style.display = (c.tipo === 'corregir' && c.fila) ? '' : 'none';
-  $('rpRepetir').style.display  = (c.tipo === 'corregir' && c.fila) ? 'none' : '';
+  var esOtros = (rpModo === 'otros');
+  /* los cuatro botones de pendientes y los dos de archivados nunca conviven */
+  $('rpSinIva').style.display = esOtros ? 'none' : '';
+  $('rpQuitar').style.display = esOtros ? 'none' : '';
+  $('rpEsFactura').style.display = esOtros ? '' : 'none';
+  $('rpBorrar').style.display = esOtros ? '' : 'none';
+  if (esOtros){
+    $('rpQuien').textContent = [c.tipoPapel || 'papel', c.emisor, c.fecha].filter(Boolean).join(' · ');
+    $('rpMotivo').textContent = 'Archivado: el sistema lo leyó como algo que no es una factura';
+    $('rpCorregir').style.display = 'none';
+    $('rpRepetir').style.display = 'none';
+  } else {
+    $('rpQuien').textContent = (c.emisor && c.emisor.charAt(0) !== '(' ? c.emisor : 'proveedor sin leer')
+      + (c.entro ? ' · ingresó ' + String(c.entro).slice(0, 5) + ' ' + String(c.entro).slice(11, 16) : '');
+    $('rpMotivo').textContent = motivoCoherente(c);
+    $('rpCorregir').style.display = (c.tipo === 'corregir' && c.fila) ? '' : 'none';
+    $('rpRepetir').style.display  = (c.tipo === 'corregir' && c.fila) ? 'none' : '';
+  }
   $('rpAnt').disabled = (rpIdx === 0);
 }
 /* al resolver una, sale de la baraja y aparece la siguiente sin tocar nada */
@@ -2036,6 +2071,36 @@ $('rpQuitar').addEventListener('click', function(){
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(){ toast('Quitada — la foto sigue guardada'); rpResuelta(); })
     .catch(function(){ toast('No se pudo quitar', true); });
+});
+/* v136: las dos decisiones del modo archivados. Mismos endpoints que la lista de "Ver cuáles"
+   (rescatar y borrar ya existen en el servidor y quedan anotados en el Excel — Otros!G). */
+$('rpEsFactura').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  if (!confirm('¿Devolver este papel a la lista de revisar?\n\nVolverá con su foto para que completes los datos, y contará como factura cuando lo hagas.')) return;
+  $('rpEsFactura').disabled = true;
+  fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(rr){
+      $('rpEsFactura').disabled = false;
+      if (!rr.ok || (rr.j && rr.j.ok === false)){ toast((rr.j && rr.j.motivo) ? rr.j.motivo : 'No se pudo rescatar', true); return; }
+      toast('Devuelta a revisar — completá los datos');
+      rpResuelta();
+    })
+    .catch(function(){ $('rpEsFactura').disabled = false; toast('No se pudo rescatar', true); });
+});
+$('rpBorrar').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  if (!confirm('¿Borrar este papel del archivo?\n\nDesaparece de esta lista. La foto original NO se destruye: queda anotado en la hoja que lo borraste tú, con fecha.')) return;
+  $('rpBorrar').disabled = true;
+  fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f, accion: 'borrar' }) })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(rr){
+      $('rpBorrar').disabled = false;
+      if (!rr.ok || (rr.j && rr.j.ok === false)){ toast((rr.j && rr.j.motivo) ? rr.j.motivo : 'No se pudo borrar', true); return; }
+      toast('Borrado del archivo');
+      rpResuelta();
+    })
+    .catch(function(){ $('rpBorrar').disabled = false; toast('No se pudo borrar', true); });
 });
 
 /* ================== v101: LA CARPETA SIN IVA ==================
@@ -3288,6 +3353,13 @@ function renderPanel(data, cachedNote){
         cajaOtros.style.display = 'block'; ver.textContent = 'Ocultar ˅';
       });
       rr.appendChild(calma);
+      /* v136: los archivados también se repasan de a uno, con la foto grande y sus dos
+         decisiones (sí es factura / borrar). La lista de "Ver cuáles" sigue para picotear. */
+      var brO = document.createElement('button'); brO.type = 'button'; brO.className = 'repasoBtn';
+      brO.style.background = 'var(--surface-2)'; brO.style.borderColor = 'var(--border)'; brO.style.color = 'var(--text)';
+      brO.textContent = '👀 Repasar los archivados uno por uno (' + nOtros + ')';
+      brO.addEventListener('click', abrirRepasoOtros);
+      rr.appendChild(brO);
       rr.appendChild(cajaOtros);
     }
     var pintar = function(lista, titulo){
@@ -4612,7 +4684,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v136';
+var APP_VER = 'v137';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

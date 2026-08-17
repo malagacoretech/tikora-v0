@@ -531,8 +531,10 @@ button.capbadge:active{transform:scale(0.95)}
 #cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
 /* v101: Sin IVA en gris — ni el verde de "Todo" ni el amarillo de los meses.
    Es a proposito: eso NO es dinero fiscal y no puede parecerlo. */
-#cardSinIva{flex:0 0 auto;white-space:nowrap;border-color:var(--border);color:var(--text-muted)}
-#cardSinIva.filtro{background:rgba(148,163,184,0.18);border-color:#94A3B8;color:#CBD5E1}
+#cardSinIva,#cardVarios{flex:0 0 auto;white-space:nowrap;border-color:var(--border);color:var(--text-muted)}
+#cardSinIva.filtro,#cardVarios.filtro{background:rgba(148,163,184,0.18);border-color:#94A3B8;color:#CBD5E1}
+/* v139: filas de Varios — la descripción de la IA es lo que identifica el papel */
+#variosRows .vdesc{font-size:0.82rem;color:var(--text-muted);margin-top:0.15rem;line-height:1.35}
 .sivTot{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.8rem 0.9rem;margin-bottom:0.6rem}
 .sivTot .g{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}
 .sivTot .l{font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem;line-height:1.35}
@@ -735,9 +737,12 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" class="rpB rpCor" id="rpCorregir">&#9999;&#65039; Corregir</button>
     <button type="button" class="rpB" id="rpRepetir">&#9888; Repetir foto</button>
     <button type="button" class="rpB rpQuit" id="rpQuitar">&#128465; Quitar</button>
-    <!-- v136: el mismo Repaso sirve para los papeles ARCHIVADOS (Otros). Estos dos botones
-         solo existen en ese modo; los cuatro de arriba se ocultan. -->
+    <!-- v136: el mismo Repaso sirve para los papeles ARCHIVADOS (Otros). Estos botones
+         solo existen en ese modo; los cuatro de arriba se ocultan.
+         v139: tercera decision - guardar en la carpeta VARIOS los papeles utiles que
+         no son facturas (certificados, contratos, revisiones). -->
     <button type="button" class="rpB rpCor" id="rpEsFactura" style="display:none">&#8617; S&Iacute; ES FACTURA</button>
+    <button type="button" class="rpB rpSiv" id="rpVarios" style="display:none">&#128193; Guardar en Varios</button>
     <button type="button" class="rpB rpQuit" id="rpBorrar" style="display:none">&#128465; Borrar del archivo</button>
   </div>
   <div class="rpPie">
@@ -828,6 +833,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <!-- v101: la carpeta de lo que NO lleva IVA. Gris a proposito: no es dinero fiscal,
          no suma al hero ni a lo que recibe la gestoria. Pedido de Matias (13-ago 02:0x). -->
     <button type="button" id="cardSinIva" style="display:none">&#128230;&nbsp;<span id="sinIvaTxt">Sin IVA</span></button>
+    <!-- v139: la carpeta VARIOS - papeles utiles que no son facturas (certificados,
+         contratos, revisiones) guardados a proposito desde los archivados. -->
+    <button type="button" id="cardVarios" style="display:none">&#128193;&nbsp;<span id="variosTxt">Varios</span></button>
   </div>
   <!-- v63: el carril se deslizaba de lado pero nada lo indicaba, asi que "Efectivo" y
        "Tarjeta" no existian para quien no adivinara el gesto. Flechas que solo salen
@@ -867,6 +875,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   </div>
   <div id="rehacerRows" style="display:none"></div>
   <div id="sinIvaRows" style="display:none"></div>
+  <div id="variosRows" style="display:none"></div>
   <input type="search" id="panelSearch" class="psearch" placeholder="&#128269; Buscar proveedor, n&ordm; de factura o fecha&hellip;" autocomplete="off">
   <!-- v84: el orden lo elige él, no yo. Vale para las dos vistas: facturas y proveedores. -->
   <!-- v86: periodo y orden JUNTOS y pegados a la lista, en UNA sola fila. El "Ordenar por"
@@ -1964,6 +1973,7 @@ function rpPintar(){
   $('rpSinIva').style.display = esOtros ? 'none' : '';
   $('rpQuitar').style.display = esOtros ? 'none' : '';
   $('rpEsFactura').style.display = esOtros ? '' : 'none';
+  $('rpVarios').style.display = esOtros ? '' : 'none';
   $('rpBorrar').style.display = esOtros ? '' : 'none';
   if (esOtros){
     $('rpQuien').textContent = [c.tipoPapel || 'papel', c.emisor, c.fecha].filter(Boolean).join(' · ');
@@ -2092,6 +2102,20 @@ $('rpEsFactura').addEventListener('click', function(){
       rpResuelta();
     })
     .catch(function(){ $('rpEsFactura').disabled = false; toast('No se pudo rescatar', true); });
+});
+$('rpVarios').addEventListener('click', function(){
+  var c = rpActual(); if (!c) return;
+  if (!confirm('¿Guardar este papel en la carpeta Varios?\n\nEs para documentos útiles que no son facturas: certificados, contratos, revisiones. Lo vas a encontrar en el Panel, en la pastilla 📁 Varios.')) return;
+  $('rpVarios').disabled = true;
+  fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f, accion: 'varios' }) })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(rr){
+      $('rpVarios').disabled = false;
+      if (!rr.ok || (rr.j && rr.j.ok === false)){ toast((rr.j && rr.j.motivo) ? rr.j.motivo : 'No se pudo guardar', true); return; }
+      toast('Guardado en Varios 📁');
+      rpResuelta();
+    })
+    .catch(function(){ $('rpVarios').disabled = false; toast('No se pudo guardar', true); });
 });
 $('rpBorrar').addEventListener('click', function(){
   var c = rpActual(); if (!c) return;
@@ -2492,6 +2516,61 @@ function cerrarListaSinIva(){
   $('sinIvaRows').style.display = 'none';
   $('cardSinIva').classList.remove('filtro');
 }
+/* ============ v139: LA CARPETA VARIOS ============
+   Papeles útiles que NO son facturas (certificados, contratos, revisiones de extintores…)
+   guardados a propósito desde los archivados. Cada uno con su foto, la descripción que
+   leyó la IA, la fecha y el emisor si se detectó. Viven en la hoja (Otros!G = "guardada
+   en Varios FECHA") y llegan por el Panel API — nada se queda solo en el móvil. */
+function pintarVarios(){
+  var lista = (panelData && panelData.varios) || [];
+  if (!lista.length){ $('cardVarios').style.display = 'none'; $('variosRows').style.display = 'none'; return; }
+  $('cardVarios').style.display = 'block';
+  $('variosTxt').textContent = 'Varios · ' + lista.length;
+  var cont = $('variosRows'); cont.innerHTML = '';
+  lista.forEach(function(o){
+    var row = document.createElement('div'); row.className = 'caprow';
+    var gg = document.createElement('div'); gg.className = 'cg';
+    var t1 = document.createElement('div'); t1.className = 'ce';
+    t1.textContent = o.tipo || 'papel';
+    gg.appendChild(t1);
+    if (o.desc){
+      var td = document.createElement('div'); td.className = 'vdesc';
+      td.textContent = o.desc;
+      gg.appendChild(td);
+    }
+    var t2 = document.createElement('div'); t2.className = 'ch';
+    t2.textContent = [o.emisor, o.fecha].filter(Boolean).join(' · ') || 'sin datos leídos';
+    gg.appendChild(t2);
+    row.appendChild(gg);
+    if (o.fid){
+      var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(o.fid);
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'copybtn conmini';
+      var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+      im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=120&h=120&fit=cover';
+      im.addEventListener('error', function(){ b.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+      b.appendChild(im);
+      var sp2 = document.createElement('span'); sp2.textContent = 'Foto'; b.appendChild(sp2);
+      b.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if (!fvAbrirRemota(o.fid, o.tipo || 'Papel')) abrirFoto(u);
+      });
+      row.appendChild(b);
+    }
+    cont.appendChild(row);
+  });
+}
+$('cardVarios').addEventListener('click', function(){
+  var abierto = $('variosRows').style.display === 'block';
+  if (abierto){
+    $('variosRows').style.display = 'none';
+    $('cardVarios').classList.remove('filtro');
+  } else {
+    cerrarListaRehacer(); cerrarListaSinIva();
+    $('variosRows').style.display = 'block';
+    $('cardVarios').classList.add('filtro');
+    $('variosRows').scrollIntoView({ block: 'nearest' });
+  }
+});
 
 /* v99: la linterna, en UNA sola función que se puede llamar desde donde haga falta.
    El fallo que arreglaba: al bloquear el móvil y volver a abrirlo, el track de la cámara
@@ -3351,6 +3430,23 @@ function renderPanel(data, cachedNote){
                   .catch(function(){ res.disabled = false; toast('No se pudo rescatar', true); });
               });
               row.appendChild(res);
+              /* v139: tercera salida - guardarlo en la carpeta Varios */
+              var vrs = document.createElement('button'); vrs.type = 'button'; vrs.className = 'capbadge';
+              vrs.textContent = '📁 Varios';
+              vrs.addEventListener('click', function(ev){
+                ev.stopPropagation();
+                if (!confirm('¿Guardar este papel en la carpeta Varios?\n\nEs para documentos útiles que no son facturas. Lo vas a encontrar en el Panel, en la pastilla 📁 Varios.')) return;
+                vrs.disabled = true;
+                fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid, accion: 'varios' }) })
+                  .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
+                  .then(function(rr2){
+                    if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ vrs.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo guardar', true); return; }
+                    toast('Guardado en Varios 📁');
+                    row.remove(); loadPanel(true);
+                  })
+                  .catch(function(){ vrs.disabled = false; toast('No se pudo guardar', true); });
+              });
+              row.appendChild(vrs);
             }
             cajaOtros.appendChild(row);
           });
@@ -3383,6 +3479,7 @@ function renderPanel(data, cachedNote){
   renderLista();
   /* v101: la carpeta Sin IVA se trae aparte (endpoint propio, no toca el Panel API) */
   if (!ES_EMPLEADO){ if (sinIvaDatos) pintarSinIva(); else cargarSinIva(); }
+  pintarVarios();   /* v139: la carpeta Varios llega en el propio Panel API */
   $('panelUpdated').textContent = cachedNote
     ? ('datos guardados ' + cachedNote)
     : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
@@ -4717,7 +4814,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v138';
+var APP_VER = 'v139';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

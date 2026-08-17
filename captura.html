@@ -321,7 +321,12 @@ input[type=file]{display:none}
 .psearch::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:36px;height:36px;margin-left:0.3rem;border-radius:50%;background-color:var(--surface-2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F4C95D' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E");background-size:17px 17px;background-position:center;background-repeat:no-repeat;cursor:pointer}
 .psearch::-webkit-search-cancel-button:active{background-color:var(--accent);transform:scale(0.92)}
 /* v11: chat "preguntale a tus facturas" — v27: pase fino movil (delicado y profesional) */
-#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch}
+#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch;position:relative}
+/* v138: flecha flotante para bajar por una respuesta larga. Sticky dentro del propio scroll:
+   ocupa 0 de alto (no descoloca la conversacion) y el boton se dibuja hacia arriba. */
+.chatDown{position:sticky;bottom:0;height:0;align-self:flex-end;overflow:visible;display:none;z-index:5}
+.chatDown.on{display:block}
+.chatDown button{transform:translateY(-52px);width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--accent);font-size:1.25rem;font-family:inherit;box-shadow:0 2px 10px rgba(0,0,0,0.35);cursor:pointer;margin-right:0.2rem}
 .cmsg{max-width:88%;border-radius:16px;padding:0.62rem 0.85rem;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600;border-bottom-right-radius:6px}
 .cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
@@ -4128,11 +4133,33 @@ $('chatMsgs').addEventListener('click', function(e){
 function chatMsg(texto, cls){
   var d = document.createElement('div'); d.className = 'cmsg ' + cls;
   if (cls.indexOf('bot') >= 0) d.innerHTML = chatFmt(texto); else d.textContent = texto;
-  $('chatMsgs').appendChild(d); $('chatMsgs').scrollTop = 999999; return d;
+  $('chatMsgs').appendChild(d);
+  if (chatDown) $('chatMsgs').appendChild(chatDown);   /* v138: la flecha siempre al final */
+  $('chatMsgs').scrollTop = 999999;
+  chatFlecha();
+  return d;
 }
+/* v138: flecha para bajar a mano por una respuesta larga. Aparece solo cuando queda
+   contenido por debajo; tocarla baja suave hasta el final. */
+var chatDown = document.createElement('div'); chatDown.className = 'chatDown';
+var chatDownB = document.createElement('button'); chatDownB.type = 'button';
+chatDownB.setAttribute('aria-label', 'Bajar al final'); chatDownB.innerHTML = '&#8595;';
+chatDown.appendChild(chatDownB);
+$('chatMsgs').appendChild(chatDown);
+chatDownB.addEventListener('click', function(){
+  var m = $('chatMsgs');
+  m.scrollTo({ top: m.scrollHeight, behavior: 'smooth' });
+});
+function chatFlecha(){
+  var m = $('chatMsgs');
+  var falta = m.scrollHeight - m.scrollTop - m.clientHeight;
+  chatDown.classList.toggle('on', falta > 60);
+}
+$('chatMsgs').addEventListener('scroll', chatFlecha, { passive: true });
 function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
 function chatHello(){
-  if ($('chatMsgs').children.length) return;
+  /* v138: la flecha vive dentro de chatMsgs — se cuentan solo los mensajes de verdad */
+  if ($('chatMsgs').querySelector('.cmsg')) return;
   /* v61: el saludo de antes describia el formulario. Este dice lo que la app SABE, con el
      numero real de facturas cargadas — nada inventado, es el mismo dato del panel. */
   var nFac = 0;
@@ -4174,13 +4201,19 @@ function sendChat(q, porVoz){
       pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
       chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
       if (chatHist.length > 12) chatHist = chatHist.slice(-12);
+      /* v138: la respuesta se acomoda sola — sube suave hasta el ARRANQUE de la respuesta,
+         para leerla desde el principio con espacio, en vez de saltar al final y que solo
+         se vea la cola pegada a la barra de escribir. */
+      var m = $('chatMsgs');
+      m.scrollTo({ top: Math.max(0, pend.offsetTop - 6), behavior: 'smooth' });
+      setTimeout(chatFlecha, 450);
       if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
     })
     .catch(function(){
       pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend');
       if (porVoz) { try { vozDecir('No pude responder ahora mismo.'); } catch(e){} }
     })
-    .then(function(){ chatPend = false; $('chatSend').disabled = false; $('chatMsgs').scrollTop = 999999; });
+    .then(function(){ chatPend = false; $('chatSend').disabled = false; chatFlecha(); });
 }
 /* v59: pregunta libre por voz — "tikora, ¿cuánto llevo esta semana?" → chat → respuesta HABLADA */
 function chatPorVoz(pregunta){
@@ -4684,7 +4717,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v137';
+var APP_VER = 'v138';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

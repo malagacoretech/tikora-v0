@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v141'; /* v141: EL RESPALDO DE MIS DATOS -- la ficha fiscal y las claves de cliente del dueno suben a la pestana Negocio al guardar, y bajan solas en un movil nuevo (al dueno solo le RELLENAN lo vacio; al empleado el servidor le manda la verdad, como siempre). */
+var VERSION = 'tikora-captura-v142'; /* v142: EL CHAT ASINCRONO -- la pregunta recibe un "pensando" al instante, la respuesta llega por sondeo (o por push si tardo y no estabas mirando, tambien con la app cerrada), el visto corta el aviso, y el muro de los 60 s del webhook deja de mandar sobre el chat. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -95,15 +95,49 @@ function swEntroReciente(s, mins){
   var dif = Date.now() - t;
   return dif > -5 * 60000 && dif <= mins * 60000;
 }
+/* v142: el chat asíncrono — al despertar por push, mirar también si hay una respuesta del
+   chat sin leer (fila reciente de la pestaña Chat con la columna G vacía). Si la hay y no
+   se avisó ya, la notificación dice "tu respuesta está lista" con el arranque del texto. */
+var CHAT_URL_SW = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat2-351b44e16ffb3c51';
+function swChatEdadOk(fs){
+  var m = String(fs || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+  if (!m) return false;
+  var t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+  return (Date.now() - t) < 6 * 3600000;
+}
+function swChatCheck(tok){
+  return fetch(CHAT_URL_SW, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET_SW }, body: JSON.stringify({ token: tok, accion: 'leer' }) })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j || !j.lista || !j.a || !swChatEdadOk(j.fecha)) return;
+      return swAvisados().then(function(mem){
+        var idc = 'chatR-' + String(j.fecha || '') + '-' + String(j.q || '').slice(0, 24);
+        if (mem.lista.indexOf(idc) >= 0) return;
+        mem.guardar(mem.lista.concat([idc]));
+        var cuerpo = String(j.a).replace(/https?:\/\/\S+/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 140);
+        return self.registration.showNotification('Tikora — tu respuesta está lista', {
+          body: cuerpo,
+          icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png',
+          tag: 'tikora-chatresp', renotify: true,
+          data: { url: '/captura.html?chatr=1', chatr: 1, f: '' }
+        }).then(function(){
+          return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
+        });
+      });
+    })
+    .catch(function(){});
+}
 self.addEventListener('push', function(e){
   /* v73: mostrar YA (garantía de sonido) → enriquecer con UNA notificación POR factura nueva,
      tag único por factura (se apilan, no se pisan) + botones "Ver factura" y "Preguntar". */
   var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-entrando', renotify: true, data: { url: '/captura.html', accionVer: '' } };
+  var tokSW = null;
   e.waitUntil(
     self.registration.showNotification('Tikora', basico)
       .then(function(){ return swToken(); })
       .then(function(tok){
         if (!tok) return null;
+        tokSW = tok;
         return Promise.race([
           fetch(PANEL_URL_SW + '?u=' + encodeURIComponent(tok), { headers: { 'x-tikora-app': APP_SECRET_SW } }).then(function(r){ return r.json(); }),
           esperar(4000)
@@ -221,6 +255,7 @@ self.addEventListener('push', function(e){
           });
         });
       })
+      .then(function(){ return tokSW ? swChatCheck(tokSW) : null; })   /* v142: ¿hay respuesta del chat sin leer? */
       .catch(function(){})
   );
 });
@@ -231,6 +266,7 @@ self.addEventListener('notificationclick', function(e){
   /* v73: el botón decide — "preguntar" va al chat; "ver" (o tocar el cuerpo) abre la factura en el panel */
   var modo = (e.action === 'preguntar') ? 'chat' : 'ver';
   if (!fid && d.rev) modo = 'rev';   /* v96: el parte con la app abierta despliega "para repetir" */
+  if (!fid && d.chatr) modo = 'chatr';   /* v142: "tu respuesta está lista" abre el chat con ella */
   var url = fid ? ('/captura.html?' + modo + '=' + fid) : (d.url || '/captura.html');   /* v89: el aviso de revisar abre el panel */
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){

@@ -4170,6 +4170,28 @@ try {
   var qsChat = new URLSearchParams(location.search).get('chat');
   if (qsChat) abrirChatFactura(qsChat);
 } catch(e){}
+/* v142: el aviso "tu respuesta está lista" abre el chat y la trae — y la marca vista */
+function abrirRespuestaPendiente(){
+  if (ES_EMPLEADO || !TOKEN) return;
+  stopCamera(); show('screenChat'); chatHello();
+  var pend = chatMsg('Trayendo tu respuesta…', 'bot pend');
+  fetch(CHAT_URL, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ token: TOKEN, accion: 'leer' }) })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(j){
+      if (j && j.lista && j.a){
+        if (j.q) chatMsg(j.q, 'user');
+        chatEntregar(j.a, j.q || '', pend, false);
+        chatVisto('');
+      } else {
+        pend.textContent = 'Esa respuesta ya la leíste — preguntame otra cosa cuando quieras.';
+        pend.classList.remove('pend');
+      }
+    })
+    .catch(function(){ pend.textContent = 'No pude traerla — probá de nuevo en un momento.'; pend.classList.remove('pend'); });
+}
+try {
+  if (new URLSearchParams(location.search).get('chatr')) abrirRespuestaPendiente();
+} catch(e){}
 /* v73: "Ver factura" — el panel con ESA factura buscada y destacada */
 var verPendFid = null;
 try {
@@ -4234,6 +4256,7 @@ if ('serviceWorker' in navigator){
     if (e.data.tikora === 'chat') abrirChatFactura(e.data.f);
     if (e.data.tikora === 'ver') abrirFacturaPanel(e.data.f);   /* v73: botón "Ver factura" del aviso */
     if (e.data.tikora === 'rev'){ revPend = true; try { clic('tabPanel'); } catch(err){} aplicarRevPend(); }   /* v96: el parte con la app abierta */
+    if (e.data.tikora === 'chatr') abrirRespuestaPendiente();   /* v142: "tu respuesta está lista" con la app abierta */
   });
 }
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
@@ -4396,6 +4419,51 @@ function limpiarParaVoz(t){
   if (s.length > 300) s = s.slice(0, 300).replace(/\s\S*$/, '') + '. Te dejé el detalle completo en Preguntar.';
   return s;
 }
+/* v142: EL CHAT ASÍNCRONO. El muro de los 60 s del webhook mandaba sobre el chat: una
+   respuesta que tardara más, se perdía. Ahora la pregunta recibe un "pensando" inmediato,
+   la respuesta se recoge por sondeo (5 s → 10 s), y si tardara demasiado o cerraras la
+   app, llega por push — SOLO si no la viste (el servidor espera 45 s y mira la marca).
+   El historial se sigue guardando igual en la pestaña Chat. */
+function chatEntregar(resp, q, pend, porVoz){
+  pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
+  chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
+  if (chatHist.length > 12) chatHist = chatHist.slice(-12);
+  /* v138: la respuesta se acomoda sola — sube suave hasta el ARRANQUE de la respuesta */
+  var m = $('chatMsgs');
+  m.scrollTo({ top: Math.max(0, pend.offsetTop - 6), behavior: 'smooth' });
+  setTimeout(chatFlecha, 450);
+  if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
+  chatPend = false; $('chatSend').disabled = false; chatFlecha();
+}
+function chatVisto(q){
+  var b = { token: TOKEN, accion: 'visto' };
+  if (q) b.q = q;
+  fetch(CHAT_URL, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify(b) }).catch(function(){});
+}
+function chatEsperar(q, pend, porVoz){
+  var t0 = Date.now();
+  function tick(){
+    if (!document.body.contains(pend)) return;
+    fetch(CHAT_URL, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ token: TOKEN, accion: 'leer', q: q }) })
+      .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+      .then(function(j){
+        if (j && j.lista && j.a){
+          chatEntregar(j.a, q, pend, porVoz);
+          chatVisto(q);   /* vista: el servidor ya no manda el push */
+          return;
+        }
+        if (Date.now() - t0 > 150000){
+          pend.textContent = 'Sigo con esto — en cuanto esté, te llega un aviso al teléfono 📱';
+          pend.classList.remove('pend');
+          chatPend = false; $('chatSend').disabled = false;
+          return;
+        }
+        setTimeout(tick, (Date.now() - t0 > 30000) ? 10000 : 5000);
+      })
+      .catch(function(){ setTimeout(tick, 10000); });
+  }
+  setTimeout(tick, 4500);
+}
 function sendChat(q, porVoz){
   q = (q || $('chatInput').value || '').trim();
   if (!q || chatPend || !TOKEN) return;
@@ -4404,7 +4472,7 @@ function sendChat(q, porVoz){
   chatMsg(q, 'user');
   var pend = chatMsg(chatFile ? 'Leyendo la factura…' : 'Pensando…', 'bot pend');
   chatPend = true; $('chatSend').disabled = true;
-  var cuerpo = { token: TOKEN, q: q, hist: chatHist.slice(-6) };
+  var cuerpo = { token: TOKEN, q: q, hist: chatHist.slice(-6), asinc: true };
   if (chatFile) cuerpo.fileId = chatFile;
   fetch(CHAT_URL, {
     method: 'POST',
@@ -4413,23 +4481,15 @@ function sendChat(q, porVoz){
   })
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(d){
-      var resp = (d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.';
-      pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
-      chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
-      if (chatHist.length > 12) chatHist = chatHist.slice(-12);
-      /* v138: la respuesta se acomoda sola — sube suave hasta el ARRANQUE de la respuesta,
-         para leerla desde el principio con espacio, en vez de saltar al final y que solo
-         se vea la cola pegada a la barra de escribir. */
-      var m = $('chatMsgs');
-      m.scrollTo({ top: Math.max(0, pend.offsetTop - 6), behavior: 'smooth' });
-      setTimeout(chatFlecha, 450);
-      if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
+      if (d && d.estado === 'pensando'){ chatEsperar(q, pend, porVoz); return; }
+      /* compatibilidad: si el servidor contestara entero (versión vieja), se entrega igual */
+      chatEntregar((d && d.a) ? d.a : 'Sin respuesta. Probá de nuevo.', q, pend, porVoz);
     })
     .catch(function(){
       pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend');
       if (porVoz) { try { vozDecir('No pude responder ahora mismo.'); } catch(e){} }
-    })
-    .then(function(){ chatPend = false; $('chatSend').disabled = false; chatFlecha(); });
+      chatPend = false; $('chatSend').disabled = false; chatFlecha();
+    });
 }
 /* v59: pregunta libre por voz — "tikora, ¿cuánto llevo esta semana?" → chat → respuesta HABLADA */
 function chatPorVoz(pregunta){
@@ -4950,7 +5010,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v141';
+var APP_VER = 'v142';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

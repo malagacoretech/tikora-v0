@@ -3423,17 +3423,29 @@ function renderPanel(data, cachedNote){
      tenga que repetir. */
   $('screenPanel').classList.toggle('modo-empleado', ES_EMPLEADO);
   if (data && data.negocio){
-    /* precarga del negocio (empleados): Mis datos + Mis claves desde la pestaña Negocio */
+    /* precarga del negocio desde la pestaña Negocio.
+       v141: ahora baja TAMBIÉN al dueño (antes solo empleados) — es su respaldo: móvil
+       nuevo y los datos vuelven solos. Regla distinta por rol: al EMPLEADO el servidor
+       le manda la verdad (pisa lo local); al DUEÑO solo le RELLENA lo vacío — lo que él
+       escribió en su teléfono manda siempre sobre el respaldo. */
     try {
       dCargar();
       var nd = data.negocio.datos || {};
-      if (nd.nom) datos.nom = nd.nom;
-      if (nd.nif) datos.nif = nd.nif;
-      if (nd.dir) datos.dir = nd.dir;
-      if (nd.tel) datos.tel = nd.tel;
-      if (nd.mail) datos.mail = nd.mail;
-      if (data.negocio.claves && data.negocio.claves.length){
-        datos.nums = data.negocio.claves.map(function(k){ return { c: k.c, v: k.v }; });
+      var cl = (data.negocio.claves && data.negocio.claves.length) ? data.negocio.claves : null;
+      if (ES_EMPLEADO){
+        if (nd.nom) datos.nom = nd.nom;
+        if (nd.nif) datos.nif = nd.nif;
+        if (nd.dir) datos.dir = nd.dir;
+        if (nd.tel) datos.tel = nd.tel;
+        if (nd.mail) datos.mail = nd.mail;
+        if (cl) datos.nums = cl.map(function(k){ return { c: String(k.c || ''), v: String(k.v || '') }; });
+      } else {
+        if (nd.nom && !datos.nom) datos.nom = nd.nom;
+        if (nd.nif && !datos.nif) datos.nif = nd.nif;
+        if (nd.dir && !datos.dir) datos.dir = nd.dir;
+        if (nd.tel && !datos.tel) datos.tel = nd.tel;
+        if (nd.mail && !datos.mail) datos.mail = nd.mail;
+        if (cl && !(datos.nums && datos.nums.length)) datos.nums = cl.map(function(k){ return { c: String(k.c || ''), v: String(k.v || '') }; });
       }
       dGuardar();
     } catch(e){}
@@ -4459,6 +4471,21 @@ function dCargar(){
   datos = Object.assign(vacio, g || {});
 }
 function dGuardar(){ try { localStorage.setItem(dKey(), JSON.stringify(datos)); } catch(e){} }
+/* v141: EL RESPALDO DE MIS DATOS. Hasta hoy la ficha fiscal y las claves de cliente vivían
+   SOLO en el teléfono: móvil nuevo = reteclear todo. Ahora cada guardado del dueño sube
+   también a la pestaña Negocio de su hoja (el mismo sitio del que ya bebían los empleados),
+   y al estrenar un móvil la app los recupera sola del Panel. El empleado no sube nada:
+   su copia baja del servidor, como siempre. */
+function respaldarDatos(){
+  if (ES_EMPLEADO || !TOKEN) return;
+  var cuerpo = { u: TOKEN, accion: 'datos',
+    datos: { nom: datos.nom || '', nif: datos.nif || '', dir: datos.dir || '', tel: datos.tel || '', mail: datos.mail || '' },
+    claves: (datos.nums || []).map(function(k){ return { c: String(k.c || ''), v: String(k.v || '') }; }) };
+  fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify(cuerpo) })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(j){ if (j && j.ok === false) throw 0; toast('Guardados y respaldados en tu hoja ✓', false); })
+    .catch(function(){ toast('Guardados en el teléfono — el respaldo no salió, se reintenta al volver a guardar', true); });
+}
 dCargar();
 function trimestreActual(){
   var d = new Date();
@@ -4564,6 +4591,7 @@ $('dSave').addEventListener('click', function(){
   datos.mail = $('dInMail').value.trim();
   dGuardar(); renderDatos(); pintarQR();
   toast('Datos guardados ✓', false);
+  respaldarDatos();   /* v141: y suben a la hoja — el teléfono deja de ser el único sitio */
 });
 /* v30: Mis claves — pestaña propia; cada clave con su comercio arriba y el NUMERO en grande */
 function renderClaves(){
@@ -4577,7 +4605,7 @@ function renderClaves(){
     var b = document.createElement('button'); b.className = 'copybtn'; b.type = 'button'; b.textContent = 'Copiar';
     b.addEventListener('click', function(){ copiar(item.v, b); });
     var del = document.createElement('button'); del.className = 'delbtn'; del.type = 'button'; del.textContent = '✕';
-    del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderClaves(); });
+    del.addEventListener('click', function(){ datos.nums.splice(i, 1); dGuardar(); renderClaves(); respaldarDatos(); });
     row.appendChild(g); row.appendChild(b); row.appendChild(del);
     n.appendChild(row);
   });
@@ -4601,6 +4629,7 @@ $('dNumAdd').addEventListener('click', function(){
   datos.nums.push({ c: c, v: v });
   $('dNumComercio').value = ''; $('dNumValor').value = '';
   dGuardar(); renderClaves();
+  respaldarDatos();   /* v141: las claves tambien viajan al respaldo */
 });
 $('dIvaSave').addEventListener('click', function(){
   var raw = $('dIvaRep').value.trim().replace(/\./g, '').replace(',', '.');
@@ -4921,7 +4950,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v140';
+var APP_VER = 'v141';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

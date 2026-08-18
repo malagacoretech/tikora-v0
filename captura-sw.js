@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v140'; /* v140: NITIDEZ EN EL MOMENTO -- la foto borrosa u oscura avisa al disparar (vibracion + aviso rojo en la ventana de pago), con el papel todavia en la mano; la foto viaja igual. Y COMPARTIR en Varios: el papel sale por el menu nativo del telefono. */
+var VERSION = 'tikora-captura-v141'; /* v141: EL RESPALDO DE MIS DATOS -- la ficha fiscal y las claves de cliente del dueno suben a la pestana Negocio al guardar, y bajan solas en un movil nuevo (al dueno solo le RELLENAN lo vacio; al empleado el servidor le manda la verdad, como siempre). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

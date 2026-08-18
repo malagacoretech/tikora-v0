@@ -386,6 +386,10 @@ input[type=file]{display:none}
 #postShot.on{display:flex}
 #postShot button{flex:1;min-height:44px;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
 #postShot button.sel{background:var(--accent);color:#0A1628;border-color:var(--accent)}
+/* v140: el aviso de foto borrosa, dentro de la ventana de pago — rojo, imposible de no ver */
+#psAviso{display:none;background:rgba(229,72,77,0.94);color:#fff;border-radius:10px;padding:0.5rem 0.7rem;font-size:0.84rem;font-weight:800;text-align:center}
+#psAviso.on{display:block}
+#postShot button#psRehacer.urg{background:#E5484D;border-color:#E5484D;color:#fff}
 /* v17: semaforo de pagos */
 .prow.pg-pendiente{border-left:4px solid #E5484D}
 .prow.pg-pendiente .amt{color:#FF6B6B}
@@ -674,6 +678,8 @@ div:has(> #segProv) > button{min-height:44px}
          que se pregunta y cuanto tiempo queda, con barra y segundos. -->
     <div id="postShot">
       <div class="pscab"><span>&iquest;C&oacute;mo se pag&oacute;?</span><span id="psSeg">&nbsp;</span></div>
+      <!-- v140: si la foto salio borrosa se avisa AQUI, con el papel todavia en la mano -->
+      <div id="psAviso">&#9888;&#65039; Sali&oacute; borrosa o muy oscura &mdash; mejor repetila</div>
       <div class="psbar"><i id="psBarra"></i></div>
       <div class="psbtns">
         <button type="button" id="psRehacer">&#8635; Repetir</button>
@@ -1598,6 +1604,8 @@ function guardarPagosPend(){ try { localStorage.setItem('tikora_pagos_pend', JSO
 function mostrarPostShot(id){
   holdItem = { id: id };
   $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel'); $('psPendiente').classList.remove('sel');
+  /* v140: foto nueva, aviso de nitidez a cero (si esta sale borrosa, vuelve a encenderse) */
+  $('psAviso').classList.remove('on'); $('psRehacer').classList.remove('urg');
   $('postShot').classList.add('on');
   clearTimeout(postTimer); clearInterval(postTick);
   var fin = Date.now() + VENTANA_PAGO_MS;
@@ -2555,6 +2563,34 @@ function pintarVarios(){
         if (!fvAbrirRemota(o.fid, o.tipo || 'Papel')) abrirFoto(u);
       });
       row.appendChild(b);
+      /* v140: COMPARTIR el papel — el inspector lo pide y se lo mandás ahí mismo.
+         La foto baja por el CDN (mismo origen, así el fetch no pelea con CORS) y sale
+         el menú nativo del teléfono: WhatsApp, email, lo que haya. */
+      if (navigator.share){
+        var sh = document.createElement('button'); sh.type = 'button'; sh.className = 'copybtn';
+        sh.textContent = '📤'; sh.setAttribute('aria-label', 'Compartir este papel');
+        sh.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          sh.disabled = true;
+          fetch('/.netlify/images?url=' + encodeURIComponent(u) + '&w=2000&fit=contain')
+            .then(function(r){ if (!r.ok) throw 0; return r.blob(); })
+            .then(function(bl){
+              var nombre = ((o.tipo || 'papel') + (o.fecha ? '-' + o.fecha : '')).replace(/[^A-Za-z0-9_-]+/g, '_') + '.jpg';
+              var file = new File([bl], nombre, { type: bl.type || 'image/jpeg' });
+              if (navigator.canShare && !navigator.canShare({ files: [file] })){
+                return navigator.share({ title: o.tipo || 'Documento', text: [o.tipo, o.emisor, o.fecha].filter(Boolean).join(' · ') });
+              }
+              return navigator.share({ files: [file], title: o.tipo || 'Documento', text: [o.tipo, o.emisor, o.fecha].filter(Boolean).join(' · ') });
+            })
+            .then(function(){ sh.disabled = false; })
+            .catch(function(err){
+              sh.disabled = false;
+              if (err && err.name === 'AbortError') return;   /* cerró el menú: no es un error */
+              toast('No se pudo compartir desde aquí — abrí la foto y usá el compartir del visor del sistema', true);
+            });
+        });
+        row.appendChild(sh);
+      }
     }
     cont.appendChild(row);
   });
@@ -2685,6 +2721,75 @@ $('torchBtn').addEventListener('click', function(){
   }
 });
 
+/* ================== v140: NITIDEZ EN EL MOMENTO ==================
+   El problema que ataca: una foto movida se descubria MINUTOS despues, cuando el motor
+   la mandaba a Revisar — y el papel ya podia estar en la basura. Ahora se mide en el
+   movil, al disparar, y si salio borrosa se avisa con el papel todavia en la mano.
+   Como: varianza del Laplaciano sobre el centro de la foto reducida a 480px. Texto
+   nitido = bordes fuertes = varianza alta; borroso u oscuro = varianza baja.
+   REGLAS: (1) la foto VIAJA IGUAL — perder una factura es mas caro que un aviso de mas;
+   (2) el umbral es CONSERVADOR — un aviso que salta siempre se acaba ignorando (37). */
+function medirNitidez(blob){
+  return new Promise(function(res){
+    try {
+      if (!blob || String(blob.type || '').indexOf('image/') !== 0) return res(null);
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function(){
+        try {
+          var W = 480;
+          var h = Math.max(1, Math.round(img.naturalHeight * (W / Math.max(1, img.naturalWidth))));
+          var c = document.createElement('canvas'); c.width = W; c.height = h;
+          var ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, W, h);
+          URL.revokeObjectURL(url);
+          /* el centro 80%: el papel vive al medio, los bordes suelen ser mesa o fondo */
+          var x0 = Math.round(W * 0.1), y0 = Math.round(h * 0.1);
+          var w2 = Math.round(W * 0.8), h2 = Math.round(h * 0.8);
+          var d = ctx.getImageData(x0, y0, w2, h2).data;
+          var g = new Float32Array(w2 * h2);
+          for (var i = 0, p = 0; i < g.length; i++, p += 4) g[i] = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
+          var s = 0, s2 = 0, n = 0;
+          for (var y = 1; y < h2 - 1; y++){
+            var f = y * w2;
+            for (var x = 1; x < w2 - 1; x++){
+              var k = f + x;
+              var v = 4 * g[k] - g[k - 1] - g[k + 1] - g[k - w2] - g[k + w2];
+              s += v; s2 += v * v; n++;
+            }
+          }
+          var media = s / n;
+          res(s2 / n - media * media);
+        } catch(e){ try { URL.revokeObjectURL(url); } catch(e2){} res(null); }
+      };
+      img.onerror = function(){ try { URL.revokeObjectURL(url); } catch(e2){} res(null); };
+      img.src = url;
+    } catch(e){ res(null); }
+  });
+}
+/* Umbral calibrado con fotos sinteticas (test-nitidez, 14-ago): nitida=25.427 ·
+   movida leve=386 · movida clara=75 · INSERVIBLE=3 · foto oscura de bar=20.
+   35 caza lo inservible y lo oscuro sin llorar en falso. Los valores reales quedan
+   en localStorage (tikora_nitidez) para afinar el umbral con fotos de verdad. */
+var NITIDEZ_MIN = 35;
+function avisarNitidez(blob){
+  medirNitidez(blob).then(function(v){
+    try {
+      var lg = JSON.parse(localStorage.getItem('tikora_nitidez') || '[]');
+      lg.push(v === null ? -1 : Math.round(v));
+      localStorage.setItem('tikora_nitidez', JSON.stringify(lg.slice(-30)));
+    } catch(e){}
+    if (v === null || v >= NITIDEZ_MIN) return;
+    if (navigator.vibrate) try { navigator.vibrate([80, 60, 80]); } catch(e){}
+    if ($('postShot').classList.contains('on')){
+      $('psAviso').classList.add('on');
+      $('psRehacer').classList.add('urg');
+    } else {
+      toast('⚠️ La última foto salió borrosa o muy oscura — mejor repetila', true);
+    }
+  });
+}
+
 /* Captura con máxima nitidez:
    1) ImageCapture.takePhoto → foto REAL del sensor (Android Chrome), sin recomprimir.
    2) canvas a resolución completa del stream, JPEG 0.95 (iOS y resto).
@@ -2710,6 +2815,7 @@ function capturePhoto(){
     if (!blob){ toast('No se pudo capturar, probá de nuevo', true); return; }
     setThumb(blob);                                    /* feedback inmediato, sin tapar el visor */
     enqueue(blob, blob.type || 'image/jpeg', tsName('jpg'), 'foto', true, VENTANA_PAGO_MS);
+    avisarNitidez(blob);                               /* v140: si salió borrosa, avisar YA — la foto viaja igual */
   };
 
   var viaCanvas = function(){
@@ -2769,6 +2875,7 @@ function handleIncomingFiles(files){
     var esFoto = mime.indexOf('image/') === 0;
     if (enCam && esFoto && unico) setThumb(f);
     enqueue(f, mime, f.name || tsName(ext), 'archivo', enCam && esFoto && unico, conVentana ? VENTANA_PAGO_MS : 0);
+    if (esFoto && unico) avisarNitidez(f);   /* v140: la cámara nativa y el adjuntar también avisan */
     enviados++;
   }
   var s = $('shotStatus'); if (s) s.textContent = (conVentana && enviados === 1) ? 'Guardada' : 'Enviando…';
@@ -4814,7 +4921,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v139';
+var APP_VER = 'v140';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

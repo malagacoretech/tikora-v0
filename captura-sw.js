@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v139'; /* v139: la carpeta VARIOS -- los archivados tienen tercera salida (guardar en Varios) para papeles utiles que no son facturas, y el Panel estrena la pastilla Varios con foto, descripcion de la IA, fecha y emisor. Todo con rastro en Otros!G. */
+var VERSION = 'tikora-captura-v140'; /* v140: NITIDEZ EN EL MOMENTO -- la foto borrosa u oscura avisa al disparar (vibracion + aviso rojo en la ventana de pago), con el papel todavia en la mano; la foto viaja igual. Y COMPARTIR en Varios: el papel sale por el menu nativo del telefono. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

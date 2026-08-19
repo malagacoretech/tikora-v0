@@ -629,7 +629,9 @@ body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,b
 /* v119: la duda del motor, por fin visible. Ambar, no rojo: es "mirala", no "esta mal". */
 .dudatag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(244,201,93,0.14);border:1px solid rgba(244,201,93,0.65);color:var(--accent);border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em;white-space:nowrap}
 .pgleida{font-size:0.66rem;color:var(--text-muted);white-space:nowrap;margin-top:0.1rem}
-.prow a.foto{color:var(--accent);text-decoration:none;font-size:1.1rem;flex-shrink:0;padding:0.2rem}
+/* v150: el ganchito solo no se entendia (Matias, 19-ago: "quiero que diga ver foto").
+   Pastilla chica, en una linea y sin encoger: el nombre de al lado ya se recorta solo. */
+.prow a.foto{color:var(--accent);text-decoration:none;font-size:0.72rem;font-weight:800;flex-shrink:0;padding:0.3rem 0.55rem;border:1px solid var(--border);border-radius:999px;white-space:nowrap;line-height:1}
 .pbanner{background:rgba(244,201,93,0.08);border:1px solid rgba(244,201,93,0.3);color:var(--accent);border-radius:12px;padding:0.7rem 1rem;font-size:0.82rem;margin-bottom:0.9rem;text-align:center}
 .pbanner button{margin-left:0.6rem;background:var(--accent);color:#0A1628;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-family:inherit;font-weight:700;font-size:0.78rem;cursor:pointer}
 .legal{font-size:0.66rem;color:var(--text-muted);text-align:center;margin-top:1.1rem;line-height:1.5}
@@ -3442,8 +3444,15 @@ function renderFilas(cont, rowsArr){
     }
     row.appendChild(who); row.appendChild(amtc);
     if (r.foto){
-      var a = document.createElement('a'); a.className = 'foto'; a.href = fotoSegura(r.foto); a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎';
-      a.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      var a = document.createElement('a'); a.className = 'foto'; a.href = fotoSegura(r.foto); a.target = '_blank'; a.rel = 'noopener'; a.textContent = '📎 Ver foto';
+      a.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        /* v150: con todas las letras Y sin salir de la app — el visor propio (v128). El enlace
+           al navegador se queda de respaldo por si el visor no pudiera abrir. */
+        var fid = fotoId(r.foto);
+        var rot = (r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '');
+        if (fid && fvAbrirRemota(fid, rot)) ev.preventDefault();
+      });
       row.appendChild(a);
     }
     row.addEventListener('click', function(){ abrirFicha(r); });   /* toda la fila abre su mini-ficha */
@@ -5070,7 +5079,13 @@ function abrirFicha(r){
   if (fid){
     var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
     var im = $('fichaImg');
-    im.onerror = function(){ im.onerror = null; $('fichaImgBtn').style.display = 'none'; $('fichaFoto').style.display = ''; };
+    /* v150: en una factura RECIEN llegada la miniatura del CDN puede no estar lista todavia y
+       fallaba -> la ficha se rendia y sacaba el boton (queja de Matias con la de GM CASH).
+       Ahora reintenta UNA vez por el proxy directo, igual que hace el visor grande desde la v134. */
+    im.onerror = function(){
+      im.onerror = function(){ im.onerror = null; $('fichaImgBtn').style.display = 'none'; $('fichaFoto').style.display = ''; };
+      im.src = u;
+    };
     im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=700&fit=contain';
     $('fichaImgBtn').style.display = '';
   } else if (r.foto){
@@ -5199,7 +5214,13 @@ function boot(){
   }
   /* v73: mismo respeto para ?ver= — el aviso "Ver factura" abre el panel con ESA factura destacada */
   if (typeof qsVer !== 'undefined' && qsVer){
-    show('screenPanel'); loadPanel(false); processQueue(false); return;
+    show('screenPanel'); loadPanel(false); processQueue(false);
+    /* v150: con la app CERRADA, "Ver factura" solo destacaba la fila y aterrizabas en la ficha,
+       donde el boton grande dice "Preguntar" — Matias lo leyo como que el aviso le mandaba a
+       preguntar. Ahora ENSEÑA EL PAPEL: fvAbrirRemota no necesita que el panel haya cargado,
+       le basta el fileId del aviso. */
+    setTimeout(function(){ try { abrirFacturaPanel(qsVer); } catch(e){} }, 400);
+    return;
   }
   /* v96: ?rev=1 — el parte abre el panel con "para repetir" desplegada (se aplica al cargar) */
   if (revPend){
@@ -5280,7 +5301,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v149';
+var APP_VER = 'v150';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

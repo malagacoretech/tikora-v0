@@ -1886,7 +1886,9 @@ function setThumb(blob){
   $('thumbImg').src = thumbUrl;
   /* v52: cada foto queda en el visor de la sesión; se libera la más vieja pasadas 25 */
   sesionFotos.push(thumbUrl);
-  if (sesionFotos.length > 25){ var vieja = sesionFotos.shift(); try { URL.revokeObjectURL(vieja); } catch(e){} if (fvIdx > 0) fvIdx--; }
+  /* v147: 25 fotos a resolucion completa vivas eran 50-75 MB de memoria en el movil y ayudaban
+     a que iOS matara la camara. Con 8 el visor de sesion sigue sirviendo y se respira. */
+  if (sesionFotos.length > 8){ var vieja = sesionFotos.shift(); try { URL.revokeObjectURL(vieja); } catch(e){} if (fvIdx > 0) fvIdx--; }
   thumbItemId = null;                     /* enqueue lo fija al id real */
   t.classList.remove('done','err');
   $('thumbBar').style.width = '0%';
@@ -2960,6 +2962,16 @@ function capturePhoto(){
     setThumb(blob);                                    /* feedback inmediato, sin tapar el visor */
     enqueue(blob, blob.type || 'image/jpeg', tsName('jpg'), 'foto', true, VENTANA_PAGO_MS);
     avisarNitidez(blob);                               /* v140: si salió borrosa, avisar YA — la foto viaja igual */
+    /* v147: EL VISOR NO SE QUEDA NEGRO. Si iOS mato el stream por memoria justo despues del
+       disparo, hasta ahora solo se notaba en el disparo SIGUIENTE (viaCanvas revivia la camara)
+       y mientras tanto se veia negro. Ahora se comprueba medio segundo despues y se revive sola. */
+    setTimeout(function(){
+      try {
+        if (!$('screenCam').classList.contains('on')) return;
+        var muerto = (!track || track.readyState !== 'live' || !video.videoWidth);
+        if (muerto){ stopCamera(); initCamera().catch(function(){}); }
+      } catch(e){}
+    }, 500);
   };
 
   var viaCanvas = function(){
@@ -2975,7 +2987,14 @@ function capturePhoto(){
       var c = document.createElement('canvas');
       c.width = video.videoWidth; c.height = video.videoHeight;   /* resolución completa, jamás menos */
       c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
-      c.toBlob(function(b){ done(b); }, 'image/jpeg', JPEG_Q);
+      c.toBlob(function(b){
+        /* v147: SOLTAR EL LIENZO YA. En iPhone no hay ImageCapture, asi que cada foto pasa por
+           un canvas a resolucion completa: ~4032x3024 = 48 MB de RGBA. El recolector de iOS es
+           perezoso y esos lienzos se acumulaban; al pasarse del presupuesto de memoria, Safari
+           MATA el stream de camara y el visor se queda NEGRO (queja de Matias, 19-ago). */
+        try { c.width = 1; c.height = 1; } catch(e){}
+        done(b);
+      }, 'image/jpeg', JPEG_Q);
     } catch(e){
       done(null);
       stopCamera(); initCamera().catch(function(){ show('screenShot'); });
@@ -5240,7 +5259,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v146';
+var APP_VER = 'v147';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

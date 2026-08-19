@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v146'; /* v146: GIRAR en TODAS las fotos -- ademas del visor grande, el Repaso y el corrector tienen su boton de girar (de a 90 grados, solo la vista, giro a cero al cambiar de foto). */
+var VERSION = 'tikora-captura-v147'; /* v147: la camara del iPhone ya no se queda en negro -- se suelta el lienzo de 48 MB tras cada foto, el carrete baja de 25 a 8 fotos vivas, y si el stream muere se revive a los 500 ms en vez de en el disparo siguiente. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

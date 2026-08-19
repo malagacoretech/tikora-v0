@@ -623,6 +623,8 @@ body.emp #cardAlbaran{display:none !important}
 .prow .who{flex:1;min-width:0}
 .prow .who .e{font-size:1.06rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* v41: nombres grandes (pedido Matias) */
 .prow .who .d{font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem}
+/* v154: cuantas facturas lleva ese proveedor, en amarillo — se busca de un vistazo */
+.prow .who .d .ncount{color:var(--accent);font-weight:800}
 .prow .amt{font-size:0.95rem;font-weight:700;white-space:nowrap}
 /* v85: sello de albaran y forma de pago impresa */
 /* v87: la linea del cuadre — discreta cuando todo va bien, es su unica virtud */
@@ -3227,6 +3229,9 @@ function ordenarProveedores(provs){
   var c = (provs || []).slice();
   if (panelOrden === 'nombre')       c.sort(function(a, b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
   else if (panelOrden === 'importe') c.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
+  /* v154: quien te trae mas papeles arriba — no es lo mismo el que mas te cobra que el que
+     mas veces te factura, y para pelear precios interesan los dos (pedido de Matias 19-ago). */
+  else if (panelOrden === 'cantidad') c.sort(function(a, b){ return (b.n || 0) - (a.n || 0); });
   else c.sort(function(a, b){        /* fecha y llegada: el que te vendió más recientemente */
     return (ultima[b.clave] || 0) - (ultima[a.clave] || 0);
   });
@@ -4051,7 +4056,13 @@ function renderLista(){
       var row = document.createElement('div'); row.className = 'prow clickable';
       var who = document.createElement('div'); who.className = 'who';
       var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = p.nombre;
-      var d1 = document.createElement('div'); d1.className = 'd'; d1.textContent = p.n + (p.n === 1 ? ' factura' : ' facturas') + (p.nif ? (' · ' + p.nif) : '');
+      /* v154: el numero de facturas de cada proveedor, en amarillo (pedido de Matias 19-ago).
+         Es el dato que se escanea de un vistazo cuando ordenas por cantidad. */
+      var d1 = document.createElement('div'); d1.className = 'd';
+      var cnt = document.createElement('span'); cnt.className = 'ncount';
+      cnt.textContent = p.n + (p.n === 1 ? ' factura' : ' facturas');
+      d1.appendChild(cnt);
+      if (p.nif) d1.appendChild(document.createTextNode(' · ' + p.nif));
       var i1 = document.createElement('div'); i1.className = 'iva'; i1.textContent = 'IVA identificado: ' + fmtEur(p.iva);
       who.appendChild(e1); who.appendChild(d1); who.appendChild(i1);
       var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(p.total);
@@ -4126,6 +4137,8 @@ var ORDENES_PANEL = [
   { v: 'llegada', t: 'Cuándo ingresó' },
   { v: 'importe', t: 'Importe, de mayor a menor' },
   { v: 'nombre',  t: 'Proveedor, de la A a la Z' },
+  /* v154: solo cambia la vista "Por proveedor" (en la lista de facturas cae al orden por fecha) */
+  { v: 'cantidad', t: 'Cantidad de facturas' },
   /* v116: el motor guarda desde siempre cuánta confianza tuvo al leer cada papel, y ese
      dato no se usaba para nada. Ahora se puede poner arriba lo que leyó con más dudas —
      que es exactamente lo que conviene repasar a ojo antes de enseñárselo a un gestor. */
@@ -4516,6 +4529,20 @@ var revPend = false;
 try {
   var qsRev = new URLSearchParams(location.search).get('rev');
   if (qsRev) revPend = true;
+} catch(e){}
+/* v154: los parámetros de aviso se consumen UNA SOLA VEZ. Sin esto, el ?chat=... con el
+   que un aviso abrió la app quedaba PEGADO en la dirección, y cada recarga (la app se
+   recarga sola al actualizarse) volvía a clavar "la factura que ingresó" en el chat
+   (Matías, 19-ago, con la captura). Se limpian de la URL sin tocar el resto (el ?u= del
+   alta sigue intacto para quien active en ese momento). */
+try {
+  var qsLimpia = new URLSearchParams(location.search);
+  var habiaAviso = false;
+  ['chat', 'ver', 'rev', 'chatr'].forEach(function(k){ if (qsLimpia.has(k)){ qsLimpia.delete(k); habiaAviso = true; } });
+  if (habiaAviso && window.history && history.replaceState){
+    var resto = qsLimpia.toString();
+    history.replaceState(null, '', location.pathname + (resto ? ('?' + resto) : ''));
+  }
 } catch(e){}
 function aplicarRevPend(){
   if (!revPend) return;
@@ -5418,7 +5445,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v153';
+var APP_VER = 'v154';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

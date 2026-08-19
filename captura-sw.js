@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v147'; /* v147: la camara del iPhone ya no se queda en negro -- se suelta el lienzo de 48 MB tras cada foto, el carrete baja de 25 a 8 fotos vivas, y si el stream muere se revive a los 500 ms en vez de en el disparo siguiente. */
+var VERSION = 'tikora-captura-v148'; /* v148: el aviso de factura nueva LLEVA a la factura (el service worker NAVEGA, no solo avisa: con la app en segundo plano el mensaje no siempre llegaba y salia la camara) y el chat ensena LA FOTO precargada en vez de un enlace que ponia "ver foto". */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -273,6 +273,17 @@ self.addEventListener('notificationclick', function(e){
       var w = ws[i];
       if ('focus' in w){
         try { w.postMessage({ tikora: modo, f: fid }); } catch(err){}
+        /* v148: ADEMAS de avisar, NAVEGAR. El postMessage solo llega si la pagina esta
+           viva y escuchando; con la app instalada y en segundo plano no siempre llega,
+           y entonces al tocar el aviso te encontrabas LA CAMARA en vez de la factura.
+           Queja de Matias (19-ago): "no me lleva a la boleta, se me abre la camara".
+           Navegar garantiza el destino. Solo cuando hay una factura concreta: si no,
+           se respeta la pantalla donde estuviera. */
+        if (fid && typeof w.navigate === 'function'){
+          return w.navigate(url)
+            .then(function(c){ return (c && c.focus) ? c.focus() : w.focus(); })
+            .catch(function(){ return w.focus(); });
+        }
         return w.focus();
       }
     }

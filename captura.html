@@ -4522,9 +4522,25 @@ function setChatCtx(row){
   if (fid){
     /* v89: la fecha solo si existe (antes salía "· —"), y se dice que se puede tocar */
     $('chatCtxTxt').textContent = '📎 ' + (row.emisor || 'factura') +
-      (row.fecha ? (' · ' + fmtFecha(row.fecha)) : '') + '  ·  ver foto';
+      (row.fecha ? (' · ' + fmtFecha(row.fecha)) : '');
+    /* v148: LA FOTO PRECARGADA, no un enlace que pone "ver foto". Pedido de Matías
+       (19-ago): "que me lleve a la pestaña de preguntar y allí me figure la foto
+       precargada y le pueda hacer cualquier pregunta". Miniatura por el CDN, igual
+       que la ficha (v143); tocarla abre el visor propio, como el texto. */
+    var mini = $('chatCtxMini');
+    if (!mini){
+      mini = document.createElement('img');
+      mini.id = 'chatCtxMini'; mini.alt = ''; mini.loading = 'lazy'; mini.decoding = 'async';
+      mini.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:6px;flex:0 0 auto;cursor:pointer;background:var(--surface)';
+      $('chatCtx').insertBefore(mini, $('chatCtxTxt'));
+      mini.addEventListener('click', function(){ try { $('chatCtxTxt').click(); } catch(e){} });
+    }
+    mini.onerror = function(){ mini.style.display = 'none'; };   /* si la foto no está, la barra sigue funcionando */
+    mini.style.display = '';
+    mini.src = '/.netlify/images?url=' + encodeURIComponent(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid)) + '&w=120&h=120&fit=cover';
     $('chatCtx').classList.add('on');
   } else {
+    var mv = $('chatCtxMini'); if (mv) mv.style.display = 'none';
     $('chatCtx').classList.remove('on');
   }
 }
@@ -5259,7 +5275,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v147';
+var APP_VER = 'v148';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

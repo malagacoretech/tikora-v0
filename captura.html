@@ -4575,7 +4575,15 @@ function abrirChatFactura(fid){
 }
 try {
   var qsChat = new URLSearchParams(location.search).get('chat');
-  if (qsChat) abrirChatFactura(qsChat);
+  /* v164 (auditoría 19-ago, R2): dos agujeros en esta sola línea.
+     (a) HOISTING: abrirChatFactura mira ES_EMPLEADO, que se asigna ~700 líneas más
+     abajo; aquí en frío vale undefined y un empleado (CAM o llave personal) se colaba
+     al chat del dueño. Se comprueba el token AQUÍ, que ya existe (TOKEN se define arriba).
+     (b) PIN: el chat es pestaña protegida, y por deep-link se abría sin clave. Se pasa
+     por conClave, igual que la pestaña. Sin PIN puesto, conClave es transparente. */
+  var _tokChat = String(TOKEN || '').toUpperCase();
+  var _empChat = /CAM/.test(_tokChat) || ['MED','MIA','LEO','AIL','INE'].indexOf(_tokChat.slice(0, 3)) >= 0;
+  if (qsChat && !_empChat) conClave(function(){ abrirChatFactura(qsChat); });
 } catch(e){}
 /* v142: el aviso "tu respuesta está lista" abre el chat y la trae — y la marca vista */
 function abrirRespuestaPendiente(){
@@ -5450,18 +5458,24 @@ function boot(){
     processQueue(false); return;
   }
   /* v73: mismo respeto para ?ver= — el aviso "Ver factura" abre el panel con ESA factura destacada */
+  /* v164 (auditoría R2): los deep-links que abren el PANEL pasan por conClave, igual que
+     la pestaña — antes se saltaban el PIN. La subida de la cola (processQueue) va fuera:
+     no necesita clave. Sin PIN puesto, conClave es transparente y no cambia nada. */
   if (typeof qsVer !== 'undefined' && qsVer){
-    show('screenPanel'); loadPanel(false); processQueue(false);
-    /* v150: con la app CERRADA, "Ver factura" solo destacaba la fila y aterrizabas en la ficha,
-       donde el boton grande dice "Preguntar" — Matias lo leyo como que el aviso le mandaba a
-       preguntar. Ahora ENSEÑA EL PAPEL: fvAbrirRemota no necesita que el panel haya cargado,
-       le basta el fileId del aviso. */
-    setTimeout(function(){ try { abrirFacturaPanel(qsVer); } catch(e){} }, 400);
+    processQueue(false);
+    conClave(function(){
+      show('screenPanel'); loadPanel(false);
+      /* v150: con la app CERRADA, "Ver factura" ENSEÑA EL PAPEL: fvAbrirRemota no necesita
+         que el panel haya cargado, le basta el fileId del aviso. */
+      setTimeout(function(){ try { abrirFacturaPanel(qsVer); } catch(e){} }, 400);
+    });
     return;
   }
   /* v96: ?rev=1 — el parte abre el panel con "para repetir" desplegada (se aplica al cargar) */
   if (revPend){
-    show('screenPanel'); loadPanel(false); processQueue(false); return;
+    processQueue(false);
+    conClave(function(){ show('screenPanel'); loadPanel(false); });
+    return;
   }
   /* v59: cada uno entra donde trabaja — el dueno a mirar sus numeros, el empleado a disparar */
   /* ===== LEY DE CERO FRICCION — no cambiar sin un motivo muy bueno =====
@@ -5469,7 +5483,7 @@ function boot(){
      Es la razon de que se use: nadie saca el movil detras de una barra para navegar
      menus. En la v59 se probo mandar al dueno al Panel y fue un error (Matias, 12-ago):
      un paso mas antes de la foto es un paso de mas. El panel esta a un toque abajo. */
-  if (deepPanel){ show('screenPanel'); loadPanel(false); }   /* solo el enlace de pruebas ?v=panel */
+  if (deepPanel){ conClave(function(){ show('screenPanel'); loadPanel(false); }); }   /* v164: ?v=panel también pasa por el PIN */
   else { bootCameraScreen(); }
   processQueue(false);
   /* v114: la primera vez en este teléfono se pregunta quién lo usa.
@@ -5538,7 +5552,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v163';
+var APP_VER = 'v164';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

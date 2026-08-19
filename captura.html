@@ -553,8 +553,9 @@ button.capbadge:active{transform:scale(0.95)}
 #cardRehacer.filtro{background:rgba(244,201,93,0.18);border-color:var(--accent);color:var(--accent)}
 /* v101: Sin IVA en gris — ni el verde de "Todo" ni el amarillo de los meses.
    Es a proposito: eso NO es dinero fiscal y no puede parecerlo. */
-#cardSinIva,#cardVarios{flex:0 0 auto;white-space:nowrap;border-color:var(--border);color:var(--text-muted)}
+#cardSinIva,#cardVarios,#cardAlbaran{flex:0 0 auto;white-space:nowrap;border-color:var(--border);color:var(--text-muted)}
 #cardSinIva.filtro,#cardVarios.filtro{background:rgba(148,163,184,0.18);border-color:#94A3B8;color:#CBD5E1}
+#cardAlbaran.filtro{background:rgba(91,141,239,0.18);border-color:#5B8DEF;color:#9CC0FF}
 /* v139: filas de Varios — la descripción de la IA es lo que identifica el papel */
 #variosRows .vdesc{font-size:0.82rem;color:var(--text-muted);margin-top:0.15rem;line-height:1.35}
 .sivTot{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.8rem 0.9rem;margin-bottom:0.6rem}
@@ -722,7 +723,7 @@ div:has(> #segProv) > button{min-height:44px}
 
 <!-- v90: el visor de fotos VIVE FUERA de las pantallas. Estaba dentro de #screenCam, y como esa pantalla se oculta al ir a Panel o Preguntar, el visor se ocultaba con ella: por eso "ver foto" no ensenaba nada fuera de la camara. Un position:fixed no salva a un hijo de un padre con display:none. -->
 <div id="fotoVis">
-<div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
+<div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvGirar" aria-label="Girar la foto">&#8635;</button><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
 <!-- v82: el zoom del navegador está desactivado a propósito (maximum-scale=1) para que no
 se descoloque la app. Así que el visor lleva el suyo: tocar la foto acerca, y con la
 foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si salió legible. -->
@@ -860,6 +861,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <!-- v139: la carpeta VARIOS - papeles utiles que no son facturas (certificados,
          contratos, revisiones) guardados a proposito desde los archivados. -->
     <button type="button" id="cardVarios" style="display:none">&#128193;&nbsp;<span id="variosTxt">Varios</span></button>
+    <!-- v145: la seccion de ALBARANES - las notas de entrega del mes, filtradas de un toque.
+         Son IVA identificado cuya factura definitiva puede estar todavia en camino. -->
+    <button type="button" id="cardAlbaran" style="display:none">&#128196;&nbsp;<span id="albaranTxt">Albaranes</span></button>
   </div>
   <!-- v63: el carril se deslizaba de lado pero nada lo indicaba, asi que "Efectivo" y
        "Tarjeta" no existian para quien no adivinara el gesto. Flechas que solo salen
@@ -1720,6 +1724,7 @@ function fvPinta(){
   if (!sesionFotos.length) return;
   fvRemota = null;                                   /* v89: volvemos al modo sesion */
   fvModoRemotas = false;
+  fvRotReset();   /* v145: foto nueva, giro a cero */
   if (fvIdx < 0) fvIdx = 0;
   if (fvIdx >= sesionFotos.length) fvIdx = sesionFotos.length - 1;
   $('fvImg').src = sesionFotos[fvIdx];
@@ -1739,6 +1744,7 @@ function fvAbrirRemota(fid, rotulo){
   if (!fid || !TOKEN) return false;
   fvModoRemotas = false;
   fvRemota = fid;
+  fvRotReset();   /* v145: foto nueva, giro a cero */
   /* v134: la foto grande también por el CDN de Netlify — n8n la sirve UNA vez por semana y el
      resto lo pone el borde. Si el CDN no puede, cae al proxy directo, como las miniaturas. */
   var fvUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
@@ -1757,6 +1763,7 @@ function fvAbrirRemota(fid, rotulo){
    respuesta del chat), con las mismas flechas prev/next que ya usan las fotos de sesión. */
 function fvPintaRemotas(){
   if (!fvRemotas.length) return;
+  fvRotReset();   /* v145: foto nueva, giro a cero */
   if (fvRIdx < 0) fvRIdx = 0;
   if (fvRIdx >= fvRemotas.length) fvRIdx = fvRemotas.length - 1;
   var it = fvRemotas[fvRIdx];
@@ -1784,6 +1791,23 @@ function fvAbrir(){ if (!sesionFotos.length) return; fvModoRemotas = false; fvId
 $('thumb').addEventListener('click', fvAbrir);
 /* v82: zoom del visor. Tocar la foto acerca o aleja; el botón de la lupa hace lo mismo,
    para que se vea que se puede (media noche aprendiendo que lo que no se anuncia no existe). */
+/* v145: GIRAR LA FOTO (pedido de Matias 19-ago: "que todas las fotos se puedan girar").
+   Vive aqui porque desde la v128 TODAS las fotos pasan por este visor. De a 90 grados;
+   al girar se resetea el zoom (los ejes cambian de sitio); al abrir otra foto vuelve a 0.
+   Solo gira la VISTA: la foto guardada no se toca. */
+var fvRot = 0;
+function fvRotAplicar(){
+  var img = $('fvImg');
+  img.style.transform = fvRot ? ('rotate(' + fvRot + 'deg)') : '';
+  if (fvRot % 180){ img.style.maxWidth = '76vh'; img.style.maxHeight = '96vw'; }
+  else { img.style.maxWidth = ''; img.style.maxHeight = ''; }
+}
+function fvRotReset(){ fvRot = 0; fvRotAplicar(); }
+$('fvGirar').addEventListener('click', function(){
+  fvZoom(false);
+  fvRot = (fvRot + 90) % 360;
+  fvRotAplicar();
+});
 function fvZoom(encender, xRel, yRel){
   var z = $('fvZona'), b = $('fvZoom');
   if (!z) return;
@@ -2678,6 +2702,12 @@ function pintarVarios(){
     cont.appendChild(row);
   });
 }
+/* v145: la pastilla de albaranes filtra la lista de un toque (y de otro, vuelve) */
+$('cardAlbaran').addEventListener('click', function(){
+  panelFiltroAlbaran = !panelFiltroAlbaran;
+  if (panelFiltroAlbaran){ cerrarListaRehacer(); cerrarListaSinIva(); }
+  renderLista();
+});
 $('cardVarios').addEventListener('click', function(){
   var abierto = $('variosRows').style.display === 'block';
   if (abierto){
@@ -2991,6 +3021,7 @@ function panelBanner(msg, retry){
   b.style.display = 'block';
 }
 var panelData = null, panelModo = 'ultimas', panelProvSel = null, panelFiltroPago = '', panelFiltroSemana = false;
+var panelFiltroAlbaran = false;   /* v145: viendo solo los albaranes del mes */
 /* v71: null = sin decidir todavia · '' = todos los meses · 'AAAA-MM' = ese mes */
 var panelMes = null;
 
@@ -3777,6 +3808,16 @@ function renderLista(){
   /* v33: estado visual de los filtros de pago, en cualquier vista */
   document.querySelectorAll('#pagoFil button').forEach(function(b){ b.classList.toggle('on', (b.getAttribute('data-f') || '') === panelFiltroPago); });
   pintarContadoresPago();
+  /* v145: la pastilla de ALBARANES — cuenta los del mes que estás viendo, azul como su sello */
+  var nAlb = filasDelMes(data.rows || []).filter(function(r){ return String(r.deducible || '').toLowerCase() === 'albaran'; }).length;
+  if (nAlb){
+    $('cardAlbaran').style.display = 'block';
+    $('albaranTxt').textContent = 'Albaranes · ' + nAlb;
+  } else {
+    $('cardAlbaran').style.display = 'none';
+    panelFiltroAlbaran = false;
+  }
+  $('cardAlbaran').classList.toggle('filtro', panelFiltroAlbaran);
   $('cardDebe').classList.toggle('filtro', panelFiltroPago === 'pendiente');
   $('debeHint').textContent = panelFiltroPago === 'pendiente' ? 'Viendo solo las pendientes — tocá para volver' : 'Tocá para ver cuáles';
   if (panelModo === 'prov'){
@@ -3894,6 +3935,13 @@ function renderLista(){
       avisoB.textContent = '🔎 Buscando en TODOS los meses, no solo en ' + nombreMes(panelMes);
       cont.appendChild(avisoB);
     }
+  }
+  /* v145: la seccion de albaranes — solo las notas de entrega del mes que estás viendo */
+  if (panelFiltroAlbaran){
+    rows = rows.filter(function(r){ return String(r.deducible || '').toLowerCase() === 'albaran'; });
+    var avisoA = document.createElement('div'); avisoA.className = 'backprov';
+    avisoA.textContent = '📄 Viendo solo ALBARANES — su IVA cuenta como identificado; la factura definitiva puede estar en camino. Tocá la pastilla para volver.';
+    cont.appendChild(avisoA);
   }
   /* v80: la ULTIMA en llegar, arriba. Siempre, y en cualquier filtro — "Todas", "Sin pagar",
      "Sin asignar", "Efectivo" o "Tarjeta". Hasta ahora se pintaba en el orden que devolvía
@@ -5161,7 +5209,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v144';
+var APP_VER = 'v145';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

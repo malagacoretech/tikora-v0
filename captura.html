@@ -3593,7 +3593,10 @@ function renderPanel(data, cachedNote){
         if (abierto){ cajaOtros.style.display = 'none'; ver.textContent = 'Ver cuáles ›'; return; }
         if (!cajaOtros.childNodes.length){
           (data.otros || []).forEach(function(o){
-            var row = document.createElement('div'); row.className = 'caprow';
+            /* v144: con CUATRO botones la fila vieja aplastaba el texto y la miniatura se
+               montaba encima (foto de Matias 19-ago). Mismo remedio que la v107 en Revisar:
+               texto arriba a lo ancho, botones debajo en su propia linea. */
+            var row = document.createElement('div'); row.className = 'caprow rev';
             var gg = document.createElement('div'); gg.className = 'cg';
             var t1 = document.createElement('div'); t1.className = 'ce';
             t1.textContent = o.tipo || o.emisor || 'papel';
@@ -3649,6 +3652,24 @@ function renderPanel(data, cachedNote){
                   .catch(function(){ vrs.disabled = false; toast('No se pudo guardar', true); });
               });
               row.appendChild(vrs);
+              /* v144: eliminar tambien desde la lista (pedido de Matias 19-ago) — mismo
+                 endpoint que en el Repaso, con su rastro en Otros!G */
+              var eli = document.createElement('button'); eli.type = 'button'; eli.className = 'capbadge peligro';
+              eli.textContent = '🗑'; eli.setAttribute('aria-label', 'Borrar del archivo');
+              eli.addEventListener('click', function(ev){
+                ev.stopPropagation();
+                if (!confirm('¿Borrar este papel del archivo?\n\nDesaparece de esta lista. La foto original NO se destruye: queda anotado en la hoja que lo borraste tú, con fecha.')) return;
+                eli.disabled = true;
+                fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid, accion: 'borrar' }) })
+                  .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
+                  .then(function(rr2){
+                    if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ eli.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo borrar', true); return; }
+                    toast('Borrado del archivo');
+                    row.remove(); loadPanel(true);
+                  })
+                  .catch(function(){ eli.disabled = false; toast('No se pudo borrar', true); });
+              });
+              row.appendChild(eli);
             }
             cajaOtros.appendChild(row);
           });
@@ -5140,7 +5161,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v143';
+var APP_VER = 'v144';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

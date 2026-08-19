@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v143'; /* v143: la ficha con la FOTO PRECARGADA (tocarla abre el visor) + campo de comentario del dueno -- y las carpetas Sin IVA y Varios con letras en grande, fotos precargadas y CORREGIR inline en Sin IVA (proveedor, fecha, importe, quien pago; con rastro en la hoja). */
+var VERSION = 'tikora-captura-v144'; /* v144: la fila de archivados ya no se aplasta (texto arriba, botones debajo -- el remedio v107) y gana el boton ELIMINAR, con su rastro en Otros!G. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

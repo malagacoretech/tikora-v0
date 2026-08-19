@@ -750,6 +750,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div class="rpTop">
     <button type="button" class="corrX" id="rpCerrar" aria-label="Cerrar">&#10005;</button>
     <span class="rpCuenta" id="rpCuenta">&mdash;</span>
+    <button type="button" class="corrX" id="rpGirar" aria-label="Girar la foto">&#8635;</button>
     <button type="button" class="corrX" id="rpLupa" aria-label="Ver la foto grande">&#128269;</button>
   </div>
   <div class="rpFoto"><img id="rpImg" alt="La factura"></div>
@@ -781,6 +782,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div class="corrTop">
     <button type="button" class="corrX" id="corrCerrar" aria-label="Cerrar">&#10005;</button>
     <span class="corrTit">Completar la factura</span>
+    <button type="button" class="corrX" id="corrGirar" aria-label="Girar la foto">&#8635;</button>
     <button type="button" class="corrX" id="corrVerFoto" aria-label="Ver la foto grande">&#128269;</button>
   </div>
   <div class="corrCuerpo">
@@ -2023,6 +2025,7 @@ function rpPintar(){
   $('rpImg').src = '/.netlify/images?url=' + encodeURIComponent(url) + '&w=1100&fit=contain';
   $('rpImg').onerror = function(){ $('rpImg').onerror = null; $('rpImg').src = url; };
   zumReset($('rpImg').parentNode, $('rpImg'));   /* v132: factura nueva, zoom a cero */
+  rpRot = 0; aplicarGiro($('rpImg'), 0);         /* v145b: y giro a cero */
   var esOtros = (rpModo === 'otros');
   /* los cuatro botones de pendientes y los dos de archivados nunca conviven */
   $('rpSinIva').style.display = esOtros ? 'none' : '';
@@ -2087,6 +2090,33 @@ function zumReset(cont, img){
   if (!cont || !img) return;
   cont.classList.remove('zum'); img.style.width = ''; cont.scrollLeft = 0; cont.scrollTop = 0;
 }
+/* v145b: GIRAR, para TODAS las fotos de la app (pedido de Matias: no solo el visor grande).
+   Generico: rota la imagen dentro de su propio marco. Cuando queda de costado (90/270),
+   los limites se cruzan (el alto del marco pasa a mandar sobre el ancho de la foto). */
+function aplicarGiro(img, rot){
+  if (!img) return;
+  img.style.transform = rot ? ('rotate(' + rot + 'deg)') : '';
+  var p = img.parentNode;
+  if (rot % 180){
+    img.style.width = 'auto';
+    img.style.maxWidth = (p && p.clientHeight ? p.clientHeight + 'px' : '76vh');
+    img.style.maxHeight = (p && p.clientWidth ? p.clientWidth + 'px' : '96vw');
+  } else {
+    img.style.width = ''; img.style.maxWidth = ''; img.style.maxHeight = '';
+  }
+}
+var rpRot = 0, corrRot = 0;
+$('rpGirar').addEventListener('click', function(){
+  zumReset($('rpImg').parentNode, $('rpImg'));
+  rpRot = (rpRot + 90) % 360;
+  aplicarGiro($('rpImg'), rpRot);
+});
+$('corrGirar').addEventListener('click', function(){
+  zumReset($('corrImg').parentNode, $('corrImg'));
+  corrRot = 0; aplicarGiro($('corrImg'), 0);     /* v145b: foto nueva en el corrector, giro a cero */
+  corrRot = (corrRot + 90) % 360;
+  aplicarGiro($('corrImg'), corrRot);
+});
 /* v131 (pedido de Matías 22:3x, en pleno repaso): el dedo manda.
    - Deslizar la foto a la izquierda = siguiente; a la derecha = anterior. Los botones siguen.
    - Tocarla (sin arrastrar) = se abre en grande, igual que la lupa.
@@ -2552,6 +2582,7 @@ function abrirCorrector(c){
      al usarlo de verdad sobraba el paso): entrar a corregir va DIRECTO a los campos, con la
      foto arriba que se agranda pellizcándola ahí mismo. La pantalla grande sigue en la lupa. */
   zumReset($('corrImg').parentNode, $('corrImg'));
+  corrRot = 0; aplicarGiro($('corrImg'), 0);     /* v145b: foto nueva en el corrector, giro a cero */
 }
 function cerrarCorrector(){ $('corr').classList.remove('on'); corrActual = null; $('corrImg').src = ''; }
 function guardarCorreccion(promover){
@@ -5209,7 +5240,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v145';
+var APP_VER = 'v146';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

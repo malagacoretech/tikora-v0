@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v145'; /* v145: GIRAR la foto en el visor (boton, de a 90 grados, solo la vista) + la seccion de ALBARANES: pastilla azul junto a Sin IVA y Varios que filtra las notas de entrega del mes de un toque. */
+var VERSION = 'tikora-captura-v146'; /* v146: GIRAR en TODAS las fotos -- ademas del visor grande, el Repaso y el corrector tienen su boton de girar (de a 90 grados, solo la vista, giro a cero al cambiar de foto). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

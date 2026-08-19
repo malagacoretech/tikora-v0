@@ -441,6 +441,8 @@ input[type=file]{display:none}
 .mesfil button.todos.on{background:#2F9E44;border-color:#2F9E44;color:#fff}
 /* v72: la linea que sustituyo a los 3 recuadros llevaba letra de nota al pie. Es informacion real: se lee. */
 .heroPie{font-size:0.92rem;font-weight:700;color:var(--text);margin-top:0.5rem}
+/* v152: enviar el resumen del mes — abre el menu nativo de compartir del telefono */
+.heroComp{margin-top:0.6rem;background:rgba(244,201,93,0.14);border:1px solid rgba(244,201,93,0.5);color:var(--accent);border-radius:10px;min-height:42px;padding:0.45rem 0.9rem;font-family:inherit;font-weight:700;font-size:0.82rem;cursor:pointer}
 .pcard .val2{font-size:clamp(0.78rem,3.4vw,1rem);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* v28/v43: los contadores de Facturas y Proveedores llenan su tarjeta */
 #pN,#pProv{font-size:clamp(1.5rem,7.5vw,2.1rem);font-weight:800;line-height:1.05}
@@ -727,7 +729,7 @@ div:has(> #segProv) > button{min-height:44px}
 
 <!-- v90: el visor de fotos VIVE FUERA de las pantallas. Estaba dentro de #screenCam, y como esa pantalla se oculta al ir a Panel o Preguntar, el visor se ocultaba con ella: por eso "ver foto" no ensenaba nada fuera de la camara. Un position:fixed no salva a un hijo de un padre con display:none. -->
 <div id="fotoVis">
-<div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvGirar" aria-label="Girar la foto">&#8635;</button><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
+<div class="fvTop"><span class="fvN" id="fvN"></span><div class="fvBotones"><button type="button" class="fvX" id="fvComp" aria-label="Compartir la foto">&#128228;</button><button type="button" class="fvX" id="fvGirar" aria-label="Girar la foto">&#8635;</button><button type="button" class="fvX" id="fvZoom" aria-label="Acercar">&#128269;</button><button type="button" class="fvX" id="fvX" aria-label="Cerrar">&#10005;</button></div></div>
 <!-- v82: el zoom del navegador está desactivado a propósito (maximum-scale=1) para que no
 se descoloque la app. Así que el visor lleva el suyo: tocar la foto acerca, y con la
 foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si salió legible. -->
@@ -853,6 +855,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
          dueno de un bar. El termino tecnico va en el export a la gestoria, no aqui. -->
     <div class="sub" id="pIvaSub">El IVA que ya pagaste en estas facturas &mdash; estimaci&oacute;n, confirmalo con tu gestor</div>
     <div class="heroPie" id="pHeroPie">&nbsp;</div>
+    <!-- v152: enviar el resumen del mes por donde sea (WhatsApp, Gmail...) - menu nativo -->
+    <button type="button" class="heroComp" id="heroComp">&#128228; Enviar resumen del mes</button>
   </div>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
@@ -996,6 +1000,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" id="fichaComSave" style="display:none">&#128221; Guardar comentario</button>
     <button type="button" id="fichaFoto">&#128206; Ver la foto de la factura</button>
     <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
+    <!-- v152: mandar ESTA factura (foto + datos) por WhatsApp, Gmail o lo que haya -->
+    <button type="button" id="fichaComp">&#128228; Enviar esta factura</button>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem">
       <button type="button" id="fichaEfectivo">&#128181; Efectivo</button>
       <button type="button" id="fichaTarjeta">&#128179; Tarjeta</button>
@@ -2119,6 +2125,43 @@ $('rpGirar').addEventListener('click', function(){
   rpRot = (rpRot + 90) % 360;
   aplicarGiro($('rpImg'), rpRot);
 });
+/* ============ v152: COMPARTIR — el menu nativo del telefono (WhatsApp, Gmail, lo que haya).
+   Un solo ayudante: baja la foto (por el CDN si es remota, del carrete si es de la sesion)
+   y abre el menu. Si el movil no soporta compartir ficheros, comparte el texto. ============ */
+function compartirFoto(urlFoto, nombreBase, texto){
+  return fetch(urlFoto)
+    .then(function(r){ if (!r.ok) throw 0; return r.blob(); })
+    .then(function(bl){
+      var nombre = (String(nombreBase || 'foto').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60) || 'foto') + '.jpg';
+      var file = new File([bl], nombre, { type: bl.type || 'image/jpeg' });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })){
+        return navigator.share({ title: nombreBase || 'Tikora', text: texto || nombreBase || '' });
+      }
+      var carga = { files: [file], title: nombreBase || 'Tikora' };
+      if (texto) carga.text = texto;
+      return navigator.share(carga);
+    });
+}
+$('fvComp').addEventListener('click', function(){
+  if (!navigator.share){ toast('Este navegador no permite compartir desde la web', true); return; }
+  var rotulo = $('fvN').textContent || 'Foto';
+  var u = null;
+  if (fvRemota){
+    var directa = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fvRemota);
+    u = '/.netlify/images?url=' + encodeURIComponent(directa) + '&w=2000&fit=contain';
+  } else if (sesionFotos.length){
+    u = sesionFotos[fvIdx];   /* foto de la sesión: vive en el propio teléfono */
+  }
+  if (!u) return;
+  $('fvComp').disabled = true;
+  compartirFoto(u, rotulo)
+    .then(function(){ $('fvComp').disabled = false; })
+    .catch(function(err){
+      $('fvComp').disabled = false;
+      if (err && err.name === 'AbortError') return;
+      toast('No se pudo compartir', true);
+    });
+});
 $('corrGirar').addEventListener('click', function(){
   zumReset($('corrImg').parentNode, $('corrImg'));
   corrRot = 0; aplicarGiro($('corrImg'), 0);     /* v145b: foto nueva en el corrector, giro a cero */
@@ -2741,6 +2784,29 @@ function pintarVarios(){
     cont.appendChild(row);
   });
 }
+/* v152: EL RESUMEN DEL MES, enviable — texto limpio por el menú nativo (WhatsApp, Gmail...).
+   Con el disclaimer de siempre: "identificado", jamás "ahorrado" (regla 4.5/4.2). */
+$('heroComp').addEventListener('click', function(){
+  if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
+  var filas = filasDelMes(panelData.rows || []);
+  var base = 0, iva = 0, deben = 0, nDeben = 0, provs = {};
+  filas.forEach(function(r){
+    base += r.base || 0; iva += r.iva || 0;
+    if (String(r.pago || '').toLowerCase() === 'pendiente'){ nDeben++; deben += r.total || 0; }
+    var k = (r.emisor && r.emisor.charAt(0) !== '(') ? r.emisor : 'sin leer';
+    provs[k] = (provs[k] || 0) + (r.total || 0);
+  });
+  var top = Object.keys(provs).sort(function(a, b){ return provs[b] - provs[a]; }).slice(0, 3)
+    .map(function(k){ return k + ' (' + fmtEur(provs[k]) + ')'; }).join(' · ');
+  var mesTxt = panelMes ? nombreMes(panelMes) : 'el período';
+  var texto = 'Resumen Tikora — ' + mesTxt + '\n'
+    + filas.length + (filas.length === 1 ? ' factura' : ' facturas') + ' · Base ' + fmtEur(base) + ' · IVA identificado ' + fmtEur(iva)
+    + (nDeben ? ('\nSin pagar: ' + nDeben + (nDeben === 1 ? ' factura · ' : ' facturas · ') + fmtEur(deben)) : '')
+    + (top ? ('\nMayores proveedores: ' + top) : '')
+    + '\n(IVA identificado: estimación sobre las facturas capturadas — la deducción la confirma tu gestor)';
+  if (navigator.share){ navigator.share({ title: 'Resumen Tikora — ' + mesTxt, text: texto }).catch(function(){}); }
+  else { copiar(texto, null); toast('Resumen copiado — pegalo donde quieras'); }
+});
 /* v145: la pastilla de albaranes filtra la lista de un toque (y de otro, vuelve) */
 $('cardAlbaran').addEventListener('click', function(){
   panelFiltroAlbaran = !panelFiltroAlbaran;
@@ -5143,6 +5209,26 @@ $('fichaFoto').addEventListener('click', function(){
   var fid = fotoId(fichaRow.foto);
   if (!fid || !fvAbrirRemota(fid, fichaRow.emisor || 'Factura')) abrirFoto(fotoSegura(fichaRow.foto));
 });
+/* v152: enviar ESTA factura — la foto con sus datos, por el menú nativo del teléfono */
+$('fichaComp').addEventListener('click', function(){
+  if (!fichaRow) return;
+  if (!navigator.share){ toast('Este navegador no permite compartir desde la web', true); return; }
+  var r = fichaRow;
+  var texto = (r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '') + (r.nfac ? (' · Nº ' + r.nfac) : '')
+    + '\nTotal: ' + fmtEur(r.total) + ' · IVA: ' + fmtEur(r.iva)
+    + '\n(IVA identificado — estimación, la deducción la confirma el gestor)';
+  var fid = fotoId(r.foto);
+  $('fichaComp').disabled = true;
+  var fin = function(){ $('fichaComp').disabled = false; };
+  if (fid){
+    var directa = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+    compartirFoto('/.netlify/images?url=' + encodeURIComponent(directa) + '&w=2000&fit=contain', (r.emisor || 'Factura'), texto)
+      .then(fin)
+      .catch(function(err){ fin(); if (err && err.name === 'AbortError') return; toast('No se pudo compartir', true); });
+  } else {
+    navigator.share({ title: r.emisor || 'Factura', text: texto }).then(fin).catch(fin);
+  }
+});
 $('fichaPreg').addEventListener('click', function(){
   if (!fichaRow) return;
   $('ficha').classList.remove('on');
@@ -5309,7 +5395,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v151';
+var APP_VER = 'v152';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

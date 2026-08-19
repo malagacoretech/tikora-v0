@@ -213,7 +213,8 @@ input[type=file]{display:none}
 /* ====== v22: CAPA 1 — MIS DATOS ====== */
 .dcard{background:linear-gradient(150deg,#0F1E36 0%,#1B2D4F 100%);border:1px solid rgba(244,201,93,0.35);border-radius:16px;padding:1.1rem 1.15rem;margin-bottom:0.9rem;position:relative;overflow:hidden}
 .dcard::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
-.dcard .dnom{font-size:1.15rem;font-weight:800;line-height:1.25;word-break:break-word}
+/* v160: el nombre fiscal AL MEDIO y en VERDE (pedido de Matias 19-ago, con la captura) */
+.dcard .dnom{font-size:1.15rem;font-weight:800;line-height:1.25;word-break:break-word;text-align:center;color:#4FBF7B}
 .dcard .dnif{font-size:1.85rem;font-weight:800;color:var(--accent);letter-spacing:0.02em;margin:0.35rem 0 0.15rem;font-variant-numeric:tabular-nums}
 .dcard .ddir{font-size:0.8rem;color:var(--text-muted);line-height:1.4}
 .drow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
@@ -5535,7 +5536,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v159';
+var APP_VER = 'v160';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

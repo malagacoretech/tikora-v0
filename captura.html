@@ -2015,7 +2015,7 @@ function cerrarRepaso(){
   $('repaso').classList.remove('on');
   $('rpImg').src = '';
   rpModo = 'pend';
-  loadPanel(true);
+  loadPanel(true, true);   /* v148: fresco — en el repaso casi seguro se decidió algo */
 }
 function rpActual(){ return rpLista[rpIdx] || null; }
 function rpPintar(){
@@ -2421,7 +2421,7 @@ function enviarASinIva(c, quien, alCerrar){
         : ('Guardada en Sin IVA — el bar' + (String(quien).indexOf('tarjeta') >= 0 ? ', con tarjeta' : (String(quien).indexOf('efectivo') >= 0 ? ', en efectivo' : ''))));
       if (alCerrar) alCerrar();
       sinIvaDatos = null; cargarSinIva();
-      loadPanel(true);
+      loadPanel(true, true);
     })
     .catch(function(){ toast('No se pudo mover — mirá la conexión', true); });
 }
@@ -2618,7 +2618,7 @@ function guardarCorreccion(promover){
         rpDesdeRepaso = false;
         if ($('repaso').classList.contains('on')){ if (promover) rpResuelta(); return; }
       }
-      loadPanel(true);
+      loadPanel(true, true);
     })
     .catch(function(){
       $('corrGuardar').disabled = false; $('corrSinIva').disabled = false;
@@ -3567,7 +3567,7 @@ function filaRevisar(c){
         if (!confirm('¿Quitar esta factura de la lista?\n\nDesaparece de la app, pero la foto NO se borra: se conserva guardada en el sistema. Se puede recuperar.')) return;
         fetch(DESCARTAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: c.f }) })
           .then(function(r){ if (!r.ok) throw 0; return r.json(); })
-          .then(function(){ row.remove(); toast('Quitada de la lista — la foto sigue guardada en el sistema'); loadPanel(true); })
+          .then(function(){ row.remove(); toast('Quitada de la lista — la foto sigue guardada en el sistema'); loadPanel(true, true); })
           .catch(function(){ toast('No se pudo descartar'); });
       });
       row.appendChild(bx);
@@ -3711,7 +3711,7 @@ function renderPanel(data, cachedNote){
                   .then(function(rr2){
                     if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ res.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo rescatar', true); return; }
                     toast('Devuelta a revisar — completá los datos');
-                    row.remove(); loadPanel(true);
+                    row.remove(); loadPanel(true, true);
                   })
                   .catch(function(){ res.disabled = false; toast('No se pudo rescatar', true); });
               });
@@ -3728,7 +3728,7 @@ function renderPanel(data, cachedNote){
                   .then(function(rr2){
                     if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ vrs.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo guardar', true); return; }
                     toast('Guardado en Varios 📁');
-                    row.remove(); loadPanel(true);
+                    row.remove(); loadPanel(true, true);
                   })
                   .catch(function(){ vrs.disabled = false; toast('No se pudo guardar', true); });
               });
@@ -3746,7 +3746,7 @@ function renderPanel(data, cachedNote){
                   .then(function(rr2){
                     if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ eli.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo borrar', true); return; }
                     toast('Borrado del archivo');
-                    row.remove(); loadPanel(true);
+                    row.remove(); loadPanel(true, true);
                   })
                   .catch(function(){ eli.disabled = false; toast('No se pudo borrar', true); });
               });
@@ -4189,12 +4189,17 @@ var panelQuery = '';
 function normTxt(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 $('panelSearch').addEventListener('input', function(){ panelQuery = normTxt(this.value.trim()); renderLista(); });
 var panelLoading = false;
-function loadPanel(silent){
+/* v148: loadPanel(silent, FRESCO). Tras una accion que ESCRIBE (descartar, varios, borrar,
+   corregir, pago, comentario), la recarga tiene que saltarse las DOS caches — la local del
+   telefono y la de 30 s del borde de Netlify — o la fila borrada RESUCITA en pantalla y
+   parece que el boton no hizo nada (Matias 19-ago, con las 3 filas duplicadas de Tikora).
+   Las recargas de solo-lectura siguen yendo con cache, que es la que ahorra cupo de n8n. */
+function loadPanel(silent, fresco){
   if (!TOKEN) return;
-  /* cache primero: algo en pantalla al instante, incluso sin red */
+  /* cache primero: algo en pantalla al instante, incluso sin red — SALVO tras una escritura */
   var cache = null;
   try { cache = JSON.parse(localStorage.getItem(panelCacheKey()) || 'null'); } catch(e){}
-  if (cache && cache.data){
+  if (!fresco && cache && cache.data){
     var d = new Date(cache.ts);
     function p(n){ return (n<10?'0':'')+n; }
     renderPanel(cache.data, 'el ' + p(d.getDate()) + '/' + p(d.getMonth()+1) + ' a las ' + p(d.getHours()) + ':' + p(d.getMinutes()));
@@ -4202,7 +4207,7 @@ function loadPanel(silent){
   if (panelLoading) return;
   panelLoading = true;
   if (!silent) panelBanner(null);
-  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN), { headers: { 'x-tikora-app': APP_SECRET } })
+  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN) + (fresco ? ('&nc=' + Date.now()) : ''), { headers: { 'x-tikora-app': APP_SECRET } })
     .then(function(resp){
       if (resp.status === 403) throw { fatal: true, msg: 'Enlace no válido. Pedí uno nuevo a Tikora.' };
       if (!resp.ok) throw { msg: 'El servicio no responde ahora mismo.' };
@@ -5102,7 +5107,7 @@ $('fichaComSave').addEventListener('click', function(){
       if (d && d.ok){
         fichaRow.comentario = txt;
         toast(txt ? 'Comentario guardado ✓' : 'Comentario borrado ✓', false);
-        setTimeout(function(){ loadPanel(true); }, 1200);
+        setTimeout(function(){ loadPanel(true, true); }, 1200);
       } else toast('No se pudo guardar', true);
     })
     .catch(function(){ $('fichaComSave').disabled = false; toast('Sin conexión — probá de nuevo', true); });
@@ -5137,7 +5142,7 @@ function marcarPago(pago){
     .then(function(d){
       if (d && d.ok){
         toast(pago === 'pendiente' ? 'Marcada como SIN PAGAR' : ('Marcada como pagada (' + pago + ') ✓'), false);
-        setTimeout(function(){ loadPanel(true); }, 1200);   /* repinta el semaforo */
+        setTimeout(function(){ loadPanel(true, true); }, 1200);   /* repinta el semaforo */
       }
       else if (d && d.pendiente) toast('Aún procesándose — probá en un minuto', true);
       else toast('No se pudo marcar', true);
@@ -5275,7 +5280,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v148';
+var APP_VER = 'v149';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

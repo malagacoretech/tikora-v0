@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v148'; /* v148: el aviso de factura nueva LLEVA a la factura (el service worker NAVEGA, no solo avisa: con la app en segundo plano el mensaje no siempre llegaba y salia la camara) y el chat ensena LA FOTO precargada en vez de un enlace que ponia "ver foto". */
+var VERSION = 'tikora-captura-v149'; /* v149: las filas borradas ya no RESUCITAN -- tras cada escritura (descartar, varios, borrar, corregir, pago, comentario) la recarga salta las dos caches (local + borde 30 s), y el Descartar del servidor salta las filas ya cerradas (las 3 duplicadas de Tikora marcaban siempre la misma). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

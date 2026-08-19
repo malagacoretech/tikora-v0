@@ -1825,7 +1825,7 @@ function fvPagoPalabra(p){
   return (p === 'pendiente') ? 'sin pagar'
        : (p === 'efectivo')  ? 'pagada en efectivo'
        : (p === 'tarjeta')   ? 'pagada con tarjeta'
-       : 'sin asignar';
+       : (p ? p.slice(0, 22) : 'sin asignar');   /* v159: lo que diga la hoja, aunque no sea de las tres */
 }
 $('fvPago').addEventListener('click', function(ev){
   var b = ev.target.closest ? ev.target.closest('button[data-p]') : null;
@@ -3601,7 +3601,13 @@ function renderFilas(cont, rowsArr){
     var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
     amtc.appendChild(amt);
     var pw = document.createElement('div'); pw.className = 'pgword';
-    pw.textContent = (pg === 'pendiente') ? 'sin pagar' : ((pg === 'efectivo' || pg === 'tarjeta') ? pg : 'sin asignar');
+    /* v159: si la hoja dice algo que no es de las tres familias — hoy hay dos "domiciliado" —
+       se enseña ESO, no "sin asignar". Estaba mintiendo: la factura sí tenía forma de pago
+       guardada, y la app la llamaba sin asignar solo porque no reconocía la palabra.
+       Sin filtro nuevo ni familia nueva: se dice lo que pone y ya. */
+    pw.textContent = (pg === 'pendiente') ? 'sin pagar'
+                   : ((pg === 'efectivo' || pg === 'tarjeta') ? pg
+                   : (pg ? pg.slice(0, 22) : 'sin asignar'));
     amtc.appendChild(pw);
     /* v85: si no hay pago asignado pero el papel DICE cómo se pagó, se enseña lo que pone.
        Mejor "pone: CREDITO" que un "sin asignar" mudo — y la decisión sigue siendo suya. */
@@ -5529,7 +5535,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v158';
+var APP_VER = 'v159';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

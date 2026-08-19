@@ -427,10 +427,6 @@ input[type=file]{display:none}
 .prow.pg-efectivo .amt{color:#51CF66}
 .prow.pg-tarjeta{border-left:4px solid #1971C2}
 .prow.pg-tarjeta .amt{color:#4DABF7}
-/* v157: "la puse yo" — dinero de SU bolsillo, no de la caja del bar. Va en el amarillo de la
-   marca porque es la unica familia donde el bar le debe algo a el. */
-.prow.pg-yo{border-left:4px solid #7048E8}
-.prow.pg-yo .amt{color:#9775FA}
 .pgtag{font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#FF6B6B}
 /* v18: tarjeta de deuda pendiente */
 .pcard.debe{border-color:rgba(229,72,77,0.55);margin-top:0.7rem;display:none}
@@ -468,7 +464,6 @@ input[type=file]{display:none}
 .pg-pendiente .pgword{color:#FF6B6B}
 .pg-efectivo .pgword{color:#51CF66}
 .pg-tarjeta .pgword{color:#4DABF7}
-.pg-yo .pgword{color:#9775FA}
 /* v32: sin forma de pago asignada — numero blanco y "sin asignar" debajo, que ninguna fila quede muda */
 .prow.pg-nada .amt{color:var(--text)}
 .prow.pg-nada .pgword{color:var(--text-muted)}
@@ -569,7 +564,6 @@ button.capbadge:active{transform:scale(0.95)}
 .pagofil button[data-f="efectivo"] .pf{background:#2F9E44}
 .pagofil button[data-f="tarjeta"] .pf{background:#1971C2}
 .pagofil button[data-f=""] .pf{background:var(--accent)}
-.pagofil button[data-f="yo"] .pf{background:#7048E8}   /* v157: violeta, que el amarillo ya es "Todas" */
 .pagofil button.on{border-color:var(--accent);color:var(--text);background:var(--surface-2)}
 /* v28: la tarjeta Sin pagar se toca y muestra solo las pendientes */
 .pcard.debe{cursor:pointer}
@@ -768,7 +762,7 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
 <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
 <!-- v157: se asigna el pago sin salir de la foto. Solo aparece si la foto es de una factura
      del panel y quien mira es el dueno (los empleados no ven dinero, decision #28). -->
-<div class="fvPago" id="fvPago" style="display:none"><div class="t" id="fvPagoT">&iquest;C&oacute;mo se pag&oacute;?</div><div class="b"><button type="button" data-p="efectivo">&#128181; Efectivo</button><button type="button" data-p="tarjeta">&#128179; Tarjeta</button><button type="button" data-p="yo">&#128100; La puse yo</button><button type="button" data-p="pendiente">&#9203; Sin pagar</button></div></div>
+<div class="fvPago" id="fvPago" style="display:none"><div class="t" id="fvPagoT">&iquest;C&oacute;mo se pag&oacute;?</div><div class="b"><button type="button" data-p="efectivo">&#128181; Efectivo</button><button type="button" data-p="tarjeta">&#128179; Tarjeta</button><button type="button" data-p="pendiente">&#9203; Sin pagar</button></div></div>
 <!-- v128: Volver GRANDE abajo, donde llega el pulgar - pedido de Matias 22:1x: "que no tenga
      que ir a la cruz de arriba de todo". La cruz sigue arriba para quien la busque. -->
 <button type="button" class="fvVolver" id="fvVolver">&#10229; Volver</button>
@@ -924,9 +918,6 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" data-f="tarjeta"><span class="pf"></span><span class="pn" data-n="tarjeta">Tarjeta</span></button>
     <button type="button" data-f="pendiente"><span class="pf"></span><span class="pn" data-n="pendiente">Sin pagar</span></button>
     <button type="button" data-f="nada"><span class="pf"></span><span class="pn" data-n="nada">Sin asignar</span></button>
-    <!-- v157: las que puso Matias de su bolsillo. El bar se las debe: merecen su propio filtro
-         y no vivir mezcladas con las que nadie miro todavia. -->
-    <button type="button" data-f="yo"><span class="pf"></span><span class="pn" data-n="yo">La puse yo</span></button>
   </div>
   </div>
   <div class="alertas">
@@ -1834,7 +1825,6 @@ function fvPagoPalabra(p){
   return (p === 'pendiente') ? 'sin pagar'
        : (p === 'efectivo')  ? 'pagada en efectivo'
        : (p === 'tarjeta')   ? 'pagada con tarjeta'
-       : (p === 'yo')        ? 'la pusiste vos'
        : 'sin asignar';
 }
 $('fvPago').addEventListener('click', function(ev){
@@ -3567,7 +3557,6 @@ function renderFilas(cont, rowsArr){
     if (pg === 'pendiente') row.classList.add('pg-pendiente');
     else if (pg === 'efectivo') row.classList.add('pg-efectivo');
     else if (pg === 'tarjeta') row.classList.add('pg-tarjeta');
-    else if (pg === 'yo') row.classList.add('pg-yo');   /* v157 */
     else row.classList.add('pg-nada');
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(proveedor sin leer)';
@@ -3612,7 +3601,7 @@ function renderFilas(cont, rowsArr){
     var amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtEur(r.total);
     amtc.appendChild(amt);
     var pw = document.createElement('div'); pw.className = 'pgword';
-    pw.textContent = (pg === 'pendiente') ? 'sin pagar' : (pg === 'yo') ? 'la pusiste vos' : ((pg === 'efectivo' || pg === 'tarjeta') ? pg : 'sin asignar');
+    pw.textContent = (pg === 'pendiente') ? 'sin pagar' : ((pg === 'efectivo' || pg === 'tarjeta') ? pg : 'sin asignar');
     amtc.appendChild(pw);
     /* v85: si no hay pago asignado pero el papel DICE cómo se pagó, se enseña lo que pone.
        Mejor "pone: CREDITO" que un "sin asignar" mudo — y la decisión sigue siendo suya. */
@@ -3994,13 +3983,10 @@ function fmtEurCorto(n){
 }
 function pintarContadoresPago(){
   var filas = filasDelMes((panelData && panelData.rows) || []);   /* v71: del mes que estas viendo */
-  var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'yo': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
+  var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
   filas.forEach(function(r){
     var p = String(r.pago || '').toLowerCase();
-    /* v157: 'yo' es familia propia. Antes caía en "nada", así que marcar una como puesta de
-       tu bolsillo la dejaba EXACTAMENTE donde estaba — en Sin asignar — como si no hubiera
-       pasado nada. Ese era el fallo de verdad detrás del botón nuevo. */
-    var k = (p === 'pendiente' || p === 'efectivo' || p === 'tarjeta' || p === 'yo') ? p : 'nada';
+    var k = (p === 'pendiente' || p === 'efectivo' || p === 'tarjeta') ? p : 'nada';
     var t = Number(r.total) || 0;
     acc[k].n++; acc[k].s += t;
     acc[''].n++; acc[''].s += t;
@@ -4010,8 +3996,7 @@ function pintarContadoresPago(){
     'pendiente': { con: 'sin pagar', sola: 'Sin pagar' },
     'nada': { con: 'sin asignar', sola: 'Sin asignar' },
     'efectivo': { con: 'en efectivo', sola: 'Efectivo' },
-    'tarjeta': { con: 'con tarjeta', sola: 'Tarjeta' },
-    'yo': { con: 'las pusiste vos', sola: 'La puse yo' }
+    'tarjeta': { con: 'con tarjeta', sola: 'Tarjeta' }
   };
   document.querySelectorAll('#pagoFil .pn').forEach(function(sp){
     var k = sp.getAttribute('data-n') || '';
@@ -4174,7 +4159,7 @@ function renderLista(){
   if (panelFiltroPago){
     rows = rows.filter(function(r){
       var pgf = String(r.pago || '').toLowerCase();
-      if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta' && pgf !== 'yo';   /* v157: 'yo' ya no cuenta como sin asignar */
+      if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta';
       return pgf === panelFiltroPago;
     });
     /* v91: fuera la barra "← Todas las facturas · viendo solo EFECTIVO". El chip de pago ya
@@ -5544,7 +5529,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v157';
+var APP_VER = 'v158';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

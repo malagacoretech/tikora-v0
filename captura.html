@@ -500,6 +500,14 @@ input[type=file]{display:none}
 .caprow{display:flex;align-items:center;gap:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:0.5rem}
 .caprow.rev{border-color:rgba(229,72,77,0.45)}
 .caprow .cg{flex:1;min-width:0}
+/* v156: las filas de Sin IVA llevan TRES botones (foto con miniatura, corregir, borrar) y al
+   texto le quedaba una columna de dos dedos: "Freskisol (Nave Frigorifica)" se partia letra a
+   letra en vertical (Matias, 19-ago: "quedo raro, alargadas; mejor en horizontal ocupando toda
+   la pagina"). Mismo remedio que los archivados en la v144: el texto ARRIBA a todo lo ancho,
+   los botones DEBAJO. */
+.caprow.sivrow{flex-wrap:wrap}
+.caprow.sivrow .cg{flex:1 1 100%;min-width:0}
+.caprow.sivrow .sivForm{flex:1 1 100%}
 .caprow .ce{font-size:0.92rem;font-weight:700}
 /* v99: en una fila de Revisar los botones dejan la columna estrecha y "Ingresó 12/08 · 22:51"
    se partía en TRES renglones (visto en el móvil de Matías). Una sola línea, sin cortes. */
@@ -2344,7 +2352,7 @@ function pintarSinIva(){
   }
   cont.appendChild(caja);
   (sinIvaDatos.filas || []).forEach(function(s){
-    var row = document.createElement('div'); row.className = 'caprow';
+    var row = document.createElement('div'); row.className = 'caprow sivrow';   /* v156: texto arriba a todo lo ancho, botones debajo */
     var gg = document.createElement('div'); gg.className = 'cg';
     var e1 = document.createElement('div'); e1.className = 'ce grande';
     e1.textContent = fmtEur(s.importe || 0);
@@ -4516,7 +4524,13 @@ function abrirRespuestaPendiente(){
     .catch(function(){ pend.textContent = 'No pude traerla — probá de nuevo en un momento.'; pend.classList.remove('pend'); });
 }
 try {
-  if (new URLSearchParams(location.search).get('chatr')) abrirRespuestaPendiente();
+  var qsChatr = new URLSearchParams(location.search).get('chatr');
+  if (qsChatr) abrirRespuestaPendiente();
+} catch(e){}
+/* v156: ?v=panel se captura ANTES de que el limpiador lo borre — boot() lo usa después */
+var qsVPanel = null;
+try {
+  qsVPanel = new URLSearchParams(location.search).get('v');
 } catch(e){}
 /* v73: "Ver factura" — el panel con ESA factura buscada y destacada */
 var verPendFid = null;
@@ -4538,7 +4552,7 @@ try {
 try {
   var qsLimpia = new URLSearchParams(location.search);
   var habiaAviso = false;
-  ['chat', 'ver', 'rev', 'chatr'].forEach(function(k){ if (qsLimpia.has(k)){ qsLimpia.delete(k); habiaAviso = true; } });
+  ['chat', 'ver', 'rev', 'chatr', 'v'].forEach(function(k){ if (qsLimpia.has(k)){ qsLimpia.delete(k); habiaAviso = true; } });
   if (habiaAviso && window.history && history.replaceState){
     var resto = qsLimpia.toString();
     history.replaceState(null, '', location.pathname + (resto ? ('?' + resto) : ''));
@@ -4597,6 +4611,7 @@ if ('serviceWorker' in navigator){
     if (e.data.tikora === 'ver') abrirFacturaPanel(e.data.f);   /* v73: botón "Ver factura" del aviso */
     if (e.data.tikora === 'rev'){ revPend = true; try { clic('tabPanel'); } catch(err){} aplicarRevPend(); }   /* v96: el parte con la app abierta */
     if (e.data.tikora === 'chatr') abrirRespuestaPendiente();   /* v142: "tu respuesta está lista" con la app abierta */
+    if (e.data.tikora === 'panel'){ try { conClave(function(){ stopCamera(); show('screenPanel'); loadPanel(false); }); } catch(err){} }   /* v156: el generico lleva al panel */
   });
 }
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
@@ -5349,11 +5364,15 @@ function boot(){
   weekCount(0);
   refreshQueueUI();
   if (!TOKEN){ show('screenToken'); return; }
-  var deepPanel = false;
-  try { deepPanel = new URLSearchParams(location.search).get('v') === 'panel'; } catch(e){}
+  var deepPanel = (typeof qsVPanel !== 'undefined' && qsVPanel === 'panel');   /* v156: capturado antes del limpiador */
   /* v59: si el aviso tocado con la app CERRADA ya nos llevo al chat de una factura,
      el arranque no lo pisa. Antes lo pisaba y el enlace en frio no funcionaba nunca. */
   if (typeof qsChat !== 'undefined' && qsChat && $('screenChat').classList.contains('on')){
+    processQueue(false); return;
+  }
+  /* v156: mismo respeto para ?chatr= — "tu respuesta está lista" abre el chat y el
+     arranque NO lo pisa con la cámara (la guarda de la v59 solo cubría ?chat) */
+  if (typeof qsChatr !== 'undefined' && qsChatr && $('screenChat').classList.contains('on')){
     processQueue(false); return;
   }
   /* v73: mismo respeto para ?ver= — el aviso "Ver factura" abre el panel con ESA factura destacada */
@@ -5445,7 +5464,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v155';
+var APP_VER = 'v156';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

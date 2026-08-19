@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v155'; /* v155: los parametros de aviso (?chat, ?ver, ?rev, ?chatr) se consumen UNA sola vez y se limpian de la URL -- el ?chat pegado clavaba "la factura que ingreso" en el chat en cada recarga. */
+var VERSION = 'tikora-captura-v156'; /* v156: las filas de Sin IVA dejan de estrujar el texto -- nombre y fecha arriba a todo lo ancho, botones debajo (mismo remedio que los archivados en la v144). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -130,7 +130,9 @@ function swChatCheck(tok){
 self.addEventListener('push', function(e){
   /* v73: mostrar YA (garantía de sonido) → enriquecer con UNA notificación POR factura nueva,
      tag único por factura (se apilan, no se pisan) + botones "Ver factura" y "Preguntar". */
-  var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-entrando', renotify: true, data: { url: '/captura.html', accionVer: '' } };
+  /* v156: el generico lleva AL PANEL (dice "entro una boleta" — el destino es donde se ve),
+     no a la camara. Todas las notificaciones van a donde dicen (Matias 19-ago). */
+  var basico = { body: 'Entró una boleta nueva', icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png', tag: 'tikora-entrando', renotify: true, data: { url: '/captura.html?v=panel', panel: 1, f: '' } };
   var tokSW = null;
   e.waitUntil(
     self.registration.showNotification('Tikora', basico)
@@ -267,6 +269,7 @@ self.addEventListener('notificationclick', function(e){
   var modo = (e.action === 'preguntar') ? 'chat' : 'ver';
   if (!fid && d.rev) modo = 'rev';   /* v96: el parte con la app abierta despliega "para repetir" */
   if (!fid && d.chatr) modo = 'chatr';   /* v142: "tu respuesta está lista" abre el chat con ella */
+  if (!fid && d.panel) modo = 'panel';   /* v156: el generico va al panel, no a la camara */
   var url = fid ? ('/captura.html?' + modo + '=' + fid) : (d.url || '/captura.html');   /* v89: el aviso de revisar abre el panel */
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){
@@ -276,10 +279,11 @@ self.addEventListener('notificationclick', function(e){
         /* v148: ADEMAS de avisar, NAVEGAR. El postMessage solo llega si la pagina esta
            viva y escuchando; con la app instalada y en segundo plano no siempre llega,
            y entonces al tocar el aviso te encontrabas LA CAMARA en vez de la factura.
-           Queja de Matias (19-ago): "no me lleva a la boleta, se me abre la camara".
-           Navegar garantiza el destino. Solo cuando hay una factura concreta: si no,
-           se respeta la pantalla donde estuviera. */
-        if (fid && typeof w.navigate === 'function'){
+           v156: y ya no solo con factura concreta — TODO aviso con destino navega
+           (parte, revisar, respuesta del chat, panel). Regla de Matias (19-ago):
+           "todas las notificaciones tienen que ir a donde yo apriete". */
+        var tieneDestino = !!fid || !!d.rev || !!d.chatr || !!d.panel;
+        if (tieneDestino && typeof w.navigate === 'function'){
           return w.navigate(url)
             .then(function(c){ return (c && c.focus) ? c.focus() : w.focus(); })
             .catch(function(){ return w.focus(); });

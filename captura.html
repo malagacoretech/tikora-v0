@@ -360,6 +360,24 @@ input[type=file]{display:none}
 .fichacard .fd{font-size:0.8rem;color:var(--text-muted);margin:0.15rem 0 0.8rem}
 .fichacard .ft{font-size:1.55rem;font-weight:800;color:var(--accent);margin-bottom:0.9rem}
 .fichabtns{display:grid;gap:0.5rem}
+/* v143: la foto PRECARGADA en la ficha (pedido de Matias 18-ago) — tocable, abre el visor */
+#fichaImgBtn{display:none;padding:0;border:1px solid var(--border);background:#000;border-radius:12px;overflow:hidden;width:100%;cursor:pointer}
+#fichaImgBtn img{width:100%;max-height:34vh;object-fit:contain;display:block}
+#fichaCom{width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:0.92rem;padding:0.6rem 0.8rem;resize:none}
+/* v143: letras EN GRANDE en las carpetas (Sin IVA y Varios) — se leian chicas */
+#sinIvaRows .ce.grande{font-size:1.2rem}
+#sinIvaRows .ch,#variosRows .ch{font-size:0.95rem;color:var(--text)}
+#sinIvaRows .quien{font-size:0.86rem}
+#variosRows .ce{font-size:1.05rem;font-weight:700}
+#variosRows .vdesc{font-size:0.9rem}
+/* v143: el mini-corrector de Sin IVA, inline en la propia fila */
+.sivForm{display:none;grid-template-columns:1fr;gap:0.45rem;margin:0.45rem 0 0.2rem;width:100%}
+.sivForm.on{display:grid}
+.sivForm input,.sivForm select{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:0.95rem;padding:0.65rem 0.7rem;width:100%;box-sizing:border-box;-webkit-appearance:none}
+.sivForm .fila2{display:grid;grid-template-columns:1fr 1fr;gap:0.45rem}
+.sivForm .bts{display:grid;grid-template-columns:1fr 1fr;gap:0.45rem}
+.sivForm .bts button{min-height:46px;border-radius:10px;font-family:inherit;font-weight:700;font-size:0.92rem;border:1px solid var(--border);background:var(--surface-2);color:var(--text)}
+.sivForm .bts button.ok{background:var(--accent);border-color:var(--accent);color:#0A1628}
 .fichabtns button{padding:0.85rem 1rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left}
 .fichabtns button.pri{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 /* v61: el dictado existia desde la v12 detras de un iconito de 3rem y no lo encontraba nadie.
@@ -961,6 +979,11 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div class="fd" id="fichaDetalle"></div>
   <div class="ft" id="fichaTotal"></div>
   <div class="fichabtns">
+    <!-- v143: la foto YA CARGADA — tocarla la abre en grande. El boton viejo queda de
+         respaldo por si la imagen no puede cargar. -->
+    <button type="button" id="fichaImgBtn"><img id="fichaImg" alt="La factura"></button>
+    <textarea id="fichaCom" maxlength="300" rows="2" placeholder="Un comentario para esta factura&hellip;" style="display:none"></textarea>
+    <button type="button" id="fichaComSave" style="display:none">&#128221; Guardar comentario</button>
     <button type="button" id="fichaFoto">&#128206; Ver la foto de la factura</button>
     <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem">
@@ -2233,9 +2256,69 @@ function pintarSinIva(){
     var m = String(s.foto || '').match(/\/d\/([A-Za-z0-9_\-]{20,})/);
     if (m) fid = m[1];
     if (fid){
-      var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn'; vf.textContent = '📎 Foto';
-      vf.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid)); });
+      /* v143: la foto PRECARGADA (miniatura por el CDN) — tocarla abre el visor propio */
+      var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+      var vf = document.createElement('button'); vf.type = 'button'; vf.className = 'copybtn conmini';
+      var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+      im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=120&h=120&fit=cover';
+      im.addEventListener('error', function(){ vf.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+      vf.appendChild(im);
+      var sp = document.createElement('span'); sp.textContent = 'Foto'; vf.appendChild(sp);
+      vf.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if (!fvAbrirRemota(fid, s.emisor || 'Papel sin IVA')) abrirFoto(u);
+      });
       row.appendChild(vf);
+      /* v143: CORREGIR el papel a mano (pedido de Matias 18-ago) — emisor, fecha, importe
+         y quien lo pago, inline en la fila, con rastro en la hoja (columna nota) */
+      var bc = document.createElement('button'); bc.type = 'button'; bc.className = 'capbadge'; bc.textContent = '✏️ Corregir';
+      var form = document.createElement('div'); form.className = 'sivForm';
+      bc.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var abierto = form.classList.contains('on');
+        if (abierto){ form.classList.remove('on'); return; }
+        if (!form.childNodes.length){
+          var iE = document.createElement('input'); iE.type = 'text'; iE.maxLength = 80; iE.placeholder = 'Proveedor'; iE.value = (s.emisor && s.emisor.charAt(0) !== '(') ? s.emisor : '';
+          var f2 = document.createElement('div'); f2.className = 'fila2';
+          var iF = document.createElement('input'); iF.type = 'date'; iF.value = /^\d{4}-\d{2}-\d{2}$/.test(String(s.fecha || '')) ? s.fecha : '';
+          var iI = document.createElement('input'); iI.type = 'text'; iI.inputMode = 'decimal'; iI.placeholder = 'Importe (€)'; iI.value = (s.importe || 0) ? String(s.importe).replace('.', ',') : '';
+          f2.appendChild(iF); f2.appendChild(iI);
+          var sel = document.createElement('select');
+          [['bar - efectivo', 'Lo pagó el bar — efectivo'], ['bar - tarjeta', 'Lo pagó el bar — tarjeta'], ['yo', 'Lo pagué yo']].forEach(function(op){
+            var o = document.createElement('option'); o.value = op[0]; o.textContent = op[1];
+            if (String(s.quien || '') === op[0]) o.selected = true;
+            sel.appendChild(o);
+          });
+          var bts = document.createElement('div'); bts.className = 'bts';
+          var bOk = document.createElement('button'); bOk.type = 'button'; bOk.className = 'ok'; bOk.textContent = 'Guardar';
+          var bNo = document.createElement('button'); bNo.type = 'button'; bNo.textContent = 'Cancelar';
+          bNo.addEventListener('click', function(){ form.classList.remove('on'); });
+          bOk.addEventListener('click', function(){
+            bOk.disabled = true;
+            fetch(SINIVA_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET },
+              body: JSON.stringify({ u: TOKEN, accion: 'corregir', f: fid, fila: s.fila,
+                emisor: iE.value.trim(), fecha: iF.value, importe: iI.value.trim().replace(',', '.'), quien: sel.value })
+            })
+              .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+              .then(function(rr){
+                bOk.disabled = false;
+                if (!rr.ok || (rr.j && rr.j.ok === false)){ toast((rr.j && rr.j.motivo) ? rr.j.motivo : 'No se pudo corregir', true); return; }
+                toast('Corregido ✓ — con rastro en la hoja');
+                sinIvaDatos = null; cargarSinIva();
+              })
+              .catch(function(){ bOk.disabled = false; toast('Sin conexión — probá de nuevo', true); });
+          });
+          bts.appendChild(bOk); bts.appendChild(bNo);
+          form.appendChild(iE); form.appendChild(f2); form.appendChild(sel); form.appendChild(bts);
+        }
+        form.classList.add('on');
+      });
+      row.appendChild(bc);
+      cont.appendChild(row);
+      cont.appendChild(form);
+      return;
     }
     cont.appendChild(row);
   });
@@ -4839,9 +4922,56 @@ function abrirFicha(r){
   $('fichaEmisor').textContent = r.emisor || '(proveedor sin leer)';
   $('fichaDetalle').textContent = fmtFecha(r.fecha) + (r.nfac ? (' · Nº ' + r.nfac) : '') + ' · IVA ' + fmtEur(r.iva);
   $('fichaTotal').textContent = fmtEur(r.total);
-  $('fichaFoto').style.display = r.foto ? '' : 'none';
+  /* v143: la foto llega YA CARGADA (miniatura grande por el CDN); tocarla abre el visor.
+     El boton "Ver la foto" queda solo de respaldo, para cuando la imagen no cargue. */
+  var fid = fotoId(r.foto);
+  $('fichaImgBtn').style.display = 'none';
+  $('fichaFoto').style.display = 'none';
+  if (fid){
+    var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+    var im = $('fichaImg');
+    im.onerror = function(){ im.onerror = null; $('fichaImgBtn').style.display = 'none'; $('fichaFoto').style.display = ''; };
+    im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=700&fit=contain';
+    $('fichaImgBtn').style.display = '';
+  } else if (r.foto){
+    $('fichaFoto').style.display = '';
+  }
+  /* v143: el comentario del dueno, precargado — el servidor lo acepta desde el 18-ago */
+  if (!ES_EMPLEADO){
+    $('fichaCom').style.display = ''; $('fichaComSave').style.display = '';
+    $('fichaCom').value = r.comentario || '';
+  } else {
+    $('fichaCom').style.display = 'none'; $('fichaComSave').style.display = 'none';
+  }
   $('ficha').classList.add('on');
 }
+$('fichaImgBtn').addEventListener('click', function(){
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid || !fvAbrirRemota(fid, fichaRow.emisor || 'Factura')) abrirFoto(fotoSegura(fichaRow.foto));
+});
+$('fichaComSave').addEventListener('click', function(){
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid){ toast('Esta factura no tiene foto asociada', true); return; }
+  var txt = $('fichaCom').value.trim().slice(0, 300);
+  $('fichaComSave').disabled = true;
+  fetch(PAGO_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET },
+    body: JSON.stringify({ token: TOKEN, fileId: fid, comentario: txt })
+  })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      $('fichaComSave').disabled = false;
+      if (d && d.ok){
+        fichaRow.comentario = txt;
+        toast(txt ? 'Comentario guardado ✓' : 'Comentario borrado ✓', false);
+        setTimeout(function(){ loadPanel(true); }, 1200);
+      } else toast('No se pudo guardar', true);
+    })
+    .catch(function(){ $('fichaComSave').disabled = false; toast('Sin conexión — probá de nuevo', true); });
+});
 $('fichaCerrar').addEventListener('click', function(){ $('ficha').classList.remove('on'); });
 $('ficha').addEventListener('click', function(e){ if (e.target === this) this.classList.remove('on'); });
 $('fichaFoto').addEventListener('click', function(){
@@ -5010,7 +5140,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v142';
+var APP_VER = 'v143';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

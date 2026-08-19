@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v142'; /* v142: EL CHAT ASINCRONO -- la pregunta recibe un "pensando" al instante, la respuesta llega por sondeo (o por push si tardo y no estabas mirando, tambien con la app cerrada), el visto corta el aviso, y el muro de los 60 s del webhook deja de mandar sobre el chat. */
+var VERSION = 'tikora-captura-v143'; /* v143: la ficha con la FOTO PRECARGADA (tocarla abre el visor) + campo de comentario del dueno -- y las carpetas Sin IVA y Varios con letras en grande, fotos precargadas y CORREGIR inline en Sin IVA (proveedor, fecha, importe, quien pago; con rastro en la hoja). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

@@ -2421,6 +2421,29 @@ function pintarSinIva(){
         form.classList.add('on');
       });
       row.appendChild(bc);
+      /* v152: BORRAR un papel de Sin IVA (pedido de Matías, 19-ago: "en la opción sin
+         IVA también tendríamos que agregar eliminar"). No destruye nada: el servidor
+         le quita el importe, lo marca como borrado y escribe quién y cuándo en la nota.
+         La foto original sigue en Drive y la fila sigue en la hoja. */
+      var bx = document.createElement('button'); bx.type = 'button'; bx.className = 'capbadge'; bx.textContent = '🗑️';
+      bx.setAttribute('aria-label', 'Borrar este papel de Sin IVA');
+      bx.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var qn = (s.emisor && s.emisor.charAt(0) !== '(') ? s.emisor : 'este papel';
+        if (!confirm('¿Quitar ' + qn + ' de Sin IVA?\n\nDeja de contar en el total. La foto NO se destruye y queda anotado en la hoja que lo quitaste tú, con la fecha.')) return;
+        bx.disabled = true;
+        fetch(SINIVA_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET },
+          body: JSON.stringify({ u: TOKEN, accion: 'borrar', f: fid, fila: s.fila, motivo: 'quitado desde la app' }) })
+          .then(function(x){ return x.json().then(function(j){ return { ok: x.ok, j: j }; }); })
+          .then(function(rr){
+            bx.disabled = false;
+            if (!rr.ok || (rr.j && rr.j.ok === false)){ toast((rr.j && rr.j.motivo) ? rr.j.motivo : 'No se pudo quitar', true); return; }
+            toast('Quitado de Sin IVA');
+            cargarSinIva();
+          })
+          .catch(function(){ bx.disabled = false; toast('No se pudo quitar', true); });
+      });
+      row.appendChild(bx);
       cont.appendChild(row);
       cont.appendChild(form);
       return;
@@ -5395,7 +5418,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v152';
+var APP_VER = 'v153';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

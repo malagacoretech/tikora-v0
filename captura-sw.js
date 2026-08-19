@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v152'; /* v152: COMPARTIR por el menu nativo (WhatsApp, Gmail, lo que haya) -- cualquier foto desde el visor, la factura entera (foto + datos) desde la ficha, y el resumen del mes desde el Panel con su disclaimer de siempre. */
+var VERSION = 'tikora-captura-v153'; /* v153: BORRAR un papel de Sin IVA desde la lista (pedido de Matias 19-ago). El servidor le quita el importe, lo marca borrado y deja quien y cuando en la nota: la foto no se destruye y la fila sigue en la hoja. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

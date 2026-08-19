@@ -607,6 +607,8 @@ button.capbadge:active{transform:scale(0.95)}
 .caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.5rem}
 /* v94: modo empleado — el panel sin dinero (el servidor ya manda ceros; esto evita ensenarlos) */
 body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,body.emp .prow .who .iva{display:none !important}
+/* v151: al empleado tampoco le sirve la pastilla de albaranes (sus filas van sin importes) */
+body.emp #cardAlbaran{display:none !important}
 /* v107: con CUATRO pastillas el reparto a partes iguales las aplastaba unas sobre otras
    (Matias 04:29, con la foto: "Ulti... Por pro..." pisandose). Ahora es un carril que se
    desliza de lado: cada una ocupa lo que necesita y ninguna se parte. */
@@ -2034,9 +2036,11 @@ function rpPintar(){
   /* los cuatro botones de pendientes y los dos de archivados nunca conviven */
   $('rpSinIva').style.display = esOtros ? 'none' : '';
   $('rpQuitar').style.display = esOtros ? 'none' : '';
-  $('rpEsFactura').style.display = esOtros ? '' : 'none';
-  $('rpVarios').style.display = esOtros ? '' : 'none';
-  $('rpBorrar').style.display = esOtros ? '' : 'none';
+  /* v151: las decisiones sobre archivados son del dueño (#28) — el empleado los VE
+     (deslizar, zoom, girar) pero sin botones que el servidor le rebotaría igual */
+  $('rpEsFactura').style.display = (esOtros && !ES_EMPLEADO) ? '' : 'none';
+  $('rpVarios').style.display = (esOtros && !ES_EMPLEADO) ? '' : 'none';
+  $('rpBorrar').style.display = (esOtros && !ES_EMPLEADO) ? '' : 'none';
   if (esOtros){
     $('rpQuien').textContent = [c.tipoPapel || 'papel', c.emisor, c.fecha].filter(Boolean).join(' · ');
     $('rpMotivo').textContent = 'Archivado: el sistema lo leyó como algo que no es una factura';
@@ -3705,6 +3709,10 @@ function renderPanel(data, cachedNote){
               var sp2 = document.createElement('span'); sp2.textContent = 'Foto'; b.appendChild(sp2);
               b.addEventListener('click', function(ev){ ev.stopPropagation(); abrirFoto(u); });
               row.appendChild(b);
+              /* v151: las tres decisiones (rescatar / Varios / borrar) son del dueño (#28).
+                 Al empleado el servidor se las rebota igual — mejor no enseñarle botones
+                 que solo pueden fallar. La foto sí la ve. */
+              if (ES_EMPLEADO){ cajaOtros.appendChild(row); return; }
               /* v113: la vuelta atrás. De estos 73 papeles, 13 estaban etiquetados como
                  FACTURA (manuscritas, manuales) y aun así se archivaron como "no es factura".
                  Una factura escrita a mano es válida y deducible. Hasta hoy esto era un cajón
@@ -5301,7 +5309,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v150';
+var APP_VER = 'v151';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

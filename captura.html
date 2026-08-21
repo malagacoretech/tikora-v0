@@ -664,6 +664,7 @@ body.emp #cardAlbaran{display:none !important}
 .pbanner{background:rgba(244,201,93,0.08);border:1px solid rgba(244,201,93,0.3);color:var(--accent);border-radius:12px;padding:0.7rem 1rem;font-size:0.82rem;margin-bottom:0.9rem;text-align:center}
 .pbanner button{margin-left:0.6rem;background:var(--accent);color:#0A1628;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-family:inherit;font-weight:700;font-size:0.78rem;cursor:pointer}
 .legal{font-size:0.66rem;color:var(--text-muted);text-align:center;margin-top:1.1rem;line-height:1.5}
+.ia-badge{font-size:0.62rem;font-weight:700;color:var(--accent);border:1px solid var(--border);border-radius:999px;padding:2px 9px;white-space:nowrap}
 .pempty{text-align:center;color:var(--text-muted);font-size:0.88rem;padding:1.5rem 1rem;background:var(--surface);border:1px dashed var(--border);border-radius:14px}
 /* ============ v63: PASE "VISTA VETERANA" (auditoría instrumentada 12-ago) ============
    La gente del bar no tiene 25 años: suelo tipográfico ~12px, secundarios 12.5-13,
@@ -989,7 +990,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
 
 <!-- Pantalla 5: Chat "preguntale a tus facturas" -->
 <div class="screen with-tabs" id="screenChat">
-  <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+  <div class="panel-head"><div class="brand">Tikora<span>.</span></div><span class="ia-badge">&#129302; Asistente de IA</span></div>
   <div class="chatctx" id="chatCtx"><span id="chatCtxTxt"></span><button type="button" id="chatCtxX" aria-label="Quitar factura del contexto">&#10005;</button></div>
   <div id="chatMsgs"></div>
   <div class="chatsug" id="chatSug">
@@ -1005,7 +1006,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
   <button id="chatMic" class="micbtn" type="button" aria-label="Dictar tu pregunta">&#127908; Habl&aacute; conmigo</button>
-  <p class="legal">Responde solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
+  <p class="legal">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
 <!-- QR a pantalla completa (para escanear de lejos, en el mostrador) -->
@@ -4856,7 +4857,7 @@ function chatHello(){
      numero real de facturas cargadas — nada inventado, es el mismo dato del panel. */
   var nFac = 0;
   try { nFac = (panelData && panelData.stats && panelData.stats.n) || 0; } catch(e){}
-  chatMsg((nFac ? ('Tengo tus ' + nFac + ' facturas delante.') : 'Tengo todas tus facturas delante.') +
+  chatMsg('Soy el asistente de IA de Tikora. ' + (nFac ? ('Tengo tus ' + nFac + ' facturas delante.') : 'Tengo todas tus facturas delante.') +
           ' Preguntame lo que quieras: cuánto IVA llevás identificado, quién te cobra más caro, qué compraste el martes.' +
           ' Contesto solo con tus datos — nada inventado.', 'bot');
   sugAbrir(true);   /* primera visita: las sugerencias a la vista; despues se pliegan solas */
@@ -5552,7 +5553,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v164';
+var APP_VER = 'v165';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

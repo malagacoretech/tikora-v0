@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v164'; /* v164: auditoria R2 - los deep-links de los avisos (chat/ver/rev/panel) pasan por el PIN como las pestanas, y el chat en frio ya no deja entrar a un empleado al chat del dueno. */
+var VERSION = 'tikora-captura-v165'; /* v165: aviso de IA visible en el chat (AI Act Art. 50) - etiqueta "Asistente de IA" en la cabecera + el saludo lo dice en la primera interaccion + la nota legal lo recoge. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

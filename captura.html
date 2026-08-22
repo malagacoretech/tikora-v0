@@ -1658,7 +1658,29 @@ function scanLiveQR(){
     }).catch(function(){ _liveOcupado = false; });
   } catch(e){ _liveOcupado = false; }
 }
-setInterval(scanLiveQR, 500);
+/* v169: AVISO VISIBLE en vivo — como el recuadro amarillo de la camara nativa.
+   Sin esto el escaner lee por detras pero el usuario dispara a ciegas y cree que "no lee".
+   Un chip verde sobre el visor dice "ya tengo el QR, sacá la foto". No tapa nada
+   (pointer-events:none) y solo aparece con la camara abierta y un QR fresco (<2,5 s). */
+var _qrBadgeEl = null;
+function qrBadge(mostrar, esH){
+  if (!mostrar){ if (_qrBadgeEl) _qrBadgeEl.style.display = 'none'; return; }
+  if (!_qrBadgeEl){
+    _qrBadgeEl = document.createElement('div'); _qrBadgeEl.id = 'qrlisto';
+    _qrBadgeEl.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(58px + env(safe-area-inset-top));z-index:58;background:rgba(34,197,94,0.96);color:#06210f;font:700 13px/1.25 system-ui,sans-serif;padding:8px 15px;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,0.4);pointer-events:none;display:none;white-space:nowrap';
+    document.body.appendChild(_qrBadgeEl);
+  }
+  _qrBadgeEl.textContent = esH ? '✓ QR de Hacienda listo — sacá la foto' : '✓ QR listo — sacá la foto';
+  _qrBadgeEl.style.display = 'block';
+}
+function qrBadgeTick(){
+  try {
+    var camOn = $('screenCam') && $('screenCam').classList.contains('on');
+    var fresco = _liveQR.texto && (Date.now() - _liveQR.ts) < 2500;
+    qrBadge(camOn && fresco, esQrHacienda(_liveQR.texto || ''));
+  } catch(e){}
+}
+setInterval(function(){ scanLiveQR(); qrBadgeTick(); }, 500);
 function qrParaEstaFoto(){ return (_liveQR.texto && (Date.now() - _liveQR.ts) < 20000) ? _liveQR.texto : ''; }
 /* respaldo: si no se capto en vivo, un intento sobre la foto (BarcodeDetector nativo, Android) */
 function detectarQR(blob, itemId){
@@ -1695,7 +1717,7 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
       if (markThumb) thumbItemId = id;   /* la miniatura sigue a ESTA captura */
       /* v167: el QR captado EN VIVO se lleva puesto; si no, un intento sobre la foto. Nunca retrasa el envio. */
       var qv = qrParaEstaFoto();
-      if (qv){ qrGuardar(qv, id); _liveQR = { texto: '', ts: 0 }; }   /* usado -> limpiar, que no se pegue al siguiente ticket */
+      if (qv){ qrGuardar(qv, id); _liveQR = { texto: '', ts: 0 }; qrBadge(false); }   /* usado -> limpiar + apagar el aviso */
       else { detectarQR(blob, id); }
       refreshQueueUI();
       if (holdMs && holdMs > 0){
@@ -5684,7 +5706,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v168';
+var APP_VER = 'v169';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

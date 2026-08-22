@@ -1636,11 +1636,14 @@ function qrDiag(m){
     var d = document.getElementById('qrdiag');
     if (!d){
       d = document.createElement('div'); d.id = 'qrdiag';
-      d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#142238;color:#F4C95D;font:12px/1.35 system-ui,sans-serif;padding:5px 8px;text-align:center;border-top:1px solid #2A3A55';
+      /* ARRIBA del todo y sin bloquear toques (pointer-events:none): se ve pero no tapa
+         ningun boton — los dedos pasan a traves. Semi-transparente para que estorbe menos. */
+      d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:rgba(20,34,56,0.92);color:#F4C95D;font:12px/1.35 system-ui,sans-serif;padding:calc(4px + env(safe-area-inset-top)) 8px 5px;text-align:center;border-bottom:1px solid #2A3A55;pointer-events:none';
       (document.body || document.documentElement).appendChild(d);
     }
     var bd = ('BarcodeDetector' in window) ? 'nativo:SI' : 'nativo:NO';
-    d.textContent = 'QR ' + (window.APP_VER || '?') + ' · ' + bd + ' · ' + m;
+    var ver = (typeof APP_VER !== 'undefined') ? APP_VER : '?';
+    d.textContent = 'QR ' + ver + ' · ' + bd + ' · ' + m;
   } catch(e){}
 }
 function esQrHacienda(t){ return /agenciatributaria|aeat\.es|ValidarQR|verifactu|tbai/i.test(t); }
@@ -5654,7 +5657,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v168';
+var APP_VER = 'v169';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

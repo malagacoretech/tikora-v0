@@ -1031,6 +1031,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" class="pri" id="fichaPreg">&#128172; Preguntar sobre esta factura</button>
     <!-- v152: mandar ESTA factura (foto + datos) por WhatsApp, Gmail o lo que haya -->
     <button type="button" id="fichaComp">&#128228; Enviar esta factura</button>
+    <!-- v166: sacar de Facturas un papel que no es factura deducible (ticket sin los datos
+         del bar). Caso real: Market Su Fuengirola, 22-ago. Dos toques, solo dueno. -->
+    <button type="button" id="fichaNoFac">&#128683; No es una factura</button>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem">
       <button type="button" id="fichaEfectivo">&#128181; Efectivo</button>
       <button type="button" id="fichaTarjeta">&#128179; Tarjeta</button>
@@ -3666,6 +3669,7 @@ function consumirRehacer(){
 function motivoHumano(c){
   var t = String(c.campos || c.campos_dudosos || c.motivo || c.dudosos || '').toLowerCase();
   if (t){
+    if (/ticket_sin_datos_receptor/.test(t)) return 'Es un ticket sin los datos del bar — pedí factura completa para deducir';   /* v166 */
     if (/no_es_factura|no es una factura|no contiene una factura|no es factura/.test(t)) return 'No es una factura';
     if (/formato no soportado|zip|mp4|video|audio/.test(t))         return 'Ese archivo no es una foto';
     if (/negro|ilegible|borros|no_hay_datos|sin_contenido/.test(t)) return 'Salió oscura o movida';
@@ -5406,6 +5410,40 @@ function marcarPago(pago){
     })
     .catch(function(){ toast('Sin conexión — probá de nuevo', true); });
 }
+/* ===== v166: NO ES UNA FACTURA (pedido de Matias, 22-ago, con el ticket del Market en la mano).
+   Un ticket/factura simplificada sin los datos del bar no deduce IVA: desde aca se saca de
+   Facturas con rastro en la hoja (mismo metodo que el anulador de duplicados) y el gasto
+   pasa a la carpeta Sin IVA con su foto y su forma de pago. Dos toques: el primero avisa,
+   el segundo ejecuta. Solo dueno; el servidor lo exige tambien (decision #28). */
+var noFacArmado = null;
+if (ES_EMPLEADO) $('fichaNoFac').style.display = 'none';
+$('fichaNoFac').addEventListener('click', function(){
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid){ toast('Esta factura no tiene foto asociada', true); return; }
+  var b = $('fichaNoFac');
+  if (noFacArmado !== fid){
+    noFacArmado = fid;
+    b.textContent = '¿Seguro? La saco de tus facturas — tocá otra vez';
+    setTimeout(function(){ if (noFacArmado === fid){ noFacArmado = null; b.innerHTML = '&#128683; No es una factura'; } }, 6000);
+    return;
+  }
+  noFacArmado = null;
+  b.disabled = true;
+  sinIvaLlamar({ accion: 'desdefactura', f: fid })
+    .then(function(r){
+      b.disabled = false; b.innerHTML = '&#128683; No es una factura';
+      if (r.ok && r.j && r.j.ok){
+        $('ficha').classList.remove('on');
+        toast('Sacada de Facturas — el gasto quedó en Sin IVA ✓', false);
+        sinIvaDatos = null;   /* la carpeta Sin IVA se recarga sola la proxima vez que se abra */
+        setTimeout(function(){ loadPanel(true, true); }, 900);
+      } else {
+        toast((r.j && r.j.motivo) ? r.j.motivo : 'No se pudo — probá de nuevo', true);
+      }
+    })
+    .catch(function(){ b.disabled = false; b.innerHTML = '&#128683; No es una factura'; toast('Sin conexión — probá de nuevo', true); });
+});
 $('fichaEfectivo').addEventListener('click', function(){ marcarPago('efectivo'); });
 $('fichaTarjeta').addEventListener('click', function(){ marcarPago('tarjeta'); });
 $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'); });
@@ -5553,7 +5591,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v165';
+var APP_VER = 'v166';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

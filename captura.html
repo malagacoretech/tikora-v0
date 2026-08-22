@@ -1529,7 +1529,8 @@ function sendItem(item, onProgress){
          en Revisar el triple que las demás, no es que trabaje peor — es que nadie le
          explicó cómo encuadrar. Y el aviso de "salió movida" tiene que llegarle a quien
          la sacó, no al dueño a las tres de la mañana. */
-      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '', quien: quienUsaEsteMovil() }));
+      /* v166: el `qr` viaja como el `quien` — el motor aun no lo guarda; no rompe nada */
+      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '', quien: quienUsaEsteMovil(), qr: item.qr || '' }));
     });
   });
 }
@@ -1617,6 +1618,48 @@ $('retryBtn').addEventListener('click', function(){
   });
 });
 
+/* ================== LECTOR DE QR (v166, rama pruebas-qr) ==================
+   Gate pasado el 22-ago (02/98): 10 de 40 fotos del laboratorio ya traen QR legible,
+   2 son de Verifactu (AEAT) con nif/numserie/fecha/importe dentro. Este lector corre
+   EN SEGUNDO PLANO tras encolar: JAMAS retrasa ni bloquea el envio — si no llego a
+   tiempo, la foto viaja sin el campo (v1 = mejor esfuerzo). El campo `qr` viaja como
+   el `quien` de la v114: el motor aun no lo guarda, es un campo de mas y no rompe
+   nada; el dia que el motor lo use (arbitro de la regla 4.9), se enciende solo.
+   Leccion del torch aplicada: BarcodeDetector NO existe en iPhone -> ni se intenta. */
+function esQrHacienda(t){ return /agenciatributaria|aeat\.es|ValidarQR|verifactu|tbai/i.test(t); }
+function detectarQR(blob, itemId){
+  try {
+    if (!('BarcodeDetector' in window)) return;                        /* iPhone/viejos: fuera, sin ruido */
+    if (!blob || String(blob.type || '').indexOf('image/') !== 0) return;  /* PDFs y demas: fuera */
+    var det = new BarcodeDetector({ formats: ['qr_code'] });
+    createImageBitmap(blob).then(function(bmp){
+      return det.detect(bmp).then(function(codigos){
+        try { bmp.close(); } catch(e){}
+        if (!codigos || !codigos.length) return;
+        var texto = '';
+        for (var i = 0; i < codigos.length; i++){
+          var t = String(codigos[i].rawValue || '');
+          if (!texto) texto = t;
+          if (esQrHacienda(t)){ texto = t; break; }                    /* si hay varios, manda el de la AEAT */
+        }
+        if (!texto) return;
+        /* se guarda EN el item de IndexedDB: sobrevive a la ventana, al offline y al reintento.
+           Si el item ya se envio (ya no esta), no se re-crea nada: se deja pasar. */
+        dbAll().then(function(items){
+          for (var j = 0; j < items.length; j++){
+            if (items[j].id === itemId && !items[j].dead){
+              items[j].qr = texto.slice(0, 900);
+              dbPut(items[j]);
+              break;
+            }
+          }
+        }).catch(function(){});
+        if (esQrHacienda(texto)) toast('QR de Hacienda leído ✓', false);
+      });
+    }).catch(function(){});
+  } catch(e){}
+}
+
 /* ================== ENCOLAR CAPTURA ================== */
 function tsName(ext){
   var d = new Date();
@@ -1632,6 +1675,7 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
   return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false, redo: consumirRehacer() })
     .then(function(id){
       if (markThumb) thumbItemId = id;   /* la miniatura sigue a ESTA captura */
+      detectarQR(blob, id);              /* v166: en segundo plano; jamas retrasa el envio */
       refreshQueueUI();
       if (holdMs && holdMs > 0){
         /* v16: la foto ya esta GUARDADA (IndexedDB); el envio espera la ventana de rehacer/etiquetar */
@@ -5553,7 +5597,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v165';
+var APP_VER = 'v166';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1532,7 +1532,8 @@ function sendItem(item, onProgress){
          en Revisar el triple que las demás, no es que trabaje peor — es que nadie le
          explicó cómo encuadrar. Y el aviso de "salió movida" tiene que llegarle a quien
          la sacó, no al dueño a las tres de la mañana. */
-      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '', quien: quienUsaEsteMovil() }));
+      /* v167: el `qr` viaja como el `quien` — el motor aun no lo guarda; no rompe nada */
+      xhr.send(JSON.stringify({ token: item.token, filename: item.filename, mime: item.mime, data: b64, redo: item.redo || '', quien: quienUsaEsteMovil(), qr: item.qr || '' }));
     });
   });
 }
@@ -1620,6 +1621,63 @@ $('retryBtn').addEventListener('click', function(){
   });
 });
 
+/* ================== LECTOR DE QR (v167) ==================
+   Gate 22-ago (02/98): ~25% de las facturas del bar ya traen QR legible, y el de Verifactu
+   lleva NIF/numero/fecha/importe dentro. Este lector lo capta y lo manda con la foto en el
+   campo `qr` (viaja como el `quien` de la v114; el motor lo usara de arbitro — regla 4.9 —
+   cuando se construya esa parte). SOLO Android: BarcodeDetector nativo, en VIVO sobre el
+   <video> mientras encuadras (como la camara del movil) + un intento sobre la foto por si
+   no se capto en vivo. En iPhone NO corre (probado 22-ago: el jsQR sobre lienzo tumbaba la
+   camara, problema de memoria del v147). Nunca retrasa ni bloquea el envio. */
+function esQrHacienda(t){ return /agenciatributaria|aeat\.es|ValidarQR|verifactu|tbai/i.test(t); }
+function qrGuardar(texto, itemId){
+  if (!texto) return;
+  dbAll().then(function(items){
+    for (var j = 0; j < items.length; j++){
+      if (items[j].id === itemId && !items[j].dead){ items[j].qr = String(texto).slice(0, 900); dbPut(items[j]); break; }
+    }
+  }).catch(function(){});
+  if (esQrHacienda(texto)) toast('✓ QR de Hacienda leído', false);   /* solo el de la AEAT: es el que vale */
+}
+/* lectura EN VIVO: mira el QR en el video cada 500 ms mientras la camara esta abierta.
+   Cuando lo capta, lo guarda; la siguiente foto se lo lleva puesto. No toca el stream. */
+var _liveQR = { texto: '', ts: 0 }, _liveDet = null, _liveOcupado = false;
+function scanLiveQR(){
+  try {
+    if (!('BarcodeDetector' in window) || _liveOcupado) return;             /* iPhone: fuera */
+    if (!$('screenCam') || !$('screenCam').classList.contains('on')) return;
+    if (!video || !video.videoWidth || !track || track.readyState !== 'live') return;
+    if (!_liveDet){ try { _liveDet = new BarcodeDetector({ formats: ['qr_code'] }); } catch(e){ return; } }
+    _liveOcupado = true;
+    _liveDet.detect(video).then(function(cods){
+      _liveOcupado = false;
+      if (!cods || !cods.length) return;
+      var texto = '';
+      for (var i = 0; i < cods.length; i++){ var t = String(cods[i].rawValue || ''); if (!texto) texto = t; if (esQrHacienda(t)){ texto = t; break; } }
+      if (texto) _liveQR = { texto: texto, ts: Date.now() };
+    }).catch(function(){ _liveOcupado = false; });
+  } catch(e){ _liveOcupado = false; }
+}
+setInterval(scanLiveQR, 500);
+function qrParaEstaFoto(){ return (_liveQR.texto && (Date.now() - _liveQR.ts) < 20000) ? _liveQR.texto : ''; }
+/* respaldo: si no se capto en vivo, un intento sobre la foto (BarcodeDetector nativo, Android) */
+function detectarQR(blob, itemId){
+  try {
+    if (!('BarcodeDetector' in window)) return;                             /* iPhone: fuera */
+    if (!blob || String(blob.type || '').indexOf('image/') !== 0) return;   /* PDFs: fuera */
+    var det; try { det = new BarcodeDetector({ formats: ['qr_code'] }); } catch(e){ return; }
+    createImageBitmap(blob).then(function(bmp){
+      return det.detect(bmp).then(function(cods){
+        try { bmp.close(); } catch(e){}
+        if (!cods || !cods.length) return;
+        var texto = '';
+        for (var i = 0; i < cods.length; i++){ var t = String(cods[i].rawValue || ''); if (!texto) texto = t; if (esQrHacienda(t)){ texto = t; break; } }
+        qrGuardar(texto, itemId);
+      });
+    }).catch(function(){});
+  } catch(e){}
+}
+
 /* ================== ENCOLAR CAPTURA ================== */
 function tsName(ext){
   var d = new Date();
@@ -1635,6 +1693,10 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
   return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false, redo: consumirRehacer() })
     .then(function(id){
       if (markThumb) thumbItemId = id;   /* la miniatura sigue a ESTA captura */
+      /* v167: el QR captado EN VIVO se lleva puesto; si no, un intento sobre la foto. Nunca retrasa el envio. */
+      var qv = qrParaEstaFoto();
+      if (qv){ qrGuardar(qv, id); _liveQR = { texto: '', ts: 0 }; }   /* usado -> limpiar, que no se pegue al siguiente ticket */
+      else { detectarQR(blob, id); }
       refreshQueueUI();
       if (holdMs && holdMs > 0){
         /* v16: la foto ya esta GUARDADA (IndexedDB); el envio espera la ventana de rehacer/etiquetar */
@@ -5591,7 +5653,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v166';
+var APP_VER = 'v167';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

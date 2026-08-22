@@ -1733,8 +1733,43 @@ function detectarQR(blob, itemId){
     }).catch(function(){ detectarQRfallback(blob, itemId, 3400, 'jsQR'); });
   } catch(e){ qrDiag('error inesperado en el lector'); }
 }
+/* ===== LECTURA EN VIVO (v172) — como la camara nativa =====
+   La foto del ticket entero deja el QR pequeño: una sola oportunidad y a menudo falla.
+   La camara nativa lee EN VIVO (muchas oportunidades mientras enfocas) — por eso "al
+   menos lo lee". Esto hace lo mismo: mientras la pantalla de camara esta abierta, mira
+   el QR en el video cada 500 ms. Cuando lo pilla, lo guarda; la siguiente foto se lo
+   lleva puesto. SOLO Android (BarcodeDetector sobre el <video>, ligero, NO toca el
+   stream ni crea lienzos -> nada del lio de memoria de iOS; en iPhone ni arranca). */
+var _liveQR = { texto: '', ts: 0 };
+var _liveDet = null, _liveOcupado = false, _liveUltimoAviso = '';
+function scanLiveQR(){
+  try {
+    if (!('BarcodeDetector' in window)) return;                 /* iPhone: fuera */
+    if (_liveOcupado) return;
+    if (!$('screenCam') || !$('screenCam').classList.contains('on')) return;   /* solo con la camara a la vista */
+    if (!video || !video.videoWidth || !track || track.readyState !== 'live') return;
+    if (!_liveDet){ try { _liveDet = new BarcodeDetector({ formats: ['qr_code'] }); } catch(e){ return; } }
+    _liveOcupado = true;
+    _liveDet.detect(video).then(function(cods){
+      _liveOcupado = false;
+      if (!cods || !cods.length) return;
+      var texto = '';
+      for (var i = 0; i < cods.length; i++){ var t = String(cods[i].rawValue || ''); if (!texto) texto = t; if (esQrHacienda(t)){ texto = t; break; } }
+      if (!texto) return;
+      _liveQR = { texto: texto, ts: Date.now() };                /* fresco para la proxima foto */
+      var msg = esQrHacienda(texto) ? '✓ QR de Hacienda a la vista' : '✓ QR a la vista';
+      if (msg !== _liveUltimoAviso){ _liveUltimoAviso = msg; qrDiag(msg + ' — sacá la foto'); }
+    }).catch(function(){ _liveOcupado = false; });
+  } catch(e){ _liveOcupado = false; }
+}
+setInterval(scanLiveQR, 500);
+/* cuando el QR captado en vivo es fresco (<20 s), esa foto se lo lleva sin re-mirar */
+function qrParaEstaFoto(){
+  if (_liveQR.texto && (Date.now() - _liveQR.ts) < 20000) return _liveQR.texto;
+  return '';
+}
 /* pruebas: mostrar la linea de diagnostico al cargar, para confirmar version y detector */
-setTimeout(function(){ try { qrDiag('listo — sacá una foto de una factura con QR'); } catch(e){} }, 900);
+setTimeout(function(){ try { qrDiag('listo — apuntá al QR de una factura'); } catch(e){} }, 900);
 
 /* ================== ENCOLAR CAPTURA ================== */
 function tsName(ext){
@@ -1751,7 +1786,11 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
   return dbAdd({ blob: blob, mime: mime, filename: filename, token: TOKEN, kind: kind||'foto', ts: Date.now(), dead: false, redo: consumirRehacer() })
     .then(function(id){
       if (markThumb) thumbItemId = id;   /* la miniatura sigue a ESTA captura */
-      detectarQR(blob, id);              /* v166: en segundo plano; jamas retrasa el envio */
+      /* v172: si ya se captó el QR EN VIVO mientras encuadraba, esta foto se lo lleva
+         puesto (rapido y fiable). Si no, se intenta leer de la foto (Android). */
+      var qv = qrParaEstaFoto();
+      if (qv){ qrGuardar(qv, id); _liveQR = { texto: '', ts: 0 }; _liveUltimoAviso = ''; }  /* usado -> limpiar, que no se pegue al siguiente ticket */
+      else { detectarQR(blob, id); }     /* jamas retrasa el envio */
       refreshQueueUI();
       if (holdMs && holdMs > 0){
         /* v16: la foto ya esta GUARDADA (IndexedDB); el envio espera la ventana de rehacer/etiquetar */
@@ -5673,7 +5712,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v171';
+var APP_VER = 'v172';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

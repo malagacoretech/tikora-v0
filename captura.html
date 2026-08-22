@@ -1847,16 +1847,48 @@ function fvPinta(){
    desde un aviso no llevaba a ninguna foto: la del servidor no tenía dónde verse dentro de
    la app. Ahora se abre aquí, con el mismo zoom, y con un botón para preguntar por ella. */
 var fvRemota = null;
+/* ===== v167: LA FOTO SE VE YA — carga en dos pasos =====
+   Pedido de Matías (22-ago): "que las fotos se vean más rápido al tocarlas o al pasarlas".
+   El tirón era éste: al tocar una foto se bajaba de golpe la versión grande (2000 px) y hasta
+   que llegaba, gris. Ahora entra primero una versión CHICA (w=760, pocos KB, casi instantánea)
+   y por detrás se carga la NÍTIDA (w=1700, para leer y hacer zoom); cuando está lista y seguís
+   en la misma foto, se cambia sola sin parpadeo. Si el CDN de Netlify no puede, cae al proxy
+   directo, igual que antes. Una sola variable de guardia (fvFidActual) evita que una foto que
+   tardó pise a otra que ya abriste. */
+var fvFidActual = null;
+function fvUrlFoto(fid, w){
+  var directa = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+  return '/.netlify/images?url=' + encodeURIComponent(directa) + '&w=' + w + '&fit=contain';
+}
+function fvCargarFoto(fid){
+  fvFidActual = fid;
+  var img = $('fvImg');
+  var directa = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
+  /* 1) preview instantánea (si el CDN falla, al proxy directo — mejor la grande que un gris) */
+  img.onerror = function(){ img.onerror = null; img.src = directa; };
+  img.src = fvUrlFoto(fid, 760);
+  /* 2) la nítida por detrás; se cambia solo si no cambiaste de foto mientras cargaba */
+  var alta = new Image();
+  alta.decoding = 'async';
+  alta.onload = function(){ if (fvFidActual === fid){ img.onerror = function(){ img.onerror = null; img.src = directa; }; img.src = fvUrlFoto(fid, 1700); } };
+  alta.src = fvUrlFoto(fid, 1700);
+}
+function fvPrecargarVecinas(){
+  /* al abrir la galería, adelantar la anterior y la siguiente para que pasar sea instantáneo */
+  [fvRIdx - 1, fvRIdx + 1].forEach(function(k){
+    if (k < 0 || k >= fvRemotas.length) return;
+    var it = fvRemotas[k]; if (!it || !it.fid) return;
+    var im = new Image(); im.decoding = 'async'; im.src = fvUrlFoto(it.fid, 1700);
+  });
+}
 function fvAbrirRemota(fid, rotulo, pagoActual){
   if (!fid || !TOKEN) return false;
   fvModoRemotas = false;
   fvRemota = fid;
   fvRotReset();   /* v145: foto nueva, giro a cero */
   /* v134: la foto grande también por el CDN de Netlify — n8n la sirve UNA vez por semana y el
-     resto lo pone el borde. Si el CDN no puede, cae al proxy directo, como las miniaturas. */
-  var fvUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
-  $('fvImg').onerror = function(){ $('fvImg').onerror = null; $('fvImg').src = fvUrlDirecta; };
-  $('fvImg').src = '/.netlify/images?url=' + encodeURIComponent(fvUrlDirecta) + '&w=2000&fit=contain';
+     resto lo pone el borde. v167: en dos pasos (chica ya, nítida detrás). */
+  fvCargarFoto(fid);
   $('fvN').textContent = rotulo || 'Factura';
   $('fvPrev').style.visibility = 'hidden';
   $('fvNext').style.visibility = 'hidden';
@@ -1921,9 +1953,8 @@ function fvPintaRemotas(){
   if (fvRIdx >= fvRemotas.length) fvRIdx = fvRemotas.length - 1;
   var it = fvRemotas[fvRIdx];
   fvRemota = it.fid;
-  var fvUrlDirecta = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(it.fid);
-  $('fvImg').onerror = function(){ $('fvImg').onerror = null; $('fvImg').src = fvUrlDirecta; };
-  $('fvImg').src = '/.netlify/images?url=' + encodeURIComponent(fvUrlDirecta) + '&w=2000&fit=contain';
+  fvCargarFoto(it.fid);        /* v167: chica ya, nítida detrás */
+  fvPrecargarVecinas();        /* v167: adelantar anterior y siguiente para que pasar sea instantáneo */
   $('fvN').textContent = (it.rotulo || 'Factura') + ' · ' + (fvRIdx + 1) + '/' + fvRemotas.length;
   $('fvPrev').style.visibility = fvRIdx > 0 ? 'visible' : 'hidden';
   $('fvNext').style.visibility = fvRIdx < fvRemotas.length - 1 ? 'visible' : 'hidden';
@@ -5653,7 +5684,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v167';
+var APP_VER = 'v168';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

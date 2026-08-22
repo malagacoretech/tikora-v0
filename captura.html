@@ -1702,7 +1702,14 @@ function detectarQR(blob, itemId){
   try {
     if (!blob || String(blob.type || '').indexOf('image/') !== 0){ qrDiag('esto no es una foto (PDF u otro)'); return; }
     qrDiag('mirando la foto…');
-    if (!('BarcodeDetector' in window)){ detectarQRfallback(blob, itemId, 2000, 'respaldo jsQR'); return; }
+    if (!('BarcodeDetector' in window)){
+      /* iPhone/sin detector nativo: NO se lee QR. El respaldo jsQR cargaba memoria en
+         segundo plano y en iOS TUMBABA la camara (pantalla negra, tildado — el problema
+         del v147). El bar usa Android; el lector es para Android. En iPhone: sin lector,
+         sin riesgo. Probado en el iPhone de Matias el 22-ago: el jsQR colgaba la camara. */
+      qrDiag('en este telefono no se lee el QR de la foto (es para Android)');
+      return;
+    }
     var det;
     try { det = new BarcodeDetector({ formats: ['qr_code'] }); }
     catch(e){ detectarQRfallback(blob, itemId, 3400, 'jsQR'); return; }
@@ -5666,7 +5673,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v170';
+var APP_VER = 'v171';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

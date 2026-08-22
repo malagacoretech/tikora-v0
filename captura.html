@@ -1628,9 +1628,24 @@ $('retryBtn').addEventListener('click', function(){
    jsQR de respaldo sobre un lienzo RECORTADO a 2000px y soltado al instante — para
    NO repetir el problema de memoria de iOS del v147 (lienzos de 48MB que mataban la
    camara). Asi el lector funciona tambien en el iPhone de Matias, que es donde prueba. */
+/* DIAGNOSTICO EN PANTALLA (solo pruebas): una linea fija abajo que dice version,
+   si hay detector nativo, y que paso con la ultima foto. Depurar en un movil ajeno
+   sin consola: la evidencia va a la pantalla, no a supuestos. Se quita antes de main. */
+function qrDiag(m){
+  try {
+    var d = document.getElementById('qrdiag');
+    if (!d){
+      d = document.createElement('div'); d.id = 'qrdiag';
+      d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#142238;color:#F4C95D;font:12px/1.35 system-ui,sans-serif;padding:5px 8px;text-align:center;border-top:1px solid #2A3A55';
+      (document.body || document.documentElement).appendChild(d);
+    }
+    var bd = ('BarcodeDetector' in window) ? 'nativo:SI' : 'nativo:NO';
+    d.textContent = 'QR ' + (window.APP_VER || '?') + ' · ' + bd + ' · ' + m;
+  } catch(e){}
+}
 function esQrHacienda(t){ return /agenciatributaria|aeat\.es|ValidarQR|verifactu|tbai/i.test(t); }
 function qrGuardar(texto, itemId){
-  if (!texto) return;
+  if (!texto){ qrDiag('la foto no traia QR legible'); return; }
   /* se guarda EN el item de IndexedDB: sobrevive a la ventana, al offline y al reintento.
      Si el item ya se envio (ya no esta), no se re-crea nada: se deja pasar. */
   dbAll().then(function(items){
@@ -1638,9 +1653,11 @@ function qrGuardar(texto, itemId){
       if (items[j].id === itemId && !items[j].dead){ items[j].qr = String(texto).slice(0, 900); dbPut(items[j]); break; }
     }
   }).catch(function(){});
+  var esH = esQrHacienda(texto);
+  qrDiag(esH ? 'LEIDO ✓ QR de Hacienda' : ('LEIDO ✓ (no AEAT): ' + String(texto).slice(0, 40)));
   /* pruebas: avisa con CUALQUIER QR para que la prueba sea concluyente.
      Antes de main se quita el aviso del QR que NO es de Hacienda (seria ruido). */
-  toast(esQrHacienda(texto) ? '✓ QR de Hacienda leido' : '✓ QR leido (no es de Hacienda)', false);
+  toast(esH ? '✓ QR de Hacienda leido' : '✓ QR leido (no es de Hacienda)', false);
 }
 var _jsqrCargando = null;
 function cargarJsQR(){
@@ -1656,8 +1673,9 @@ function cargarJsQR(){
   return _jsqrCargando;
 }
 function detectarQRfallback(blob, itemId){
+  qrDiag('probando motor de respaldo (jsQR)…');
   cargarJsQR().then(function(ok){
-    if (!ok) return;
+    if (!ok){ qrDiag('el respaldo jsQR no cargo'); return; }
     createImageBitmap(blob).then(function(bmp){
       var w = bmp.width, h = bmp.height;
       var esc = Math.min(1, 2000 / Math.max(w, h));                    /* recorte anti-memoria iOS */
@@ -1669,19 +1687,22 @@ function detectarQRfallback(blob, itemId){
       var d = x.getImageData(0, 0, w, h);
       try { c.width = 1; c.height = 1; } catch(e){}                    /* soltar el lienzo YA (v147) */
       var r = window.jsQR(d.data, w, h, { inversionAttempts: 'dontInvert' });
-      if (r && r.data) qrGuardar(r.data, itemId);
-    }).catch(function(){});
+      if (r && r.data) qrGuardar(r.data, itemId); else qrDiag('respaldo jsQR: no vio QR en la foto');
+    }).catch(function(){ qrDiag('respaldo jsQR: error leyendo la imagen'); });
   });
 }
 function detectarQR(blob, itemId){
   try {
-    if (!blob || String(blob.type || '').indexOf('image/') !== 0) return;  /* PDFs y demas: fuera */
-    if (!('BarcodeDetector' in window)){ detectarQRfallback(blob, itemId); return; }  /* iPhone -> jsQR */
-    var det = new BarcodeDetector({ formats: ['qr_code'] });
+    if (!blob || String(blob.type || '').indexOf('image/') !== 0){ qrDiag('esto no es una foto (PDF u otro)'); return; }
+    qrDiag('mirando la foto…');
+    if (!('BarcodeDetector' in window)){ detectarQRfallback(blob, itemId); return; }  /* sin nativo -> jsQR */
+    var det;
+    try { det = new BarcodeDetector({ formats: ['qr_code'] }); }
+    catch(e){ qrDiag('el detector nativo no arranco, pruebo respaldo'); detectarQRfallback(blob, itemId); return; }
     createImageBitmap(blob).then(function(bmp){
       return det.detect(bmp).then(function(codigos){
         try { bmp.close(); } catch(e){}
-        if (!codigos || !codigos.length) return;
+        if (!codigos || !codigos.length){ qrDiag('el detector nativo no vio ningun QR en la foto'); return; }
         var texto = '';
         for (var i = 0; i < codigos.length; i++){
           var t = String(codigos[i].rawValue || '');
@@ -1690,9 +1711,11 @@ function detectarQR(blob, itemId){
         }
         qrGuardar(texto, itemId);
       });
-    }).catch(function(){ detectarQRfallback(blob, itemId); });         /* si el nativo peta, respaldo */
-  } catch(e){}
+    }).catch(function(){ qrDiag('el detector nativo fallo, pruebo respaldo'); detectarQRfallback(blob, itemId); });
+  } catch(e){ qrDiag('error inesperado en el lector'); }
 }
+/* pruebas: mostrar la linea de diagnostico al cargar, para confirmar version y detector */
+setTimeout(function(){ try { qrDiag('listo — sacá una foto de una factura con QR'); } catch(e){} }, 900);
 
 /* ================== ENCOLAR CAPTURA ================== */
 function tsName(ext){
@@ -5631,7 +5654,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v167';
+var APP_VER = 'v168';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

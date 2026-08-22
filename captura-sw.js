@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v167'; /* v167 (rama pruebas-qr): lector de QR con DOS motores - BarcodeDetector (Android) + jsQR de respaldo (iPhone, lienzo recortado a 2000px anti-memoria v147). Avisa con cualquier QR para probar. Gate 02/98. */
+var VERSION = 'tikora-captura-v168'; /* v167 (rama pruebas-qr): lector de QR con DOS motores - BarcodeDetector (Android) + jsQR de respaldo (iPhone, lienzo recortado a 2000px anti-memoria v147). Avisa con cualquier QR para probar. Gate 02/98. */
 var ASSETS = [
   '/captura.html',
   '/jsqr.js',

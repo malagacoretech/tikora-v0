@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad y privacidad — Tikora</title>
+<meta name="robots" content="noindex">
+<!-- BORRADOR 23-ago-2026. NO publicar hasta el visto bueno del abogado (textos) y de Matías.
+     Contenido factual verificado en 02/93 (mapa de datos) y 04/35 (DPA de Anthropic). -->
+<style>
+  :root{--bg:#0A1628;--surface:#142238;--surface2:#1E2D45;--accent:#F4C95D;--text:#FFFFFF;--muted:#93A3B8;--border:#2A3A55;--ok:#22C55E}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 20px 64px}
+  header .brand{font-size:1.5rem;font-weight:800;letter-spacing:-0.02em}
+  header .brand span{color:var(--accent)}
+  h1{font-size:1.7rem;margin:22px 0 6px;letter-spacing:-0.02em}
+  .lead{color:var(--muted);font-size:1.05rem;margin:0 0 8px}
+  .upd{color:var(--muted);font-size:0.8rem}
+  section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin-top:16px}
+  h2{font-size:1.12rem;margin:0 0 10px;display:flex;align-items:center;gap:9px}
+  h2 .i{color:var(--accent)}
+  p{margin:0 0 10px}
+  ul{margin:6px 0 0;padding-left:0;list-style:none}
+  li{margin:9px 0;padding-left:26px;position:relative}
+  li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:800}
+  .sub{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:0.82rem;color:var(--muted)}
+  .chip b{color:var(--text);font-weight:700}
+  strong{color:var(--text)}
+  .foot{color:var(--muted);font-size:0.85rem;margin-top:26px;text-align:center}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="brand">Tikora<span>.</span></div></header>
+
+  <h1>Seguridad y privacidad</h1>
+  <p class="lead">Todo lo que cargas en Tikora es tuyo. Aquí te contamos, sin letra pequeña, dónde viven tus datos, quién los toca y cómo te los llevas.</p>
+  <p class="upd">Última actualización: 23 de agosto de 2026 · versión 1.0</p>
+
+  <section>
+    <h2><span class="i">🔒</span> Dónde viven tus datos</h2>
+    <p>Cada cliente tiene <strong>su propio espacio separado</strong>: una hoja de cálculo y una carpeta de fotos solo suyas.</p>
+    <ul>
+      <li><strong>Ningún otro cliente puede ver tus datos.</strong> La separación entre clientes está <strong>probada</strong>: un cliente no puede acceder a la información de otro.</li>
+      <li>Nosotros los tratamos <strong>solo para que la herramienta funcione</strong> —igual que tu gestor toca tus papeles— y siempre bajo el <strong>contrato de encargo del tratamiento</strong> que firmamos contigo, que nos obliga a no usarlos para nada más.</li>
+      <li>Todo viaja <strong>cifrado</strong> (HTTPS). Las fotos de tus facturas <strong>no son públicas</strong>: solo se sirven a quien tiene tu acceso.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="i">🤖</span> La inteligencia artificial NO entrena con tus facturas</h2>
+    <p>Tikora usa IA para <strong>leer</strong> el contenido de tus facturas (el proveedor es Anthropic). Verificado en sus términos comerciales:</p>
+    <ul>
+      <li>Anthropic <strong>no puede entrenar sus modelos</strong> con el contenido de tus facturas.</li>
+      <li><strong>Tú sigues siendo el dueño</strong> de tus datos.</li>
+      <li>Hay <strong>acuerdo de tratamiento de datos (DPA)</strong> en vigor con cada proveedor.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="i">🧩</span> Quién nos ayuda a darte el servicio</h2>
+    <p>Estos son los proveedores que intervienen. Todos tratan tus datos <strong>solo</strong> para prestarte el servicio, con contrato firmado:</p>
+    <div class="sub">
+      <span class="chip"><b>Google</b> · almacenamiento y correo (UE/EEUU)</span>
+      <span class="chip"><b>Anthropic</b> · lectura con IA (EEUU, sin entrenamiento)</span>
+      <span class="chip"><b>n8n</b> · orquestación (UE, Alemania)</span>
+      <span class="chip"><b>Netlify</b> · la web (no guarda facturas)</span>
+      <span class="chip"><b>WhatsApp / Meta</b> · canal opcional de entrada</span>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="i">🗑️</span> Y si te quieres ir, te lo llevas todo</h2>
+    <ul>
+      <li>Mientras uses Tikora, tus datos se conservan para darte el servicio.</li>
+      <li>El día que te des de baja: te damos <strong>una copia completa</strong> de todo lo tuyo y <strong>lo borramos en 30 días</strong>, con certificado.</li>
+      <li>Puedes pedir <strong>ver, corregir, llevarte o borrar</strong> tus datos cuando quieras.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="i">📩</span> Dudas de privacidad</h2>
+    <p>Escríbenos a <a href="mailto:matias@tikora.es">matias@tikora.es</a>. La <strong>Política de Privacidad</strong> y los <strong>Términos</strong> completos están en preparación (revisión legal).</p>
+  </section>
+
+  <p class="foot">Tikora — todas tus facturas recibidas, ordenadas y listas para tu gestor.</p>
+</div>
+</body>
+</html>

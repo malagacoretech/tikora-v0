@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v174'; /* v174: el historial del chat persiste - al abrir Preguntar se cargan las conversaciones guardadas (pestana Chat, via var VERSION = 'tikora-captura-v173'; /* v173: las precargas de fotos van en BAJA prioridad, para que nunca le roben conexion a la foto que estas tocando (la que abris va en prioridad alta). */ /* v171: las fotos abren AL TOQUE en todas las carpetas - al deslizar una lista se precarga por detras la version del visor (w=760, la misma clave), que antes no coincidia con la miniatura (w=120) y por eso el visor bajaba la foto de cero. Ademas decodificacion async y prioridad al primer pintado. */chat=1), partidas por dia, y se siembra el contexto de la IA. */
+var VERSION = 'tikora-captura-v175'; /* v175: arreglado el comentario roto del SW v174 que impedia instalarlo (un & de sed metio comentarios viejos anidados y no parseaba). El historial del chat sigue igual. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

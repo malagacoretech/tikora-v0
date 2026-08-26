@@ -1855,6 +1855,8 @@ function fvPinta(){
   fvRotReset();   /* v145: foto nueva, giro a cero */
   if (fvIdx < 0) fvIdx = 0;
   if (fvIdx >= sesionFotos.length) fvIdx = sesionFotos.length - 1;
+  /* v171: decodificar fuera del hilo principal para que pasar de foto no trabe */
+  try { $('fvImg').decoding = 'async'; } catch(e){}
   $('fvImg').src = sesionFotos[fvIdx];
   $('fvN').textContent = 'Foto ' + (fvIdx + 1) + ' de ' + sesionFotos.length;
   $('fvPrev').style.visibility = fvIdx > 0 ? 'visible' : 'hidden';
@@ -1888,6 +1890,8 @@ function fvCargarFoto(fid){
   var directa = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
   /* 1) preview instantánea (si el CDN falla, al proxy directo — mejor la grande que un gris) */
   img.onerror = function(){ img.onerror = null; img.src = directa; };
+  /* v171: decodificar sin trabar y dar prioridad al primer pintado (la lista ya la precargó) */
+  try { img.decoding = 'async'; img.setAttribute('fetchpriority', 'high'); } catch(e){}
   img.src = fvUrlFoto(fid, 760);
   /* 2) la nítida por detrás; se cambia solo si no cambiaste de foto mientras cargaba */
   var alta = new Image();
@@ -2562,6 +2566,10 @@ function pintarSinIva(){
       var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
       im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=120&h=120&fit=cover';
       im.addEventListener('error', function(){ vf.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+      /* v171: al ver la miniatura (la fila entró en pantalla) precargar por detrás la versión
+         del VISOR — misma clave que fvCargarFoto (w=760, fit=contain), distinta de la miniatura
+         (w=120, cover). Así, al tocar la foto, abre al toque. Precarga suelta: no toca el DOM. */
+      im.addEventListener('load', function(){ try { var pv = new Image(); pv.decoding = 'async'; pv.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=760&fit=contain'; } catch(e){} });
       vf.appendChild(im);
       var sp = document.createElement('span'); sp.textContent = 'Foto'; vf.appendChild(sp);
       vf.addEventListener('click', function(ev){
@@ -2963,6 +2971,8 @@ function pintarVarios(){
       var im = document.createElement('img'); im.className = 'mini'; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
       im.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=120&h=120&fit=cover';
       im.addEventListener('error', function(){ b.classList.remove('conmini'); if (im.parentNode) im.parentNode.removeChild(im); });
+      /* v171: misma precarga del visor (w=760) al aparecer la miniatura — ver renderFilas */
+      im.addEventListener('load', function(){ try { var pv = new Image(); pv.decoding = 'async'; pv.src = '/.netlify/images?url=' + encodeURIComponent(u) + '&w=760&fit=contain'; } catch(e){} });
       b.appendChild(im);
       var sp2 = document.createElement('span'); sp2.textContent = 'Foto'; b.appendChild(sp2);
       b.addEventListener('click', function(ev){
@@ -5706,7 +5716,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v170';
+var APP_VER = 'v171';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -955,6 +955,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <!-- v152: enviar el resumen del mes por donde sea (WhatsApp, Gmail...) - menu nativo -->
     <button type="button" class="heroComp" id="heroComp">&#128228; Enviar resumen del mes</button>
   </div>
+  <!-- v187: ver TODAS las fotos del mes en el visor con flechas (pedido de Matias: "una opcion de fotos") -->
+  <button type="button" id="verFotosMes" class="dbtn sec" style="margin:0 0 0.6rem">&#128247; Ver todas las fotos del mes</button>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
     <button type="button" id="segProv">Por proveedor</button>
@@ -3106,6 +3108,16 @@ function pintarVarios(){
 }
 /* v152: EL RESUMEN DEL MES, enviable — texto limpio por el menú nativo (WhatsApp, Gmail...).
    Con el disclaimer de siempre: "identificado", jamás "ahorrado" (regla 4.5/4.2). */
+/* v187: ver TODAS las fotos del mes en el visor con flechas (más nuevas primero) */
+$('verFotosMes').addEventListener('click', function(){
+  if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
+  var rows = filasDelMes(panelData.rows || []).slice();
+  rows.sort(function(a, b){ return (tsFecha(b.fecha) || 0) - (tsFecha(a.fecha) || 0); });
+  var lista = [];
+  rows.forEach(function(r){ var fid = fotoId(r.foto); if (fid) lista.push({ fid: fid, rotulo: (r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '') }); });
+  if (!lista.length){ toast('No hay fotos en este mes', true); return; }
+  if (!fvAbrirRemotasChat(lista, 0)) toast('No se pudieron abrir las fotos', true);
+});
 $('heroComp').addEventListener('click', function(){
   if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
   var filas = filasDelMes(panelData.rows || []);
@@ -6074,7 +6086,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v186';
+var APP_VER = 'v187';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

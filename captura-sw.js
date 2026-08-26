@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v182'; /* v182: boton "Ver foto" en la cabecera de la mini-ficha de la factura, a la derecha del total, que abre el visor (solo si la factura tiene foto). */
+var VERSION = 'tikora-captura-v183'; /* v183: el boton girar del corrector (#corrGirar) ahora igual que el del visor y el de repasar (glifo + "Girar" + amarillo). Girar consistente en todas las pantallas. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

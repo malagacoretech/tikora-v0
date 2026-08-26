@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v172'; /* v171: las fotos abren AL TOQUE en todas las carpetas - al deslizar una lista se precarga por detras la version del visor (w=760, la misma clave), que antes no coincidia con la miniatura (w=120) y por eso el visor bajaba la foto de cero. Ademas decodificacion async y prioridad al primer pintado. */
+var VERSION = 'tikora-captura-v173'; /* v173: las precargas de fotos van en BAJA prioridad, para que nunca le roben conexion a la foto que estas tocando (la que abris va en prioridad alta). */ /* v171: las fotos abren AL TOQUE en todas las carpetas - al deslizar una lista se precarga por detras la version del visor (w=760, la misma clave), que antes no coincidia con la miniatura (w=120) y por eso el visor bajaba la foto de cero. Ademas decodificacion async y prioridad al primer pintado. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

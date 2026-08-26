@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v175'; /* v175: arreglado el comentario roto del SW v174 que impedia instalarlo (un & de sed metio comentarios viejos anidados y no parseaba). El historial del chat sigue igual. */
+var VERSION = 'tikora-captura-v176'; /* v176: funcion NOTAS - notas de texto y por voz con recordatorio, marcar hecha y borrar, guardadas en el servidor (pestana Notas). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

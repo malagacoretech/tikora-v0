@@ -203,7 +203,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 input[type=file]{display:none}
 
 /* ====== PESTAÑAS (📷 Capturar | 📊 Mi panel) ====== */
-#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(5,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar{position:absolute;bottom:0;left:0;right:0;z-index:20;display:none;grid-template-columns:repeat(6,1fr);background:rgba(10,22,40,0.97);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
 #tabbar.solo3{grid-template-columns:repeat(3,1fr)}
 #tabbar.on{display:grid}
 /* v30: 5 pestañas — icono arriba y texto abajo para que entren comodas */
@@ -267,6 +267,29 @@ input[type=file]{display:none}
 .neta .nsub{font-size:0.72rem;color:var(--text-muted);margin-top:0.35rem;line-height:1.45}
 #tabbar .tab.active{color:var(--accent)}
 #tabbar .tab:active{transform:scale(0.97)}
+/* v176: NOTAS — apuntar cosas (por voz o escritas) con recordatorio, que persisten en el servidor */
+.notasWrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0.2rem 0 1rem;display:flex;flex-direction:column;gap:0.7rem}
+.notaNew{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.7rem;display:flex;flex-direction:column;gap:0.5rem}
+.notaNew textarea{width:100%;min-height:4.2rem;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:0.92rem;line-height:1.45;padding:0.55rem 0.6rem;box-sizing:border-box}
+.notaTools{display:flex;gap:0.4rem}
+.notaTools button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer}
+.notaTools .notaMic.rec{background:#E5484D;border-color:#E5484D;color:#fff}
+.notaTools .notaRecBtn.on{background:var(--accent);border-color:var(--accent);color:#0A1628}
+.notaRec{width:100%;min-height:44px;background:var(--surface-2);border:1px solid var(--accent);border-radius:10px;color:var(--text);font-family:inherit;font-size:0.9rem;padding:0.4rem 0.6rem;box-sizing:border-box}
+.notaGuardar{min-height:48px;border-radius:12px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.95rem;font-weight:800;cursor:pointer}
+.notaGuardar:disabled{opacity:0.55}
+.notasLista{display:flex;flex-direction:column;gap:0.5rem}
+.nempty{color:var(--text-muted);font-size:0.86rem;text-align:center;padding:1.4rem 0.6rem;line-height:1.5}
+.nrow{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.7rem;display:flex;align-items:flex-start;gap:0.55rem}
+.nrow .ncheck{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:none;color:var(--accent);font-size:0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;margin-top:0.05rem}
+.nrow.hecha .ncheck{background:var(--accent);border-color:var(--accent);color:#0A1628}
+.nrow .nbody{flex:1;min-width:0}
+.nrow .ntexto{font-size:0.92rem;line-height:1.45;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.nrow.hecha .ntexto{text-decoration:line-through;color:var(--text-muted)}
+.nrow .nmeta{font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;display:flex;gap:0.5rem;flex-wrap:wrap}
+.nrow .nrec{color:var(--accent);font-weight:700}
+.nrow .nrec.vencido{color:#FF6B6B}
+.nrow .ndel{flex:0 0 auto;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0.1rem 0.2rem;line-height:1}
 .screen.with-tabs{padding-bottom:calc(5.4rem + env(safe-area-inset-bottom))}
 
 /* ====== MI PANEL ====== */
@@ -1053,6 +1076,22 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
 
 <!-- Barra de pestañas -->
 <!-- Pantalla 6: Mis datos (Capa 1) -->
+<div class="screen with-tabs" id="screenNotas">
+  <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
+  <div class="notasWrap">
+    <div class="notaNew">
+      <textarea id="notaTexto" placeholder="Escribí una nota… o tocá 🎤 Dictar y hablá"></textarea>
+      <div class="notaTools">
+        <button type="button" class="notaMic" id="notaMic">🎤 Dictar</button>
+        <button type="button" class="notaRecBtn" id="notaRecBtn">⏰ Recordatorio</button>
+      </div>
+      <input type="datetime-local" class="notaRec" id="notaRec" style="display:none">
+      <button type="button" class="notaGuardar" id="notaGuardar">Guardar nota</button>
+    </div>
+    <div class="notasLista" id="notasLista"></div>
+  </div>
+</div>
+
 <div class="screen with-tabs" id="screenDatos">
   <div class="panel-head"><div class="brand">Tikora<span>.</span></div></div>
 
@@ -1146,6 +1185,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <button class="tab" id="tabPanel" type="button"><span class="ti">📊</span><span class="tl">Panel</span></button>
   <button class="tab" id="tabClaves" type="button"><span class="ti">🎫</span><span class="tl">Mis claves</span></button>
   <button class="tab" id="tabChat" type="button"><span class="ti">💬</span><span class="tl">Preguntar</span></button>
+  <button class="tab" id="tabNotas" type="button"><span class="ti">📝</span><span class="tl">Notas</span></button>
   <button class="tab" id="tabDatos" type="button"><span class="ti">🪪</span><span class="tl">Mis datos</span></button>
 </nav>
 
@@ -1207,7 +1247,7 @@ var video = document.getElementById('video');
 
 function $(id){ return document.getElementById(id); }
 function show(id){
-  ['screenCam','screenShot','screenToken','screenPanel','screenClaves','screenChat','screenDatos'].forEach(function(s){ $(s).classList.remove('on'); });
+  ['screenCam','screenShot','screenToken','screenPanel','screenClaves','screenChat','screenNotas','screenDatos'].forEach(function(s){ $(s).classList.remove('on'); });
   $(id).classList.add('on');
   var tb = $('tabbar');
   if (TOKEN && id !== 'screenToken'){ tb.classList.add('on'); } else { tb.classList.remove('on'); }
@@ -1215,6 +1255,7 @@ function show(id){
   $('tabPanel').classList.toggle('active', id === 'screenPanel');
   $('tabClaves').classList.toggle('active', id === 'screenClaves');
   $('tabChat').classList.toggle('active', id === 'screenChat');
+  $('tabNotas').classList.toggle('active', id === 'screenNotas');
   $('tabDatos').classList.toggle('active', id === 'screenDatos');
 }
 function toast(msg, isErr){
@@ -5493,6 +5534,7 @@ if (ES_EMPLEADO){
   /* v36: el empleado SÍ ve el Panel — pero RECORTADO POR EL SERVIDOR (solo sus capturas, sin importes).
      El chat sigue fuera (y el servidor se lo niega igualmente). */
   $('tabChat').style.display = 'none';
+  $('tabNotas').style.display = 'none';   /* v176: las notas son del dueño (como el chat) */
   $('tabbar').style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
   /* v39: el chat de la ficha tambien fuera (el servidor se lo niega al empleado) */
   var _fp = $('fichaPreg');
@@ -5688,6 +5730,139 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
   });
 })();
 
+/* ================== NOTAS (v176) ==================
+   Pedido de Matías: apuntar cosas sobre la marcha, por voz o escritas, con recordatorio,
+   y que NO se pierdan al cerrar la app. Se guardan en el servidor (pestaña Notas, workflow
+   "Tikora - Notas") igual que el historial del chat. Solo dueño (el servidor lo exige). El
+   recordatorio se guarda ya; que SUENE en el teléfono es la fase 2 (push programado). */
+var NOTAS_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-notas-3f9a7c2e1b84';
+var notasData = null, notasCargando = false, notasCargadas = false;
+function notasLlamar(cuerpo){
+  cuerpo.u = TOKEN;
+  return fetch(NOTAS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify(cuerpo) })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); });
+}
+function abrirNotas(){
+  if (ES_EMPLEADO) return;
+  stopCamera(); show('screenNotas');
+  cargarNotas(false);
+}
+function cargarNotas(force){
+  if (ES_EMPLEADO || notasCargando) return;
+  if (notasCargadas && !force){ pintarNotas(); return; }
+  notasCargando = true;
+  if (!notasCargadas) $('notasLista').innerHTML = '<div class="nempty">Cargando…</div>';
+  notasLlamar({ accion: 'listar' })
+    .then(function(r){
+      notasCargando = false;
+      if (r.ok && r.j && r.j.ok){ notasData = r.j.notas || []; notasCargadas = true; pintarNotas(); }
+      else { $('notasLista').innerHTML = '<div class="nempty">No se pudieron cargar las notas.</div>'; }
+    })
+    .catch(function(){ notasCargando = false; $('notasLista').innerHTML = '<div class="nempty">Sin conexión — probá de nuevo.</div>'; });
+}
+function fmtRecordatorio(iso){
+  /* 'YYYY-MM-DDTHH:mm' → texto humano + si ya venció */
+  var s = String(iso || ''); if (s.length < 16) return null;
+  var p = s.split('T'); var f = p[0].split('-'); var h = p[1] || '';
+  var dt = new Date(+f[0], +f[1] - 1, +f[2], +(h.split(':')[0] || 0), +(h.split(':')[1] || 0));
+  var hoy = new Date(); var ini = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  var diaN = new Date(f[0], f[1] - 1, f[2]);
+  var difDias = Math.round((diaN - ini) / 86400000);
+  var dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  var cuando;
+  if (difDias === 0) cuando = 'hoy';
+  else if (difDias === 1) cuando = 'mañana';
+  else if (difDias > 1 && difDias < 7) cuando = dias[diaN.getDay()];
+  else cuando = f[2] + '/' + f[1];
+  return { txt: '⏰ ' + cuando + ' ' + h, vencido: (dt.getTime() < Date.now()) };
+}
+function pintarNotas(){
+  var cont = $('notasLista'); cont.innerHTML = '';
+  var lista = notasData || [];
+  if (!lista.length){ cont.innerHTML = '<div class="nempty">Todavía no hay notas.\nEscribí o dictá la primera arriba.</div>'; return; }
+  lista.forEach(function(n){
+    var row = document.createElement('div'); row.className = 'nrow' + (n.hecho ? ' hecha' : '');
+    var chk = document.createElement('button'); chk.type = 'button'; chk.className = 'ncheck';
+    chk.innerHTML = n.hecho ? '&#10003;' : '';
+    chk.setAttribute('aria-label', n.hecho ? 'Marcar sin hacer' : 'Marcar hecha');
+    chk.addEventListener('click', function(){ notaMarcar(n); });
+    var body = document.createElement('div'); body.className = 'nbody';
+    var tx = document.createElement('div'); tx.className = 'ntexto'; tx.textContent = n.texto;
+    body.appendChild(tx);
+    var meta = document.createElement('div'); meta.className = 'nmeta';
+    if (n.creada){ var c = document.createElement('span'); c.textContent = n.creada; meta.appendChild(c); }
+    var rec = fmtRecordatorio(n.recordatorio);
+    if (rec){ var rr = document.createElement('span'); rr.className = 'nrec' + (rec.vencido && !n.hecho ? ' vencido' : ''); rr.textContent = rec.txt; meta.appendChild(rr); }
+    if (meta.childNodes.length) body.appendChild(meta);
+    var del = document.createElement('button'); del.type = 'button'; del.className = 'ndel'; del.innerHTML = '&#128465;';
+    del.setAttribute('aria-label', 'Borrar nota');
+    del.addEventListener('click', function(){ notaBorrar(n); });
+    row.appendChild(chk); row.appendChild(body); row.appendChild(del);
+    cont.appendChild(row);
+  });
+}
+function notaMarcar(n){
+  n.hecho = !n.hecho; pintarNotas();   /* respuesta al toque; el servidor confirma detrás */
+  notasLlamar({ accion: 'hecho', id: n.id, valor: n.hecho ? 'x' : '' }).then(function(r){
+    if (!(r.ok && r.j && r.j.ok)){ n.hecho = !n.hecho; pintarNotas(); toast('No se pudo guardar', true); }
+  }).catch(function(){ n.hecho = !n.hecho; pintarNotas(); toast('Sin conexión', true); });
+}
+function notaBorrar(n){
+  if (notasData) notasData = notasData.filter(function(x){ return x !== n; });
+  pintarNotas();
+  notasLlamar({ accion: 'borrar', id: n.id }).then(function(r){
+    if (!(r.ok && r.j && r.j.ok)){ toast('No se pudo borrar — recargá', true); cargarNotas(true); }
+  }).catch(function(){ toast('Sin conexión', true); cargarNotas(true); });
+}
+$('notaGuardar').addEventListener('click', function(){
+  var texto = ($('notaTexto').value || '').trim();
+  if (!texto){ toast('Escribí algo primero', true); return; }
+  var rec = ($('notaRecBtn').classList.contains('on') && $('notaRec').value) ? $('notaRec').value : '';
+  var b = $('notaGuardar'); b.disabled = true;
+  notasLlamar({ accion: 'crear', texto: texto, recordatorio: rec })
+    .then(function(r){
+      b.disabled = false;
+      if (r.ok && r.j && r.j.ok){
+        $('notaTexto').value = ''; $('notaRec').value = ''; $('notaRec').style.display = 'none'; $('notaRecBtn').classList.remove('on');
+        toast('Nota guardada ✓', false);
+        cargarNotas(true);
+      } else { toast((r.j && r.j.motivo) ? r.j.motivo : 'No se pudo guardar', true); }
+    })
+    .catch(function(){ b.disabled = false; toast('Sin conexión — probá de nuevo', true); });
+});
+$('notaRecBtn').addEventListener('click', function(){
+  var on = !$('notaRecBtn').classList.contains('on');
+  $('notaRecBtn').classList.toggle('on', on);
+  $('notaRec').style.display = on ? 'block' : 'none';
+  if (on && !$('notaRec').value){
+    /* por defecto: mañana a las 9 */
+    var d = new Date(Date.now() + 86400000); d.setHours(9, 0, 0, 0);
+    function p(x){ return (x < 10 ? '0' : '') + x; }
+    $('notaRec').value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+});
+/* dictado por voz de la nota: reusa SpeechRecognition; a diferencia del chat, NO envía sola
+   (podés seguir escribiendo o ponerle recordatorio antes de guardar) */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var btn = $('notaMic');
+  if (!SR){ btn.style.display = 'none'; return; }
+  var rec = null, grabando = false;
+  btn.addEventListener('click', function(){
+    if (grabando){ try { rec.stop(); } catch(e){} return; }
+    rec = new SR(); rec.lang = 'es-ES'; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = function(ev){
+      var t = (ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript) || '';
+      $('notaTexto').value = ($('notaTexto').value + ' ' + t).trim();
+    };
+    rec.onend = function(){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = '🎤 Dictar'; };
+    rec.onerror = function(){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = '🎤 Dictar'; };
+    grabando = true; btn.classList.add('rec'); btn.innerHTML = '⏹ Te escucho…';
+    try { rec.start(); } catch(e){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = '🎤 Dictar'; }
+  });
+})();
+$('tabNotas').addEventListener('click', abrirNotas);
+
 /* ================== ARRANQUE ================== */
 function bootCameraScreen(){
   show('screenCam');
@@ -5806,7 +5981,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v175';
+var APP_VER = 'v176';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

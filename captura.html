@@ -344,6 +344,9 @@ input[type=file]{display:none}
 .chatDown button{transform:translateY(-52px);width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--accent);font-size:1.25rem;font-family:inherit;box-shadow:0 2px 10px rgba(0,0,0,0.35);cursor:pointer;margin-right:0.2rem}
 .cmsg{max-width:88%;border-radius:16px;padding:0.62rem 0.85rem;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .cmsg.user{align-self:flex-end;background:var(--accent);color:#0A1628;font-weight:600;border-bottom-right-radius:6px}
+/* v174: separador de día en el historial del chat — para ver "qué pregunté el martes" */
+.chatDia{align-self:center;font-size:0.72rem;font-weight:800;letter-spacing:0.03em;color:var(--text-muted);text-transform:uppercase;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:0.2rem 0.7rem;margin:0.55rem 0 0.15rem}
+.chatDia.hoy{color:var(--accent);border-color:var(--accent)}
 .cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
 .cmsg.bot b{color:#F8D57E;font-weight:700}
 .cmsg.bot a.cfoto{color:var(--accent);font-weight:700;text-decoration:none;border-bottom:1px dotted var(--accent)}
@@ -5013,17 +5016,70 @@ function chatFlecha(){
 }
 $('chatMsgs').addEventListener('scroll', chatFlecha, { passive: true });
 function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
+var chatHistCargado = false;   /* v174: el historial se pinta una vez por apertura de la app */
 function chatHello(){
   /* v138: la flecha vive dentro de chatMsgs — se cuentan solo los mensajes de verdad */
   if ($('chatMsgs').querySelector('.cmsg')) return;
-  /* v61: el saludo de antes describia el formulario. Este dice lo que la app SABE, con el
-     numero real de facturas cargadas — nada inventado, es el mismo dato del panel. */
+  if (chatHistCargado){ chatSaludo(); return; }
+  chatHistCargado = true;
+  chatCargarHistorial();   /* v174: primero lo que YA preguntaste; si no hay nada, saluda */
+}
+/* v61: el saludo dice lo que la app SABE, con el número real de facturas — nada inventado. */
+function chatSaludo(){
   var nFac = 0;
   try { nFac = (panelData && panelData.stats && panelData.stats.n) || 0; } catch(e){}
   chatMsg('Soy el asistente de IA de Tikora. ' + (nFac ? ('Tengo tus ' + nFac + ' facturas delante.') : 'Tengo todas tus facturas delante.') +
           ' Preguntame lo que quieras: cuánto IVA llevás identificado, quién te cobra más caro, qué compraste el martes.' +
           ' Contesto solo con tus datos — nada inventado.', 'bot');
   sugAbrir(true);   /* primera visita: las sugerencias a la vista; despues se pliegan solas */
+}
+/* ===== v174: EL HISTORIAL DEL CHAT — que no se pierda al cerrar la app =====
+   Pedido de Matías, repetido: "si cierro la app y la abro, tiene que estar ahí lo que fui
+   preguntando; no quiero volver a hacer las preguntas". El servidor SIEMPRE lo guardó (pestaña
+   Chat) y lo devuelve con &chat=1 — lo que faltaba es que la app lo pidiera. Ahora al abrir
+   Preguntar se cargan las últimas conversaciones, partidas por DÍA (para ver qué preguntaste el
+   martes), y se siembra chatHist para que la IA no pierda el hilo. Si no hay red o no hay nada
+   guardado, cae al saludo de siempre. */
+function fmtDiaLargo(iso){
+  var p = String(iso || '').split('-');
+  if (p.length < 3) return iso;
+  var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+  var dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  return dias[dt.getDay()] + ' ' + p[2] + '/' + p[1];
+}
+function chatDiaSep(iso, esHoy){
+  var d = document.createElement('div');
+  d.className = 'chatDia' + (esHoy ? ' hoy' : '');
+  d.textContent = esHoy ? 'Hoy' : fmtDiaLargo(iso);
+  $('chatMsgs').appendChild(d);
+}
+function chatCargarHistorial(){
+  fetch(PANEL_URL + '?u=' + encodeURIComponent(TOKEN) + '&chat=1', { headers: { 'x-tikora-app': APP_SECRET } })
+    .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+    .then(function(j){
+      var lista = (j && j.chat) || [];
+      if (!lista.length){ chatSaludo(); return; }
+      var hoyIso = new Date().toISOString().slice(0, 10);
+      var ultimoDia = '';
+      lista.forEach(function(c){
+        var dia = String(c.cuando || '').slice(0, 10);
+        if (dia && dia !== ultimoDia){ chatDiaSep(dia, dia === hoyIso); ultimoDia = dia; }
+        if (c.q) chatMsg(String(c.q), 'user');
+        if (c.a) chatMsg(String(c.a), 'bot');
+      });
+      /* la IA arranca con las últimas 3 conversaciones en la cabeza: no repetís lo ya dicho */
+      chatHist = [];
+      lista.slice(-3).forEach(function(c){
+        if (c.q) chatHist.push({ role: 'user', content: String(c.q) });
+        if (c.a) chatHist.push({ role: 'assistant', content: String(c.a) });
+      });
+      sugAbrir(false);   /* con historial delante, las sugerencias arrancan plegadas */
+      var m = $('chatMsgs');
+      if (chatDown) m.appendChild(chatDown);
+      m.scrollTop = m.scrollHeight;
+      try { chatFlecha(); } catch(e){}
+    })
+    .catch(function(){ chatSaludo(); });
 }
 /* v59: limpiar la respuesta para LEERLA en voz alta — sin URLs, sin markdown, corta */
 function limpiarParaVoz(t){
@@ -5750,7 +5806,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v173';
+var APP_VER = 'v174';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

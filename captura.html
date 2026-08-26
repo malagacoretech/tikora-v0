@@ -135,7 +135,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvX.activo{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 #fotoVis .fvTop{position:absolute;top:calc(0.8rem + env(safe-area-inset-top));left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
 #fotoVis .fvN{color:var(--text-muted);font-size:0.92rem;font-weight:700}
-#fotoVis .fvX{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;min-width:44px;min-height:44px;font-size:1.1rem;font-family:inherit;cursor:pointer}
+#fotoVis .fvX{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;min-width:52px;min-height:52px;font-size:1.6rem;line-height:1;font-family:inherit;cursor:pointer}
 #fotoVis .fvNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,34,56,0.85);border:1px solid var(--border);color:#fff;border-radius:14px;min-width:48px;min-height:56px;font-size:1.4rem;font-family:inherit;cursor:pointer}
 #fotoVis .fvPrev{left:0.6rem}
 #fotoVis .fvNext{right:0.6rem}
@@ -5706,7 +5706,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v169';
+var APP_VER = 'v170';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

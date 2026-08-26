@@ -314,6 +314,9 @@ input[type=file]{display:none}
 .nrow .nrec{color:var(--accent);font-weight:700}
 .nrow .nrec.vencido{color:#FF6B6B}
 .nrow .ndel{flex:0 0 auto;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0.1rem 0.2rem;line-height:1}
+/* v189: botón "Preguntá a la IA" dentro de la nota */
+.nrow .nia{margin-top:0.4rem;background:var(--surface-2);border:1px solid var(--border);color:var(--accent);font-family:inherit;font-size:0.74rem;font-weight:800;border-radius:999px;padding:0.28rem 0.6rem;cursor:pointer;line-height:1}
+.nrow.hecha .nia{opacity:0.6}
 .screen.with-tabs{padding-bottom:calc(5.4rem + env(safe-area-inset-bottom))}
 
 /* ====== MI PANEL ====== */
@@ -5866,6 +5869,17 @@ function abrirNotas(){
   stopCamera(); show('screenNotas');
   cargarNotas(false);
 }
+/* v189: la IA opina de una nota — la abre en Preguntar con la pregunta lista (mismo patrón que
+   "Preguntar sobre esta factura"): pre-rellena y enfoca; Matías toca enviar. Reusa el chat que
+   ya conoce sus datos, así que la respuesta llega con contexto del bar. */
+function abrirChatDeNota(n){
+  if (ES_EMPLEADO || !n) return;
+  try { setChatCtx(null); } catch(e){}
+  stopCamera(); show('screenChat');
+  try { chatHello(); } catch(e){}
+  $('chatInput').value = 'Sobre esta nota que apunté — «' + String(n.texto || '') + '» —, ¿qué me recomendás o qué debería tener en cuenta?';
+  try { $('chatInput').focus(); } catch(e){}
+}
 function cargarNotas(force){
   if (ES_EMPLEADO || notasCargando) return;
   if (notasCargadas && !force){ pintarNotas(); return; }
@@ -5913,6 +5927,11 @@ function pintarNotas(){
     var rec = fmtRecordatorio(n.recordatorio);
     if (rec){ var rr = document.createElement('span'); rr.className = 'nrec' + (rec.vencido && !n.hecho ? ' vencido' : ''); rr.textContent = rec.txt; meta.appendChild(rr); }
     if (meta.childNodes.length) body.appendChild(meta);
+    /* v189: pedirle a la IA que opine sobre esta nota — reusa el chat que ya tiene tus datos */
+    var ia = document.createElement('button'); ia.type = 'button'; ia.className = 'nia';
+    ia.innerHTML = '&#128172; Preguntá a la IA';
+    ia.addEventListener('click', function(){ abrirChatDeNota(n); });
+    body.appendChild(ia);
     var del = document.createElement('button'); del.type = 'button'; del.className = 'ndel'; del.innerHTML = '&#128465;';
     del.setAttribute('aria-label', 'Borrar nota');
     del.addEventListener('click', function(){ notaBorrar(n); });
@@ -6100,7 +6119,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v188';
+var APP_VER = 'v189';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -77,6 +77,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
    quedaban en un dedo de grosor (Matías 04:54, con la foto). Ahora tienen su tamaño
    fijo y son botones de verdad: 56 px, que es lo que ocupa un pulgar. */
 #repaso .rpTop .corrX{flex:0 0 auto;width:56px;height:56px;min-width:56px;min-height:56px;font-size:1.4rem;display:inline-flex;align-items:center;justify-content:center}
+/* v179: el botón de girar de "repasar 1 por 1" igual que el del visor (glifo + "Girar" + amarillo) */
+#repaso .rpTop .corrX.rpGirar{flex-direction:column;gap:0.05rem;width:66px;height:60px;min-width:66px;padding:0 0.5rem;background:var(--accent);border-color:var(--accent);color:#0A1628}
+#repaso .rpTop .corrX.rpGirar .gi{font-size:1.5rem;line-height:1}
+#repaso .rpTop .corrX.rpGirar .gl{font-size:0.62rem;font-weight:800;letter-spacing:0.04em;line-height:1}
 #repaso .rpFoto{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #repaso .rpFoto img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 /* v132: pellizco EN SITIO — la clase .zum convierte cualquier marco de foto en zona con zoom:
@@ -825,7 +829,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div class="rpTop">
     <button type="button" class="corrX" id="rpCerrar" aria-label="Cerrar">&#10005;</button>
     <span class="rpCuenta" id="rpCuenta">&mdash;</span>
-    <button type="button" class="corrX" id="rpGirar" aria-label="Girar la foto">&#8635;</button>
+    <button type="button" class="corrX rpGirar" id="rpGirar" aria-label="Girar la foto"><span class="gi">&#128260;</span><span class="gl">Girar</span></button>
     <button type="button" class="corrX" id="rpLupa" aria-label="Ver la foto grande">&#128269;</button>
   </div>
   <div class="rpFoto"><img id="rpImg" alt="La factura"></div>
@@ -3714,7 +3718,7 @@ function pintarHero(){
   /* v94: fuera la coletilla "por hora de ingreso, no por fecha de factura" — el titulo ya dice
      "IVA DE LO QUE INGRESO HOY" y cada fila lleva su "ingreso hoy HH:MM"; repetirlo quedaba feo (Matias 06:54). */
   if (pie) pie.textContent = rows.length
-    ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + fmtEur(Math.round(base * 100) / 100) + ' sin IVA')
+    ? (rows.length + (rows.length === 1 ? ' factura · ' : ' facturas · ') + 'Sin IVA ' + fmtEur(Math.round(base * 100) / 100) + ' · Total con IVA ' + fmtEur(Math.round((base + iva) * 100) / 100))
     : (panelEntro === 'hoy' ? 'Todavía no ha ingresado nada hoy.'
        : panelEntro === 'semana' ? 'Todavía no ha ingresado nada esta semana.'
        : panelMes ? 'Todavía no hay facturas de este mes.' : 'Todavía no hay facturas.');
@@ -5990,7 +5994,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v178';
+var APP_VER = 'v179';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

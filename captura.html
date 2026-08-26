@@ -138,10 +138,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 /* v177: el botón de GIRAR, grande y con nombre — Matías: "más grande y gordo al lado de la lupa,
    que se note bien que es para girar". Glifo 🔄 + etiqueta, color de marca, más ancho y alto que
    los demás para que salte a la vista. */
-#fotoVis .fvGirar{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.05rem;min-width:64px;min-height:60px;padding:0 0.5rem;background:var(--accent);border-color:var(--accent);color:#0A1628}
-#fotoVis .fvGirar .gi{font-size:1.7rem;line-height:1}
-#fotoVis .fvGirar .gl{font-size:0.62rem;font-weight:800;letter-spacing:0.04em;line-height:1}
-#fotoVis .fvGirar:active{transform:scale(0.94)}
+/* especificidad .fvX.fvGirar (no solo .fvGirar): .fvX viene DESPUÉS en la hoja y con la misma
+   especificidad ganaba, dejando el botón en 52px gris. Con las dos clases, esto manda. */
+#fotoVis .fvX.fvGirar{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.05rem;min-width:66px;min-height:60px;padding:0 0.5rem;background:var(--accent);border-color:var(--accent);color:#0A1628}
+#fotoVis .fvX.fvGirar .gi{font-size:1.7rem;line-height:1}
+#fotoVis .fvX.fvGirar .gl{font-size:0.62rem;font-weight:800;letter-spacing:0.04em;line-height:1}
+#fotoVis .fvX.fvGirar:active{transform:scale(0.94)}
 #fotoVis .fvX{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:12px;min-width:52px;min-height:52px;font-size:1.6rem;line-height:1;font-family:inherit;cursor:pointer}
 #fotoVis .fvNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,34,56,0.85);border:1px solid var(--border);color:#fff;border-radius:14px;min-width:48px;min-height:56px;font-size:1.4rem;font-family:inherit;cursor:pointer}
 #fotoVis .fvPrev{left:0.6rem}
@@ -5988,7 +5990,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v177';
+var APP_VER = 'v178';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

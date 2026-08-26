@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvPrev{left:0.6rem}
 #fotoVis .fvNext{right:0.6rem}
 #fotoVis .fvPreg{position:absolute;bottom:calc(5.4rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:48px;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.92rem;font-weight:800;cursor:pointer}
-#fotoVis .fvHint{position:absolute;bottom:calc(9.6rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:var(--text-muted);font-size:0.78rem}
+#fotoVis .fvHint{position:absolute;bottom:calc(9.6rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:#cdd8e4;font-size:0.78rem;background:rgba(10,22,40,0.82);padding:0.4rem 0.7rem;border-radius:10px}
 /* v157: ASIGNAR EL PAGO CON LA FOTO DELANTE. Matias, 19-ago, mirando el filtro "Sin asignar":
    "cuando vea la foto estaria bueno tener la opcion de asignarlas; esta como huerfana ahi, la
    foto no nos da la opcion de nada". Tenia razon: para decidir hay que VER el papel, y hasta
@@ -258,6 +258,11 @@ input[type=file]{display:none}
 .nrow .ng{flex:1;min-width:0}
 .nrow .nk{font-size:1rem;color:#7FE3DB;text-transform:uppercase;letter-spacing:0.04em;font-weight:800;margin-bottom:0.12rem}
 .nrow .nv{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.02em;word-break:break-all;line-height:1.25}
+/* v186: bloque de seguridad en "Mis claves" */
+.clavesSeg{margin-top:1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:0.85rem 0.95rem}
+.clavesSeg .csTit{font-size:0.92rem;font-weight:800;color:var(--accent);margin-bottom:0.35rem}
+.clavesSeg .csTxt{font-size:0.85rem;color:var(--text);line-height:1.5}
+.clavesSeg .csLink{display:inline-block;margin-top:0.5rem;font-size:0.86rem;font-weight:700;color:var(--accent);text-decoration:none}
 .dform{display:grid;gap:0.5rem;margin-bottom:0.5rem}
 /* v31: los campos NUNCA empujan el ancho de la pantalla (min-width:0 + minmax) */
 .dform input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0.7rem 0.9rem;color:var(--text);font-family:inherit;font-size:0.92rem;outline:none;-webkit-appearance:none;width:100%;min-width:0;box-sizing:border-box}
@@ -1047,6 +1052,12 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
         <input id="dNumValor" type="text" placeholder="N&uacute;mero de cliente" maxlength="40">
       </div>
       <button class="dbtn sec" type="button" id="dNumAdd">+ A&ntilde;adir clave</button>
+    </div>
+    <!-- v186: la pantalla estaba muy suelta - bloque de seguridad honesto (pedido de Matias) -->
+    <div class="clavesSeg">
+      <div class="csTit">&#128274; Tus datos, protegidos</div>
+      <div class="csTxt">Cada cliente en su <b>espacio separado</b>. La inteligencia artificial <b>no entrena</b> con tus facturas. Y si te vas, te lo llev&aacute;s todo.</div>
+      <a class="csLink" href="https://tikora.es/seguridad" target="_blank" rel="noopener">Ver c&oacute;mo cuidamos tus datos &rarr;</a>
     </div>
   </div>
 </div>
@@ -4332,6 +4343,16 @@ function renderLista(){
           sn.textContent = 'Ficha en camino — se completa sola con las próximas facturas.';
           fp.appendChild(sn);
         }
+        /* v186: ver TODAS las fotos de este proveedor, en galería con flechas (pedido de Matías) */
+        var bf = document.createElement('button'); bf.type = 'button'; bf.className = 'dbtn sec'; bf.style.marginTop = '0.55rem'; bf.textContent = '📷 Ver las fotos de este proveedor';
+        bf.addEventListener('click', function(){
+          var rows = filasDelMes(data.rows || []).filter(function(r){ return (r.clave === panelProvSel) || (normTxt(String(r.emisor || '').trim() || '(proveedor sin leer)') === panelProvSel); });
+          var lista = [];
+          rows.forEach(function(r){ var fid = fotoId(r.foto); if (fid) lista.push({ fid: fid, rotulo: r.emisor || 'Factura' }); });
+          if (!lista.length){ toast('Este proveedor no tiene fotos para ver', true); return; }
+          if (!fvAbrirRemotasChat(lista, 0)) toast('No se pudieron abrir las fotos', true);
+        });
+        fp.appendChild(bf);
         var bg = document.createElement('button'); bg.type = 'button'; bg.className = 'dbtn sec'; bg.style.marginTop = '0.55rem'; bg.textContent = '🔎 Buscar en internet';
         bg.addEventListener('click', function(){ try { window.open('https://www.google.com/search?q=' + encodeURIComponent(sel.nombre + ' ' + (sel.nif || '')), '_blank', 'noopener'); } catch(e){} });
         fp.appendChild(bg);
@@ -6053,7 +6074,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v185';
+var APP_VER = 'v186';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

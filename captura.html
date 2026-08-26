@@ -379,6 +379,8 @@ input[type=file]{display:none}
 .psearch::-webkit-search-cancel-button:active{background-color:var(--accent);transform:scale(0.92)}
 /* v11: chat "preguntale a tus facturas" — v27: pase fino movil (delicado y profesional) */
 #chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch;position:relative}
+/* v184: el botón de enviar en modo DETENER (mientras espera respuesta) */
+#chatSend.stopmode{background:#c0392b !important;border-color:#c0392b !important;color:#fff !important}
 /* v138: flecha flotante para bajar por una respuesta larga. Sticky dentro del propio scroll:
    ocupa 0 de alto (no descoloca la conversacion) y el boton se dibuja hacia arriba. */
 .chatDown{position:sticky;bottom:0;height:0;align-self:flex-end;overflow:visible;display:none;z-index:5}
@@ -4965,6 +4967,8 @@ $('tabPanel').addEventListener('click', function(){
 var CHAT_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-chat2-351b44e16ffb3c51';
 var PAGO_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-pago-fd7db9da51d3982c';
 var chatPend = false;
+var chatPendBubble = null;   /* v184: la burbuja "Pensando…" en curso, para poder Detener */
+var chatUltimaQ = '';        /* v184: la última pregunta, para devolverla al campo si detenés */
 var chatFile = null;   /* fileId de la factura en contexto (desde la mini-ficha) → el chat VE su foto */
 var chatHist = [];     /* memoria: ultimas burbujas reales, viajan con cada pregunta */
 function fotoId(url){ var m = String(url || '').match(/\/d\/([^\/?]+)/); return m ? m[1] : null; }
@@ -5177,6 +5181,8 @@ function limpiarParaVoz(t){
    app, llega por push — SOLO si no la viste (el servidor espera 45 s y mira la marca).
    El historial se sigue guardando igual en la pestaña Chat. */
 function chatEntregar(resp, q, pend, porVoz){
+  /* v184: si detuviste la pregunta, la burbuja ya no está en el DOM — no entregamos ni guardamos */
+  if (pend && !document.body.contains(pend)) return;
   pend.innerHTML = chatFmt(resp); pend.classList.remove('pend');
   chatHist.push({ role: 'user', content: q }, { role: 'assistant', content: resp });
   if (chatHist.length > 12) chatHist = chatHist.slice(-12);
@@ -5185,7 +5191,7 @@ function chatEntregar(resp, q, pend, porVoz){
   m.scrollTo({ top: Math.max(0, pend.offsetTop - 6), behavior: 'smooth' });
   setTimeout(chatFlecha, 450);
   if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
-  chatPend = false; $('chatSend').disabled = false; chatFlecha();
+  chatPend = false; chatPendBubble = null; chatBoton(); chatFlecha();
 }
 function chatVisto(q){
   var b = { token: TOKEN, accion: 'visto' };
@@ -5207,7 +5213,7 @@ function chatEsperar(q, pend, porVoz){
         if (Date.now() - t0 > 150000){
           pend.textContent = 'Sigo con esto — en cuanto esté, te llega un aviso al teléfono 📱';
           pend.classList.remove('pend');
-          chatPend = false; $('chatSend').disabled = false;
+          chatPend = false; chatPendBubble = null; chatBoton();
           return;
         }
         setTimeout(tick, (Date.now() - t0 > 30000) ? 10000 : 5000);
@@ -5223,7 +5229,8 @@ function sendChat(q, porVoz){
   sugAbrir(false);
   chatMsg(q, 'user');
   var pend = chatMsg(chatFile ? 'Leyendo la factura…' : 'Pensando…', 'bot pend');
-  chatPend = true; $('chatSend').disabled = true;
+  chatPendBubble = pend; chatUltimaQ = q;   /* v184: para poder Detener */
+  chatPend = true; chatBoton();
   var cuerpo = { token: TOKEN, q: q, hist: chatHist.slice(-6), asinc: true };
   if (chatFile) cuerpo.fileId = chatFile;
   fetch(CHAT_URL, {
@@ -5240,7 +5247,7 @@ function sendChat(q, porVoz){
     .catch(function(){
       pend.textContent = 'No pude responder (¿sin conexión?). Probá otra vez en un momento.'; pend.classList.remove('pend');
       if (porVoz) { try { vozDecir('No pude responder ahora mismo.'); } catch(e){} }
-      chatPend = false; $('chatSend').disabled = false; chatFlecha();
+      chatPend = false; chatPendBubble = null; chatBoton(); chatFlecha();
     });
 }
 /* v59: pregunta libre por voz — "tikora, ¿cuánto llevo esta semana?" → chat → respuesta HABLADA */
@@ -5250,7 +5257,26 @@ function chatPorVoz(pregunta){
   try { chatHello(); } catch(e){}
   sendChat(pregunta, true);
 }
-$('chatSend').addEventListener('click', function(){ sendChat(); });
+/* v184: DETENER una pregunta en curso. Mientras espera, el botón de enviar se vuelve ⏹ rojo;
+   al tocarlo se corta el bucle de sondeo (quitando la burbuja "Pensando…") y la pregunta vuelve
+   al campo para corregirla. Nota: el servidor ya arrancó a pensar la respuesta, así que Detener
+   libera la PANTALLA, no el trabajo del servidor. */
+function chatBoton(){
+  var b = $('chatSend'); if (!b) return;
+  if (chatPend){ b.innerHTML = '&#9209;'; b.setAttribute('aria-label', 'Detener'); b.classList.add('stopmode'); }
+  else { b.innerHTML = '&#10148;'; b.setAttribute('aria-label', 'Enviar'); b.classList.remove('stopmode'); }
+}
+function detenerChat(){
+  if (!chatPend) return;
+  if (chatPendBubble && chatPendBubble.parentNode) chatPendBubble.parentNode.removeChild(chatPendBubble);
+  chatPendBubble = null;
+  chatPend = false;
+  chatBoton();
+  if (chatUltimaQ){ $('chatInput').value = chatUltimaQ; }
+  try { $('chatInput').focus(); } catch(e){}
+  try { toast('Pregunta detenida — corregila y volvé a enviar', false); } catch(e){}
+}
+$('chatSend').addEventListener('click', function(){ if (chatPend) detenerChat(); else sendChat(); });
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.sugchips button').forEach(function(b){
   b.addEventListener('click', function(){ setChatCtx(null); sendChat(b.textContent); });
@@ -6027,7 +6053,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v183';
+var APP_VER = 'v184';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v183'; /* v183: el boton girar del corrector (#corrGirar) ahora igual que el del visor y el de repasar (glifo + "Girar" + amarillo). Girar consistente en todas las pantallas. */
+var VERSION = 'tikora-captura-v184'; /* v184: DETENER una pregunta del chat en curso - el boton de enviar se vuelve un stop rojo mientras espera; al tocarlo corta el bucle y devuelve la pregunta al campo para corregirla. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

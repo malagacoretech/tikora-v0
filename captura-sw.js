@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v189'; /* v189: boton "Pregunta a la IA" en cada nota - la abre en Preguntar con la pregunta lista, reusando el chat que ya conoce tus datos. */
+var VERSION = 'tikora-captura-v190'; /* v190: el recordatorio de las Notas SUENA - al despertar por push, el SW mira si hay un recordatorio vencido y avisa con el texto de la nota; tocarlo abre las Notas. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -121,6 +121,52 @@ function swChatCheck(tok){
           tag: 'tikora-chatresp', renotify: true,
           data: { url: '/captura.html?chatr=1', chatr: 1, f: '' }
         }).then(function(){
+          return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
+        });
+      });
+    })
+    .catch(function(){});
+}
+/* v190: recordatorios de las Notas. Al despertar por push, mirar si alguna nota tiene el
+   recordatorio ya vencido (en las últimas 24 h) y sin marcar hecha; si la hay y no se avisó
+   ya en ESTE teléfono, sale una notificación con el texto de la nota. El teléfono vive en hora
+   de Málaga, así que parsear la fecha local aquí es correcto (a diferencia del servidor, que va
+   en UTC). El disparo lo agenda el workflow "Tikora - Recordatorios" cuando el recordatorio vence. */
+var NOTAS_URL_SW = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-notas-3f9a7c2e1b84';
+function swNotaVenceMs(iso){
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return 0;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+}
+function swNotasCheck(tok){
+  return fetch(NOTAS_URL_SW, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tikora-app': APP_SECRET_SW }, body: JSON.stringify({ u: tok, accion: 'listar' }) })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j || !j.ok || !j.notas || !j.notas.length) return;
+      var ahora = Date.now();
+      return swAvisados().then(function(mem){
+        var vistos = {}; mem.lista.forEach(function(x){ vistos[x] = 1; });
+        var mostrar = [], sellar = [];
+        j.notas.forEach(function(n){
+          if (!n || n.hecho) return;
+          var t = swNotaVenceMs(n.recordatorio);
+          if (!t) return;
+          var dif = ahora - t;                       /* >0 = ya venció */
+          if (dif < 0 || dif > 24 * 3600000) return; /* solo lo vencido en las últimas 24 h */
+          var id = 'nota-' + String(n.id || '');
+          if (vistos[id]) return;
+          sellar.push(id); mostrar.push(n);
+        });
+        if (sellar.length) mem.guardar(mem.lista.concat(sellar));
+        if (!mostrar.length) return;
+        return Promise.all(mostrar.slice(-3).map(function(n){
+          return self.registration.showNotification('Tikora — recordatorio', {
+            body: String(n.texto || '').slice(0, 140),
+            icon: '/favicons/android-chrome-192x192.png', badge: '/favicons/android-chrome-192x192.png',
+            tag: 'tikora-nota-' + String(n.id || ''), renotify: true,
+            data: { url: '/captura.html?notas=1', notas: 1, f: '' }
+          });
+        })).then(function(){
           return self.registration.getNotifications({ tag: 'tikora-entrando' }).then(function(ns){ ns.forEach(function(x){ x.close(); }); });
         });
       });
@@ -258,6 +304,7 @@ self.addEventListener('push', function(e){
         });
       })
       .then(function(){ return tokSW ? swChatCheck(tokSW) : null; })   /* v142: ¿hay respuesta del chat sin leer? */
+      .then(function(){ return tokSW ? swNotasCheck(tokSW) : null; })   /* v190: ¿algún recordatorio de nota vencido? */
       .catch(function(){})
   );
 });
@@ -270,6 +317,7 @@ self.addEventListener('notificationclick', function(e){
   if (!fid && d.rev) modo = 'rev';   /* v96: el parte con la app abierta despliega "para repetir" */
   if (!fid && d.chatr) modo = 'chatr';   /* v142: "tu respuesta está lista" abre el chat con ella */
   if (!fid && d.panel) modo = 'panel';   /* v156: el generico va al panel, no a la camara */
+  if (!fid && d.notas) modo = 'notas';   /* v190: el recordatorio abre las Notas */
   var url = fid ? ('/captura.html?' + modo + '=' + fid) : (d.url || '/captura.html');   /* v89: el aviso de revisar abre el panel */
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
     for (var i = 0; i < ws.length; i++){
@@ -282,7 +330,7 @@ self.addEventListener('notificationclick', function(e){
            v156: y ya no solo con factura concreta — TODO aviso con destino navega
            (parte, revisar, respuesta del chat, panel). Regla de Matias (19-ago):
            "todas las notificaciones tienen que ir a donde yo apriete". */
-        var tieneDestino = !!fid || !!d.rev || !!d.chatr || !!d.panel;
+        var tieneDestino = !!fid || !!d.rev || !!d.chatr || !!d.panel || !!d.notas;
         if (tieneDestino && typeof w.navigate === 'function'){
           return w.navigate(url)
             .then(function(c){ return (c && c.focus) ? c.focus() : w.focus(); })

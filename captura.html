@@ -4885,6 +4885,11 @@ try {
   var qsRev = new URLSearchParams(location.search).get('rev');
   if (qsRev) revPend = true;
 } catch(e){}
+/* v190: ?notas=1 — tocar un aviso de recordatorio abre directamente la pantalla de Notas */
+var notasPend = false;
+try {
+  if (new URLSearchParams(location.search).get('notas')) notasPend = true;
+} catch(e){}
 /* v154: los parámetros de aviso se consumen UNA SOLA VEZ. Sin esto, el ?chat=... con el
    que un aviso abrió la app quedaba PEGADO en la dirección, y cada recarga (la app se
    recarga sola al actualizarse) volvía a clavar "la factura que ingresó" en el chat
@@ -4893,7 +4898,7 @@ try {
 try {
   var qsLimpia = new URLSearchParams(location.search);
   var habiaAviso = false;
-  ['chat', 'ver', 'rev', 'chatr', 'v'].forEach(function(k){ if (qsLimpia.has(k)){ qsLimpia.delete(k); habiaAviso = true; } });
+  ['chat', 'ver', 'rev', 'chatr', 'v', 'notas'].forEach(function(k){ if (qsLimpia.has(k)){ qsLimpia.delete(k); habiaAviso = true; } });
   if (habiaAviso && window.history && history.replaceState){
     var resto = qsLimpia.toString();
     history.replaceState(null, '', location.pathname + (resto ? ('?' + resto) : ''));
@@ -4954,6 +4959,7 @@ if ('serviceWorker' in navigator){
     if (e.data.tikora === 'rev'){ revPend = true; try { clic('tabPanel'); } catch(err){} aplicarRevPend(); }   /* v96: el parte con la app abierta */
     if (e.data.tikora === 'chatr') abrirRespuestaPendiente();   /* v142: "tu respuesta está lista" con la app abierta */
     if (e.data.tikora === 'panel'){ try { conClave(function(){ stopCamera(); show('screenPanel'); loadPanel(false); }); } catch(err){} }   /* v156: el generico lleva al panel */
+    if (e.data.tikora === 'notas'){ try { if (!ES_EMPLEADO) abrirNotas(); } catch(err){} }   /* v190: el recordatorio abre las Notas */
   });
 }
 /* auto-actualización: el panel se refresca solo cada minuto mientras está a la vista,
@@ -6044,6 +6050,12 @@ function boot(){
     conClave(function(){ show('screenPanel'); loadPanel(false); });
     return;
   }
+  /* v190: ?notas=1 — tocar un aviso de recordatorio con la app cerrada abre las Notas */
+  if (notasPend && !ES_EMPLEADO){
+    processQueue(false);
+    conClave(function(){ try { abrirNotas(); } catch(e){} });
+    return;
+  }
   /* v59: cada uno entra donde trabaja — el dueno a mirar sus numeros, el empleado a disparar */
   /* ===== LEY DE CERO FRICCION — no cambiar sin un motivo muy bueno =====
      La app SIEMPRE abre en la camara, lista para disparar. Dueno o empleado, da igual.
@@ -6119,7 +6131,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v189';
+var APP_VER = 'v190';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

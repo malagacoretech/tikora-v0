@@ -347,6 +347,11 @@ input[type=file]{display:none}
 .cmsg.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
 .cmsg.bot b{color:#F8D57E;font-weight:700}
 .cmsg.bot a.cfoto{color:var(--accent);font-weight:700;text-decoration:none;border-bottom:1px dotted var(--accent)}
+/* v172: tablas del chat dibujadas de verdad (antes salian en crudo con | y ---) */
+.cmsg.bot .ctabw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0.4rem 0;max-width:100%}
+.cmsg.bot table.ctab{border-collapse:collapse;font-size:0.78rem;line-height:1.35;white-space:normal}
+.cmsg.bot table.ctab th,.cmsg.bot table.ctab td{border:1px solid var(--border);padding:0.28rem 0.45rem;text-align:left;vertical-align:top}
+.cmsg.bot table.ctab th{color:#F8D57E;font-weight:700;background:rgba(248,213,126,0.07);white-space:nowrap}
 .refreshbtn.vozon{border-color:var(--accent);color:var(--accent);font-weight:700}
 .cmsg.pend{opacity:0.65;font-style:italic}
 /* v27: sugerencias plegadas bajo un titulo fino — no tapan la conversacion */
@@ -4919,6 +4924,33 @@ $('chatCtxTxt').addEventListener('click', function(){
   if (!fvAbrirRemota(chatFile, rot)) abrirFoto(FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(chatFile));
 });
 /* v27: las respuestas llegan con **negritas** y guiones de lista — se pintan bien, no crudos */
+/* v172: dibuja las tablas markdown (| a | b |  +  |---|---|) como una tabla de verdad.
+   Antes salían en crudo, con las barras y los guiones. Trabaja sobre el texto ya escapado y
+   con los enlaces "ver foto" ya puestos (ninguno lleva "|" dentro, así que partir por "|" es
+   seguro). En chatFmt va envuelto en try/catch: si algo no cuadra, se deja el texto tal cual. */
+function chatTablas(s){
+  var L = s.split('\n'), out = [], i = 0;
+  function fila(l){ var x = l.trim(); return x.charAt(0) === '|' && (x.match(/\|/g) || []).length >= 2; }
+  function sep(l){ var x = l.trim(); return x.indexOf('|') >= 0 && x.indexOf('-') >= 0 && /^[\s\-:|]+$/.test(x); }
+  function celdas(l){ return l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function(c){ return c.trim(); }); }
+  while (i < L.length){
+    if (fila(L[i]) && i + 1 < L.length && sep(L[i + 1])){
+      var head = celdas(L[i]), body = [], j = i + 2;
+      while (j < L.length && fila(L[j]) && !sep(L[j])){ body.push(celdas(L[j])); j++; }
+      var h = '<div class="ctabw"><table class="ctab"><thead><tr>';
+      for (var a = 0; a < head.length; a++) h += '<th>' + head[a] + '</th>';
+      h += '</tr></thead><tbody>';
+      for (var b = 0; b < body.length; b++){
+        h += '<tr>';
+        for (var k = 0; k < head.length; k++) h += '<td>' + (body[b][k] != null ? body[b][k] : '') + '</td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table></div>';
+      out.push(h); i = j;
+    } else { out.push(L[i]); i++; }
+  }
+  return out.join('\n');
+}
 function chatFmt(t){
   var e = String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   e = e.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
@@ -4934,6 +4966,8 @@ function chatFmt(t){
     var rot = (linea || 'Factura').replace(/"/g, '&quot;');
     return '<a class="cfoto" href="' + u + '" target="_blank" rel="noopener" data-fid="' + fid + '" data-rotulo="' + rot + '">&#128206; ver foto</a>';
   });
+  /* v172: las tablas markdown, como tabla de verdad. Si falla, se deja el texto como estaba. */
+  try { e = chatTablas(e); } catch(_e){}
   return e;
 }
 /* v135: un toque en "ver foto" abre TODAS las fotos de esa misma respuesta en el visor propio,
@@ -5716,7 +5750,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v171';
+var APP_VER = 'v172';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

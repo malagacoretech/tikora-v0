@@ -256,7 +256,7 @@ input[type=file]{display:none}
 .numzone .nzs{font-size:0.74rem;color:var(--text-muted);margin:0.3rem 0 0.8rem;line-height:1.45}
 .nrow{display:flex;align-items:center;gap:0.55rem;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:0.65rem 0.8rem;margin-bottom:0.5rem}
 .nrow .ng{flex:1;min-width:0}
-.nrow .nk{font-size:0.6rem;color:#7FE3DB;text-transform:uppercase;letter-spacing:0.08em;font-weight:800}
+.nrow .nk{font-size:1rem;color:#7FE3DB;text-transform:uppercase;letter-spacing:0.04em;font-weight:800;margin-bottom:0.12rem}
 .nrow .nv{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:0.02em;word-break:break-all;line-height:1.25}
 .dform{display:grid;gap:0.5rem;margin-bottom:0.5rem}
 /* v31: los campos NUNCA empujan el ancho de la pantalla (min-width:0 + minmax) */
@@ -6053,7 +6053,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v184';
+var APP_VER = 'v185';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

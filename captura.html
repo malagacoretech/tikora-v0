@@ -386,6 +386,9 @@ input[type=file]{display:none}
 #chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0.55rem;padding:0.3rem 0 0.6rem;-webkit-overflow-scrolling:touch;position:relative}
 /* v184: el botón de enviar en modo DETENER (mientras espera respuesta) */
 #chatSend.stopmode{background:#c0392b !important;border-color:#c0392b !important;color:#fff !important}
+/* v188: buscador del historial del chat */
+.chatBuscar{padding:0 0 0.4rem}
+#chatBuscarInput{width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:0.9rem;padding:0.55rem 0.8rem}
 /* v138: flecha flotante para bajar por una respuesta larga. Sticky dentro del propio scroll:
    ocupa 0 de alto (no descoloca la conversacion) y el boton se dibuja hacia arriba. */
 .chatDown{position:sticky;bottom:0;height:0;align-self:flex-end;overflow:visible;display:none;z-index:5}
@@ -1068,6 +1071,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
 <div class="screen with-tabs" id="screenChat">
   <div class="panel-head"><div class="brand">Tikora<span>.</span></div><span class="ia-badge">&#129302; Asistente de IA</span></div>
   <div class="chatctx" id="chatCtx"><span id="chatCtxTxt"></span><button type="button" id="chatCtxX" aria-label="Quitar factura del contexto">&#10005;</button></div>
+  <!-- v188: buscar en el historial del chat (filtro en el móvil, pedido de Matías) -->
+  <div class="chatBuscar"><input id="chatBuscarInput" type="search" placeholder="&#128269; Buscar en tus preguntas&hellip;" autocomplete="off"></div>
   <div id="chatMsgs"></div>
   <div class="chatsug" id="chatSug">
     <button type="button" class="sugtoggle" id="sugToggle">Preguntame lo que quieras <span class="sgc">&#9662;</span></button>
@@ -5310,6 +5315,15 @@ function detenerChat(){
   try { toast('Pregunta detenida — corregila y volvé a enviar', false); } catch(e){}
 }
 $('chatSend').addEventListener('click', function(){ if (chatPend) detenerChat(); else sendChat(); });
+/* v188: buscar en el historial del chat — filtra las burbujas por texto (en el móvil, sin servidor) */
+$('chatBuscarInput').addEventListener('input', function(){
+  var q = normTxt(this.value.trim());
+  var msgs = $('chatMsgs'); if (!msgs) return;
+  var bubbles = msgs.querySelectorAll('.cmsg');
+  var dias = msgs.querySelectorAll('.chatDia');
+  for (var i = 0; i < bubbles.length; i++){ bubbles[i].style.display = (!q || normTxt(bubbles[i].textContent || '').indexOf(q) >= 0) ? '' : 'none'; }
+  for (var j = 0; j < dias.length; j++){ dias[j].style.display = q ? 'none' : ''; }
+});
 $('chatInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') sendChat(); });
 document.querySelectorAll('.sugchips button').forEach(function(b){
   b.addEventListener('click', function(){ setChatCtx(null); sendChat(b.textContent); });
@@ -6086,7 +6100,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v187';
+var APP_VER = 'v188';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

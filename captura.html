@@ -676,6 +676,9 @@ button.capbadge:active{transform:scale(0.95)}
 .caprow .cm.abajo{flex:1 1 100%;text-align:center;margin-top:0.5rem}
 /* v94: modo empleado — el panel sin dinero (el servidor ya manda ceros; esto evita ensenarlos) */
 body.emp .pcard.hero,body.emp .pagowrap,body.emp #cardDebe,body.emp .prow .amt,body.emp .prow .who .iva{display:none !important}
+/* v180: fuera del panel el recuadro "Sin pagar" (se repite con el filtro de sin pagar) y el de
+   "Tus fotos de hoy" (no navegaba, se ve en Revisar, y en rojo parecía una alarma) — pedido de Matías */
+#cardDebe,#cardSinRastro{display:none !important}
 /* v151: al empleado tampoco le sirve la pastilla de albaranes (sus filas van sin importes) */
 body.emp #cardAlbaran{display:none !important}
 /* v107: con CUATRO pastillas el reparto a partes iguales las aplastaba unas sobre otras
@@ -5994,7 +5997,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v179';
+var APP_VER = 'v180';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v179'; /* v179: el recuadro de arriba del panel muestra tambien Sin IVA y Total con IVA (base+iva); y el boton de girar de "repasar 1 por 1" (rpGirar) ahora igual que el del visor (glifo + Girar + amarillo). */
+var VERSION = 'tikora-captura-v180'; /* v180: fuera del panel los recuadros rojos "Sin pagar" y "Tus fotos de hoy" (redundantes y parecian alarma). Incluye v179: Sin IVA y Total con IVA en el hero + boton girar de repasar. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

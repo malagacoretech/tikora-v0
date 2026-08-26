@@ -418,6 +418,11 @@ input[type=file]{display:none}
 .fichacard .fe{font-size:1.05rem;font-weight:800}
 .fichacard .fd{font-size:0.8rem;color:var(--text-muted);margin:0.15rem 0 0.8rem}
 .fichacard .ft{font-size:1.55rem;font-weight:800;color:var(--accent);margin-bottom:0.9rem}
+/* v182: botón "Ver foto" a la derecha del total (pedido de Matías) */
+.fichacard .ftrow{display:flex;align-items:center;justify-content:space-between;gap:0.6rem;margin-bottom:0.9rem}
+.fichacard .ftrow .ft{margin-bottom:0}
+#fichaVerFoto{flex:0 0 auto;background:var(--surface-2);border:1px solid var(--accent);color:var(--accent);border-radius:12px;padding:0.5rem 0.9rem;font-family:inherit;font-weight:800;font-size:0.9rem;cursor:pointer;min-height:44px;white-space:nowrap}
+#fichaVerFoto:active{transform:scale(0.96)}
 .fichabtns{display:grid;gap:0.5rem}
 /* v143: la foto PRECARGADA en la ficha (pedido de Matias 18-ago) — tocable, abre el visor */
 #fichaImgBtn{display:none;padding:0;border:1px solid var(--border);background:#000;border-radius:12px;overflow:hidden;width:100%;cursor:pointer}
@@ -1070,7 +1075,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
 <div id="ficha"><div class="fichacard">
   <div class="fe" id="fichaEmisor"></div>
   <div class="fd" id="fichaDetalle"></div>
-  <div class="ft" id="fichaTotal"></div>
+  <div class="ftrow"><div class="ft" id="fichaTotal"></div><button type="button" id="fichaVerFoto" style="display:none">&#128247; Ver foto</button></div>
   <div class="fichabtns">
     <!-- v143: la foto YA CARGADA — tocarla la abre en grande. El boton viejo queda de
          respaldo por si la imagen no puede cargar. -->
@@ -5586,6 +5591,8 @@ function abrirFicha(r){
   var fid = fotoId(r.foto);
   $('fichaImgBtn').style.display = 'none';
   $('fichaFoto').style.display = 'none';
+  /* v182: el botón "Ver foto" de la cabecera solo si esta factura tiene foto */
+  $('fichaVerFoto').style.display = (fid || r.foto) ? '' : 'none';
   if (fid){
     var u = FOTO_URL + '?u=' + encodeURIComponent(TOKEN) + '&f=' + encodeURIComponent(fid);
     var im = $('fichaImg');
@@ -5611,6 +5618,12 @@ function abrirFicha(r){
   $('ficha').classList.add('on');
 }
 $('fichaImgBtn').addEventListener('click', function(){
+  if (!fichaRow) return;
+  var fid = fotoId(fichaRow.foto);
+  if (!fid || !fvAbrirRemota(fid, fichaRow.emisor || 'Factura', String(fichaRow.pago || ''))) abrirFoto(fotoSegura(fichaRow.foto));
+});
+/* v182: el botón "Ver foto" de la cabecera abre el mismo visor */
+$('fichaVerFoto').addEventListener('click', function(){
   if (!fichaRow) return;
   var fid = fotoId(fichaRow.foto);
   if (!fid || !fvAbrirRemota(fid, fichaRow.emisor || 'Factura', String(fichaRow.pago || ''))) abrirFoto(fotoSegura(fichaRow.foto));
@@ -6008,7 +6021,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v181';
+var APP_VER = 'v182';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

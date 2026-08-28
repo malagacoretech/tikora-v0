@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v190'; /* v190: el recordatorio de las Notas SUENA - al despertar por push, el SW mira si hay un recordatorio vencido y avisa con el texto de la nota; tocarlo abre las Notas. */
+var VERSION = 'tikora-captura-v191'; /* v191: la foto entra entera en el visor - los botones (pago/preguntar/volver) ya no la tapan; los de pago van en una fila. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

@@ -1,4 +1,3 @@
 # Rutas cortas de Tikora (Netlify). 21-ago-2026: quitadas /sp /1949 /spcam (apuntaban a tokens ya rotados/muertos; nadie las usa, se entra por la app instalada). Onboarding de un movil nuevo = enlace privado completo, no ruta corta.
 /demo      /captura.html?u=DEMO6AFA25562E2F857B    301
 /t         /tarjeta.html                           200
-/seguridad   /seguridad.html   200

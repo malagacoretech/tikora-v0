@@ -31,7 +31,7 @@
   <p class="sub">Sacale una foto a cada factura de compra y listo: quedan leídas, ordenadas y listas para tu gestor. Dejá tus datos y te doy de alta — sin compromiso.</p>
   <form name="altas" method="POST" action="/gracias.html" data-netlify="true" netlify-honeypot="apellido2">
     <input type="hidden" name="form-name" value="altas">
-    <p class="oculto"><label>No llenar<input name="apellido2"></label></p>
+    <p class="oculto" hidden aria-hidden="true"><label>No llenar<input name="apellido2" tabindex="-1" autocomplete="off"></label></p>
     <label for="f-nombre">Tu nombre</label>
     <input id="f-nombre" name="nombre" required autocomplete="name">
     <label for="f-negocio">Tu negocio</label>
@@ -50,12 +50,11 @@
     <label for="f-msg">Algo que quieras contarme (opcional)</label>
     <textarea id="f-msg" name="mensaje" placeholder="Cómo las manejás hoy, qué te duele…"></textarea>
     <button type="submit">Pedir mi alta</button>
-    <p class="pie">Te escribo yo personalmente, normalmente el mismo día.<br>Tus datos solo se usan para darte de alta — nada de listas ni spam.</p>
+    <p class="pie">Te escribo yo personalmente para revisar si Tikora encaja con tu negocio.<br>Tus datos se usan para gestionar esta solicitud.</p>
     <p class="pie" style="border-top:1px solid var(--line);padding-top:0.7rem;margin-top:0.8rem;text-align:left">
       <strong>Protección de datos:</strong> Responsable: Matías Ezequiel Frassa (matias@tikora.es).
       Finalidad: gestionar tu solicitud de alta y contactarte por WhatsApp o email.
       Base legal: medidas precontractuales a petición tuya (art. 6.1.b RGPD).
-      Tus datos no se ceden a terceros ni se usan para publicidad.
       Podés ejercer tus derechos de acceso, rectificación y supresión escribiendo a matias@tikora.es.
       Más información en la <a href="/privacidad.html" style="color:var(--azul)">política de privacidad</a>.
     </p>

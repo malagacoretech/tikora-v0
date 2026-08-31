@@ -211,6 +211,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .btn{display:block;width:100%;padding:1.05rem;border:none;border-radius:14px;background:var(--accent);color:#0A1628;font-weight:700;font-size:1rem;cursor:pointer;font-family:inherit;margin-top:0.5rem}
 .btn:active{transform:scale(0.985)}
 .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn.link{text-decoration:none;text-align:center;box-sizing:border-box}
+.tokenintro{line-height:1.55;margin-bottom:1rem}
+#tokenBox{display:none;margin-top:0.9rem;padding-top:0.85rem;border-top:1px solid var(--border)}
+#tokenBox.on{display:block}
 
 /* ====== COLA PENDIENTES ====== */
 /* v77: era una caja maciza de ancho completo que tapaba la factura al encuadrar, y repetia
@@ -930,16 +934,20 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div class="muted" style="text-align:center;margin-top:1rem" id="shotStatus"></div>
 </div>
 
-<!-- Pantalla 3: falta el token de alta -->
+<!-- Pantalla 3: entrada publica clara + activacion de clientes -->
 <div class="screen" id="screenToken">
-  <div class="brandbig"><h1>Tikora<span>.</span></h1><p>Captura de facturas</p></div>
+  <div class="brandbig"><h1>Tikora<span>.</span></h1><p>Tus facturas, ordenadas con una foto</p></div>
   <div class="card">
-    <h2>Falta tu enlace de alta</h2>
-    <p class="muted">Esta app se activa con el enlace personal que te mand&oacute; Tikora por WhatsApp (termina en <b>?u=TUCODIGO</b>). &Aacute;brelo una vez y quedar&aacute; configurada para siempre.</p>
-    <div class="field"><label>O escribe tu c&oacute;digo</label><input id="tokenInput" autocomplete="off" autocapitalize="characters" placeholder="EJ: SP"></div>
-    <button class="btn" id="tokenSave" type="button">Activar</button>
+    <h2>Una foto y segu&iacute;s</h2>
+    <p class="muted tokenintro">Sac&aacute;s una foto a cada factura de compra. Tikora lee los datos, te avisa si algo no cuadra y prepara el mes para tu gestor.</p>
+    <a class="btn link" href="/alta.html">Quiero probar Tikora</a>
+    <button class="btn secondary" id="tokenShow" type="button">Ya soy cliente</button>
+    <div id="tokenBox">
+      <p class="muted">Escrib&iacute; tu c&oacute;digo personal para activar este tel&eacute;fono.</p>
+      <div class="field"><label>Tu c&oacute;digo</label><input id="tokenInput" autocomplete="off" autocapitalize="characters" placeholder="Tu c&oacute;digo"></div>
+      <button class="btn" id="tokenSave" type="button">Activar este tel&eacute;fono</button>
+    </div>
   </div>
-  <p class="muted" style="text-align:center">&iquest;No tienes c&oacute;digo? Escribe a <b>matias@tikora.es</b></p>
 </div>
 
 <!-- Pestaña 2: Mi panel (lee el Sheet vía n8n) -->
@@ -6083,6 +6091,13 @@ function boot(){
   } else { marcarTurno(); }
 }
 $('bigShot').addEventListener('click', openNative);
+$('tokenShow').addEventListener('click', function(){
+  var box = $('tokenBox');
+  var abrir = !box.classList.contains('on');
+  box.classList.toggle('on', abrir);
+  this.textContent = abrir ? 'Ocultar código' : 'Ya soy cliente';
+  if (abrir) setTimeout(function(){ $('tokenInput').focus(); }, 0);
+});
 $('tokenSave').addEventListener('click', function(){
   var v = ($('tokenInput').value||'').trim().toUpperCase();
   if (!v){ toast('Escribí tu código', true); return; }
@@ -6138,7 +6153,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v191';
+var APP_VER = 'v192';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

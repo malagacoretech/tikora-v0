@@ -3080,7 +3080,7 @@ $('cardSinIva').addEventListener('click', function(){
     $('sinIvaRows').style.display = 'none';
     $('cardSinIva').classList.remove('filtro');
   } else {
-    cerrarListaRehacer();
+    cerrarListaRehacer(); cerrarListaVarios();
     $('sinIvaRows').style.display = 'block';
     $('cardSinIva').classList.add('filtro');
     $('sinIvaRows').scrollIntoView({ block: 'nearest' });
@@ -3089,6 +3089,11 @@ $('cardSinIva').addEventListener('click', function(){
 function cerrarListaSinIva(){
   $('sinIvaRows').style.display = 'none';
   $('cardSinIva').classList.remove('filtro');
+}
+/* 'Varios' se deselecciona igual que 'Sin IVA' — una sola carpeta abierta a la vez (P0-VAR-01.B §A) */
+function cerrarListaVarios(){
+  $('variosRows').style.display = 'none';
+  $('cardVarios').classList.remove('filtro');
 }
 /* ============ v139: LA CARPETA VARIOS ============
    Papeles útiles que NO son facturas (certificados, contratos, revisiones de extintores…)
@@ -3199,7 +3204,7 @@ $('heroComp').addEventListener('click', function(){
 /* v145: la pastilla de albaranes filtra la lista de un toque (y de otro, vuelve) */
 $('cardAlbaran').addEventListener('click', function(){
   panelFiltroAlbaran = !panelFiltroAlbaran;
-  if (panelFiltroAlbaran){ cerrarListaRehacer(); cerrarListaSinIva(); }
+  if (panelFiltroAlbaran){ cerrarListaRehacer(); cerrarListaSinIva(); cerrarListaVarios(); }
   renderLista();
 });
 $('cardVarios').addEventListener('click', function(){
@@ -4577,8 +4582,8 @@ function pintarMenuOrden(){
 })();
 /* v93: las vistas APAGAN "para repetir" solas — desde que es pastilla hermana (v91), tocar
    "Últimas facturas" o "Por proveedor" debe sacarte de la lista de repetir sin segundo toque. */
-$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; cerrarListaRehacer(); cerrarListaSinIva(); renderLista(); });
-$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; cerrarListaRehacer(); cerrarListaSinIva(); pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
+$('segUltimas').addEventListener('click', function(){ panelModo = 'ultimas'; panelProvSel = null; panelFiltroPago = ''; panelFiltroSemana = false; cerrarListaRehacer(); cerrarListaSinIva(); cerrarListaVarios(); renderLista(); });
+$('segProv').addEventListener('click', function(){ panelModo = 'prov'; panelProvSel = null; panelFiltroPago = ''; panelEntro = ''; cerrarListaRehacer(); cerrarListaSinIva(); cerrarListaVarios(); pintarMeses(); pintarHero(); renderLista();   /* v79: 'Por proveedor' agrega de todo el historico, asi que no puede convivir con Hoy/Semana */ });
 /* v28/v33: tocar la tarjeta roja = filtro sin-pagar; los chips filtran por cualquier forma de pago */
 $('cardDebe').addEventListener('click', function(){
   panelFiltroPago = (panelFiltroPago === 'pendiente') ? '' : 'pendiente';
@@ -6196,7 +6201,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v193';
+var APP_VER = 'v194';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

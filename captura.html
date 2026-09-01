@@ -4736,10 +4736,8 @@ $('weekPill').addEventListener('click', function(){
 });
 /* v44: Para tu gestoría — el paquete del mes por email (solo dueño; el servidor también lo exige) */
 var GEST_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-gestapp-5e8b2f9c4a7d';
-/* v50: descartar pendiente (motor del Cowork paralelo) + correccion directa en la hoja.
-   HOJA_REVISAR por ahora apunta al Sheet de SP (unico cliente operativo); multi-cliente pasara por el Panel API. */
+/* v50: descartar pendiente mediante el endpoint autorizado del servidor. */
 var DESCARTAR_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-descartar-4f8e21a7c063';
-var HOJA_REVISAR = 'https://docs.google.com/spreadsheets/d/1QsVGPnYvvjv39lzFjd9PfQgW3dgvlxOF0o-xYuiazkQ/edit#gid=83482685';
 /* v53: avisos push nativos (Web Push propio, sin terceros). La clave pública es pública por diseño. */
 var PUSH_ALTA_URL = 'https://malagacoretech.app.n8n.cloud/webhook/tikora-push-alta-8d3f52a9';
 var VAPID_PUB = 'BFEKQgx6V1LKc2qTEWp_kdzyptXrWIPORfDAh5qq9D9hG6Y-zAwO0Qbg3zn7c_vyH4wYjFqTZbijGJ_3UQkDYGE';

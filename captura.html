@@ -456,7 +456,7 @@ input[type=file]{display:none}
 .chatbar input:focus{border-color:var(--accent)}
 .chatbar button{width:2.8rem;height:2.8rem;flex-shrink:0;border-radius:50%;border:none;background:var(--accent);color:#0A1628;font-size:1rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .chatbar button:disabled{opacity:0.5}
-.chatbar button.micbtn{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.chatbar button.micbtn{background:var(--surface);border:1px solid var(--border);color:var(--text);min-height:0;margin-top:0;font-size:1.15rem}
 .chatbar button.micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
 /* v12: mini-ficha de factura + dictado por voz */
 #ficha{position:fixed;inset:0;background:rgba(4,10,20,0.62);z-index:60;display:none;align-items:flex-end}
@@ -998,7 +998,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <button type="button" id="verFotosMes" class="dbtn sec" style="margin:0 0 0.6rem">&#128247; Ver todas las fotos del mes</button>
   <div class="seg">
     <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
-    <button type="button" id="segProv">Por proveedor</button>
+    <button type="button" id="segProv">Por proveedores</button>
     <!-- v89: "Para repetir" deja de ser tarjeta a lo ancho y vive aqui como pastilla,
          al lado de las dos vistas (pedido de Matias 06:13: "asi no ocupa espacio de arriba
          hacia abajo"). Mismos ids y mismo comportamiento de filtro que la tarjeta vieja. -->
@@ -1138,10 +1138,10 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   </div>
   <div class="chatbar">
     <input id="chatInput" type="text" placeholder="Escrib&iacute; tu pregunta&hellip;" autocomplete="off" maxlength="400">
+    <button id="chatMic" class="micbtn" type="button" aria-label="Dictar tu pregunta">&#127908;</button>
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
-  <button id="chatMic" class="micbtn" type="button" aria-label="Dictar tu pregunta">&#127908; Habl&aacute; conmigo</button>
-  <p class="legal">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
+  <p class="legal" style="margin-top:0.55rem">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
 <!-- QR a pantalla completa (para escanear de lejos, en el mostrador) -->
@@ -3227,21 +3227,34 @@ $('verFotosMes').addEventListener('click', function(){
 $('heroComp').addEventListener('click', function(){
   if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
   var filas = filasDelMes(panelData.rows || []);
-  var base = 0, iva = 0, deben = 0, nDeben = 0, provs = {};
+  var base = 0, iva = 0, total = 0, deben = 0, nDeben = 0, provs = {};
   filas.forEach(function(r){
-    base += r.base || 0; iva += r.iva || 0;
+    base += r.base || 0; iva += r.iva || 0; total += r.total || 0;
     if (String(r.pago || '').toLowerCase() === 'pendiente'){ nDeben++; deben += r.total || 0; }
     var k = (r.emisor && r.emisor.charAt(0) !== '(') ? r.emisor : 'sin leer';
     provs[k] = (provs[k] || 0) + (r.total || 0);
   });
-  var top = Object.keys(provs).sort(function(a, b){ return provs[b] - provs[a]; }).slice(0, 3)
-    .map(function(k){ return k + ' (' + fmtEur(provs[k]) + ')'; }).join(' · ');
+  var claves = Object.keys(provs);
+  var nProv = claves.length;
+  var top = claves.sort(function(a, b){ return provs[b] - provs[a]; }).slice(0, 3);
   var mesTxt = panelMes ? nombreMes(panelMes) : 'el período';
-  var texto = 'Resumen Tikora — ' + mesTxt + '\n'
-    + filas.length + (filas.length === 1 ? ' factura' : ' facturas') + ' · Base ' + fmtEur(base) + ' · IVA identificado ' + fmtEur(iva)
-    + (nDeben ? ('\nSin pagar: ' + nDeben + (nDeben === 1 ? ' factura · ' : ' facturas · ') + fmtEur(deben)) : '')
-    + (top ? ('\nMayores proveedores: ' + top) : '')
-    + '\n(IVA identificado: estimación sobre las facturas capturadas — la deducción la confirma tu gestor)';
+  /* v197: resumen más completo y legible (pedido de Matías). Sin prometer ahorro ni
+     deducibilidad: el IVA es "identificado" y la deducción la confirma el gestor. */
+  var L = [];
+  L.push('Resumen Tikora — ' + mesTxt);
+  L.push('');
+  L.push('Facturas: ' + filas.length + (nProv ? (' (de ' + nProv + (nProv === 1 ? ' proveedor)' : ' proveedores)')) : ''));
+  L.push('Base imponible: ' + fmtEur(base));
+  L.push('IVA identificado: ' + fmtEur(iva));
+  L.push('Total: ' + fmtEur(total));
+  if (nDeben) { L.push('Sin pagar: ' + nDeben + (nDeben === 1 ? ' factura (' : ' facturas (') + fmtEur(deben) + ')'); }
+  if (top.length) {
+    L.push('Mayores proveedores:');
+    top.forEach(function(k){ L.push(' · ' + k + ' (' + fmtEur(provs[k]) + ')'); });
+  }
+  L.push('');
+  L.push('El IVA identificado es una estimación sobre las facturas capturadas; la deducción la confirma tu gestor.');
+  var texto = L.join('\n');
   if (navigator.share){ navigator.share({ title: 'Resumen Tikora — ' + mesTxt, text: texto }).catch(function(){}); }
   else { copiar(texto, null); toast('Resumen copiado — pegalo donde quieras'); }
 });
@@ -6245,7 +6258,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v196';
+var APP_VER = 'v197';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

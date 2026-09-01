@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v198'; /* v198: abrir Varios/Sin IVA ya no baja la pantalla (sin scrollIntoView); y botón "Leer en voz" en Preguntar que lee la respuesta de la IA en voz alta (toggle, reusa la voz del navegador). */
+var VERSION = 'tikora-captura-v199'; /* v199: "Boletas/Facturas" (antes "Últimas facturas"); "Ver todas las fotos" respeta la carpeta activa (Sin IVA/Varios/Revisar/albaranes/forma de pago/proveedor); y voz de la IA más natural y pausada (voz española del dispositivo, ritmo 0.9). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

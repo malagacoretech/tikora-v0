@@ -997,9 +997,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button type="button" class="heroComp" id="heroComp">&#128228; Enviar resumen del mes</button>
   </div>
   <!-- v187: ver TODAS las fotos del mes en el visor con flechas (pedido de Matias: "una opcion de fotos") -->
-  <button type="button" id="verFotosMes" class="dbtn sec" style="margin:0 0 0.6rem">&#128247; Ver todas las fotos del mes</button>
+  <button type="button" id="verFotosMes" class="dbtn sec" style="margin:0 0 0.6rem">&#128247; Ver todas las fotos</button>
   <div class="seg">
-    <button type="button" id="segUltimas" class="on">&Uacute;ltimas facturas</button>
+    <button type="button" id="segUltimas" class="on">Boletas/Facturas</button>
     <button type="button" id="segProv">Por proveedores</button>
     <!-- v89: "Para repetir" deja de ser tarjeta a lo ancho y vive aqui como pastilla,
          al lado de las dos vistas (pedido de Matias 06:13: "asi no ocupa espacio de arriba
@@ -3217,14 +3217,59 @@ function pintarVarios(){
 /* v152: EL RESUMEN DEL MES, enviable — texto limpio por el menú nativo (WhatsApp, Gmail...).
    Con el disclaimer de siempre: "identificado", jamás "ahorrado" (regla 4.5/4.2). */
 /* v187: ver TODAS las fotos del mes en el visor con flechas (más nuevas primero) */
+/* v199: "Ver todas las fotos" respeta la CARPETA que estás mirando (pedido de Matías:
+   "cada carpeta puede ver todas sus fotos"). Sin IVA, Varios y Revisar traen las suyas;
+   en facturas respeta el filtro activo (albaranes, forma de pago, proveedor). */
+function fotosCarpetaActiva(){
+  var out = { lista: [], etiqueta: '' };
+  function push(fid, rot){ if (fid) out.lista.push({ fid: fid, rotulo: rot || 'Factura' }); }
+  var sinIvaAbierto = $('sinIvaRows') && $('sinIvaRows').style.display === 'block';
+  var variosAbierto = $('variosRows') && $('variosRows').style.display === 'block';
+  var revisarAbierto = $('rehacerRows') && $('rehacerRows').style.display === 'block';
+  if (sinIvaAbierto && typeof sinIvaDatos !== 'undefined' && sinIvaDatos){
+    out.etiqueta = 'Sin IVA';
+    (sinIvaDatos.filas || []).forEach(function(s){
+      var m = String(s.foto || '').match(/\/d\/([A-Za-z0-9_\-]{20,})/);
+      push(m ? m[1] : null, (s.emisor && s.emisor.charAt(0) !== '(' ? s.emisor : 'Sin IVA') + (s.fecha ? (' · ' + s.fecha) : ''));
+    });
+    return out;
+  }
+  if (variosAbierto){
+    out.etiqueta = 'Varios';
+    ((panelData && panelData.varios) || []).forEach(function(o){ push(o.fid, (o.tipo || 'Papel') + (o.fecha ? (' · ' + o.fecha) : '')); });
+    return out;
+  }
+  if (revisarAbierto){
+    out.etiqueta = 'Revisar';
+    ((panelData && panelData.pendientes) || []).forEach(function(c){
+      var fid = c.fid || fotoId(c.foto);
+      push(fid, (c.emisor || c.tipo || 'Para revisar') + (c.fecha ? (' · ' + fmtFecha(c.fecha)) : ''));
+    });
+    return out;
+  }
+  var rows = filasDelMes((panelData && panelData.rows) || []).slice();
+  if (panelFiltroAlbaran){ rows = rows.filter(function(r){ return String(r.deducible || '').toLowerCase() === 'albaran'; }); out.etiqueta = 'Albaranes'; }
+  if (panelFiltroPago){
+    rows = rows.filter(function(r){ var p = String(r.pago || '').toLowerCase();
+      if (panelFiltroPago === 'nada') return !p;
+      if (panelFiltroPago === 'pendiente') return p === 'pendiente';
+      return p === panelFiltroPago; });
+    out.etiqueta = (panelFiltroPago === 'nada') ? 'Sin asignar' : (panelFiltroPago === 'pendiente' ? 'Sin pagar' : panelFiltroPago);
+  }
+  if (panelProvSel){
+    rows = rows.filter(function(r){ return (r.clave === panelProvSel) || (normTxt(String(r.emisor || '').trim() || '(proveedor sin leer)') === panelProvSel); });
+    if (!out.etiqueta) out.etiqueta = 'proveedor';
+  }
+  if (!out.etiqueta) out.etiqueta = 'Boletas/Facturas';
+  rows.sort(function(a, b){ return (tsFecha(b.fecha) || 0) - (tsFecha(a.fecha) || 0); });
+  rows.forEach(function(r){ push(fotoId(r.foto), (r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '')); });
+  return out;
+}
 $('verFotosMes').addEventListener('click', function(){
   if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
-  var rows = filasDelMes(panelData.rows || []).slice();
-  rows.sort(function(a, b){ return (tsFecha(b.fecha) || 0) - (tsFecha(a.fecha) || 0); });
-  var lista = [];
-  rows.forEach(function(r){ var fid = fotoId(r.foto); if (fid) lista.push({ fid: fid, rotulo: (r.emisor || 'Factura') + (r.fecha ? (' · ' + fmtFecha(r.fecha)) : '') }); });
-  if (!lista.length){ toast('No hay fotos en este mes', true); return; }
-  if (!fvAbrirRemotasChat(lista, 0)) toast('No se pudieron abrir las fotos', true);
+  var r = fotosCarpetaActiva();
+  if (!r.lista.length){ toast('No hay fotos en ' + (r.etiqueta || 'esta carpeta'), true); return; }
+  if (!fvAbrirRemotasChat(r.lista, 0)) toast('No se pudieron abrir las fotos', true);
 });
 $('heroComp').addEventListener('click', function(){
   if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
@@ -4811,8 +4856,28 @@ $('panelRefresh').addEventListener('click', function(){ loadPanel(false); });
 var VOZ_KEY = 'tikora_voz_avisos';
 var vozOn = false; try { vozOn = localStorage.getItem(VOZ_KEY) === '1'; } catch(e){}
 function vozPinta(){ var b = $('vozBtn'); if (b) b.classList.toggle('vozon', vozOn); }
+/* v199: voz más natural y pausada — elige una voz española del dispositivo y baja el ritmo. */
+var _vozVoz = null;
+function elegirVozEs(){
+  try {
+    var vs = window.speechSynthesis.getVoices() || [];
+    var es = vs.filter(function(v){ return /^es/i.test(v.lang || ''); });
+    if (!es.length) return null;
+    var pref = es.filter(function(v){ return /google|natural|premium|enhanced|microsoft|m[oó]nica|helena|elvira|laura|paulina/i.test(v.name || ''); });
+    var base = pref.length ? pref : es;
+    var esES = base.filter(function(v){ return /es[-_]ES/i.test(v.lang || ''); });
+    return esES[0] || base[0] || null;
+  } catch(e){ return null; }
+}
+try { window.speechSynthesis.onvoiceschanged = function(){ _vozVoz = elegirVozEs(); }; } catch(e){}
 function vozDecir(txt){
-  try { var u = new SpeechSynthesisUtterance(txt); u.lang = 'es-ES'; u.rate = 1.02; window.speechSynthesis.speak(u); } catch(e){}
+  try {
+    var u = new SpeechSynthesisUtterance(txt);
+    u.lang = 'es-ES'; u.rate = 0.9; u.pitch = 1.0;
+    if (!_vozVoz) _vozVoz = elegirVozEs();
+    if (_vozVoz) u.voice = _vozVoz;
+    window.speechSynthesis.speak(u);
+  } catch(e){}
 }
 function vozVistasKey(){ return 'tikora_voz_vistas_' + (TOKEN || ''); }
 function vozKeyRow(r){ return String(r.entro || '') + '|' + String(r.nfac || r.emisor || '') + '|' + String(r.total || ''); }
@@ -6277,7 +6342,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v198';
+var APP_VER = 'v199';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

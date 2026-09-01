@@ -494,6 +494,8 @@ input[type=file]{display:none}
 /* v61: el dictado existia desde la v12 detras de un iconito de 3rem y no lo encontraba nadie.
    Ahora es un boton ancho, con texto y debajo del campo: se ve lo que hace sin explicarlo. */
 .micbtn{width:100%;margin-top:0.6rem;min-height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:0.5rem;border-radius:16px;border:1px solid var(--accent);background:rgba(244,201,93,0.1);color:var(--accent);font-family:inherit;font-size:0.98rem;font-weight:800;cursor:pointer}
+.chatvoz{display:block;margin:0.5rem auto 0;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:0.35rem 0.9rem;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
+.chatvoz.on{background:rgba(244,201,93,0.15);border-color:var(--accent);color:var(--accent)}
 .micbtn:active{transform:scale(0.98)}
 .micbtn.rec{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 .micbtn.rec{background:#B3261E;border-color:#B3261E;color:#fff}
@@ -1141,7 +1143,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button id="chatMic" class="micbtn" type="button" aria-label="Dictar tu pregunta">&#127908;</button>
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
-  <p class="legal" style="margin-top:0.55rem">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
+  <button type="button" id="chatVozBtn" class="chatvoz">&#128266; Leer en voz</button>
+  <p class="legal" style="margin-top:0.5rem">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
 <!-- QR a pantalla completa (para escanear de lejos, en el mostrador) -->
@@ -3127,7 +3130,6 @@ $('cardSinIva').addEventListener('click', function(){
     cerrarListaRehacer(); cerrarListaVarios();
     $('sinIvaRows').style.display = 'block';
     $('cardSinIva').classList.add('filtro');
-    $('sinIvaRows').scrollIntoView({ block: 'nearest' });
   }
 });
 function cerrarListaSinIva(){
@@ -3273,7 +3275,6 @@ $('cardVarios').addEventListener('click', function(){
     cerrarListaRehacer(); cerrarListaSinIva();
     $('variosRows').style.display = 'block';
     $('cardVarios').classList.add('filtro');
-    $('variosRows').scrollIntoView({ block: 'nearest' });
   }
 });
 
@@ -5264,6 +5265,24 @@ function chatFlecha(){
   chatDown.classList.toggle('on', falta > 60);
 }
 $('chatMsgs').addEventListener('scroll', chatFlecha, { passive: true });
+/* v198: botón "Leer en voz" en Preguntar — lee la respuesta de la IA en voz alta (reusa vozDecir). */
+var CHATVOZ_KEY = 'tikora_chat_voz';
+var chatVozOn = false; try { chatVozOn = localStorage.getItem(CHATVOZ_KEY) === '1'; } catch(e){}
+(function(){
+  var b = $('chatVozBtn'); if (!b) return;
+  if (!('speechSynthesis' in window)){ b.style.display = 'none'; return; }
+  function pinta(){ b.classList.toggle('on', chatVozOn); b.setAttribute('aria-pressed', chatVozOn ? 'true' : 'false'); b.textContent = chatVozOn ? '🔊 Voz activada' : '🔊 Leer en voz'; }
+  pinta();
+  b.addEventListener('click', function(){
+    chatVozOn = !chatVozOn;
+    try { localStorage.setItem(CHATVOZ_KEY, chatVozOn ? '1' : '0'); } catch(e){}
+    pinta();
+    if (chatVozOn){
+      var bots = $('chatMsgs').querySelectorAll('.cmsg.bot:not(.pend)');
+      if (bots.length){ try { vozDecir(limpiarParaVoz(bots[bots.length - 1].textContent)); } catch(e){} }
+    } else { try { window.speechSynthesis.cancel(); } catch(e){} }
+  });
+})();
 function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
 var chatHistCargado = false;   /* v174: el historial se pinta una vez por apertura de la app */
 function chatHello(){
@@ -5356,7 +5375,7 @@ function chatEntregar(resp, q, pend, porVoz){
   var m = $('chatMsgs');
   m.scrollTo({ top: Math.max(0, pend.offsetTop - 6), behavior: 'smooth' });
   setTimeout(chatFlecha, 450);
-  if (porVoz) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
+  if (porVoz || chatVozOn) { try { vozDecir(limpiarParaVoz(resp)); } catch(e){} }
   chatPend = false; chatPendBubble = null; chatBoton(); chatFlecha();
 }
 function chatVisto(q){
@@ -6258,7 +6277,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v197';
+var APP_VER = 'v198';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

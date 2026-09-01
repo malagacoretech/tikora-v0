@@ -165,6 +165,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #fotoVis .fvNext{right:0.6rem}
 #fotoVis .fvPreg{position:absolute;bottom:calc(5.4rem + env(safe-area-inset-bottom));left:1rem;right:1rem;min-height:48px;border-radius:14px;border:none;background:var(--accent);color:#0A1628;font-family:inherit;font-size:0.92rem;font-weight:800;cursor:pointer}
 #fotoVis .fvHint{position:absolute;bottom:calc(9.6rem + env(safe-area-inset-bottom));left:1rem;right:1rem;text-align:center;color:#cdd8e4;font-size:0.78rem;background:rgba(10,22,40,0.82);padding:0.4rem 0.7rem;border-radius:10px}
+/* v195: ficha de la boleta bajo la foto, entre la imagen y Volver */
+#fotoVis .fvFicha{position:absolute;bottom:calc(4.8rem + env(safe-area-inset-bottom));left:1rem;right:1rem;max-height:40vh;overflow-y:auto;background:rgba(10,22,40,0.93);border:1px solid var(--border);border-radius:12px;padding:0.55rem 0.8rem;z-index:2}
+#fotoVis .fvFicha .fft{color:var(--accent);font-size:0.95rem;font-weight:800;margin-bottom:0.3rem}
+#fotoVis .fvFicha .ffr{display:flex;justify-content:space-between;gap:0.8rem;font-size:0.82rem;line-height:1.55;color:var(--text)}
+#fotoVis .fvFicha .ffk{color:var(--text-muted)}
+#fotoVis .fvFicha .ffv{text-align:right;font-weight:600}
 /* v157: ASIGNAR EL PAGO CON LA FOTO DELANTE. Matias, 19-ago, mirando el filtro "Sin asignar":
    "cuando vea la foto estaria bueno tener la opcion de asignarlas; esta como huerfana ahi, la
    foto no nos da la opcion de nada". Tenia razon: para decidir hay que VER el papel, y hasta
@@ -867,6 +873,7 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
      que ir a la cruz de arriba de todo". La cruz sigue arriba para quien la busque. -->
 <button type="button" class="fvVolver" id="fvVolver">&#10229; Volver</button>
 <div class="fvHint" id="fvHint">Fotos de esta sesi&oacute;n de captura &mdash; las facturas ya viajaron al panel; esto es solo para repasar</div>
+<div class="fvFicha" id="fvFicha" style="display:none"></div>
 </div>
 
 <!-- v100: EL CORRECTOR. Hasta ahora el botón "corregir" abría Google Sheets en el móvil:
@@ -2013,6 +2020,7 @@ function fvPinta(){
   $('fvPreg').style.display = 'none';
   fvPagoPintar(null, null);   /* v157: fotos de sesión o galería del chat: no hay factura a la que asignarle nada */
   $('fvHint').textContent = 'Fotos de esta sesión de captura — las facturas ya viajaron al panel; esto es solo para repasar';
+  $('fvFicha').style.display = 'none';   /* v195: sin ficha en fotos de sesión (todavía no son facturas) */
 }
 
 /* ===== v89: EL VISOR TAMBIÉN ABRE FOTOS DEL SERVIDOR =====
@@ -2069,6 +2077,7 @@ function fvAbrirRemota(fid, rotulo, pagoActual){
   $('fvNext').style.visibility = 'hidden';
   $('fvPreg').style.display = ES_EMPLEADO ? 'none' : 'block';
   $('fvHint').textContent = 'Tocá la foto para acercarla y arrastrá para recorrerla';
+  $('fvFicha').style.display = 'none';   /* v195: foto única — la ficha se muestra en la galería de facturas */
   fvPagoPintar(fid, pagoActual);   /* v157: los botones de pago, si esta foto es de una factura */
   fvZoom(false);
   $('fotoVis').classList.add('on');
@@ -2137,7 +2146,39 @@ function fvPintaRemotas(){
   $('fvNext').style.visibility = fvRIdx < fvRemotas.length - 1 ? 'visible' : 'hidden';
   $('fvPreg').style.display = 'none';
   fvPagoPintar(null, null);   /* v157: fotos de sesión o galería del chat: no hay factura a la que asignarle nada */
-  $('fvHint').textContent = 'Deslizá con las flechas para ver las demás fotos de esta respuesta';
+  $('fvHint').style.display = 'none';   /* v195: la ficha reemplaza al texto de deslizar */
+  fvFichaPinta(it.fid);
+}
+/* v195: ficha de la boleta bajo la foto (dueño con importes; empleado sin importes).
+   Busca la fila por su foto en el panel; si no hay datos, no muestra nada. */
+function fvFichaPinta(fid){
+  var box = $('fvFicha'); if (!box) return;
+  var r = null, rows = (panelData && panelData.rows) || [];
+  for (var i = 0; i < rows.length; i++){ if (fotoId(rows[i].foto) === fid){ r = rows[i]; break; } }
+  var o = null;
+  if (!r){ var ot = (panelData && panelData.otros) || []; for (var j = 0; j < ot.length; j++){ if (ot[j].fid === fid){ o = ot[j]; break; } } }
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : (c === '<' ? '&lt;' : '&gt;'); }); }
+  function fila(k, v){ if (v === '' || v === null || v === undefined) return ''; return '<div class="ffr"><span class="ffk">' + esc(k) + '</span><span class="ffv">' + esc(v) + '</span></div>'; }
+  function eur(v){ if (v === '' || v === null || v === undefined) return ''; var n = Number(v); return isFinite(n) ? fmtEur(n) : ''; }
+  var html = '';
+  if (r){
+    html += '<div class="fft">' + esc(r.emisor || 'Factura') + '</div>';
+    html += fila('NIF', r.nif);
+    html += fila('Fecha', r.fecha ? fmtFecha(r.fecha) : '');
+    html += fila('Nº', r.nfac);
+    if (!ES_EMPLEADO){
+      html += fila('Base', eur(r.base));
+      html += fila('IVA', eur(r.iva));
+      html += fila('Total', eur(r.total));
+    }
+    html += fila('Pago', r.pago ? fvPagoPalabra(String(r.pago).toLowerCase()) : '');
+  } else if (o){
+    html += '<div class="fft">' + esc(o.emisor || o.tipo || 'Documento') + '</div>';
+    html += fila('Tipo', o.tipo);
+    html += fila('Fecha', o.fecha ? fmtFecha(o.fecha) : '');
+  }
+  if (html){ box.innerHTML = html; box.style.display = 'block'; }
+  else { box.style.display = 'none'; }
 }
 function fvAbrirRemotasChat(lista, idx){
   if (!lista || !lista.length || !TOKEN) return false;
@@ -2176,6 +2217,9 @@ function fvZoom(encender, xRel, yRel){
   var quiero = (typeof encender === 'boolean') ? encender : !z.classList.contains('zoom');
   z.classList.toggle('zoom', quiero);
   if (b) b.classList.toggle('activo', quiero);
+  /* v195: al ampliar, la ficha estorba; se oculta y vuelve al desampliar (solo en galería de facturas) */
+  var _ff = $('fvFicha');
+  if (_ff){ if (quiero){ _ff.style.display = 'none'; } else if (fvModoRemotas && fvRemota){ fvFichaPinta(fvRemota); } }
   if (quiero){
     /* centrar en el punto que tocó, no en la esquina */
     setTimeout(function(){
@@ -6201,7 +6245,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v194';
+var APP_VER = 'v195';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -3257,7 +3257,10 @@ $('verFotosMes').addEventListener('click', function(){
 });
 $('heroComp').addEventListener('click', function(){
   if (!panelData || !panelData.rows){ toast('El panel aún no cargó — probá en un momento', true); return; }
-  var filas = filasDelMes(panelData.rows || []);
+  var todasF = filasDelMes(panelData.rows || []);
+  /* R9: albaranes fuera de las cifras del resumen; se cuentan aparte */
+  var filas = todasF.filter(function(r){ return String(r.deducible || '').toLowerCase() !== 'albaran'; });
+  var nAlb = todasF.length - filas.length;
   var base = 0, iva = 0, total = 0, deben = 0, nDeben = 0, provs = {};
   filas.forEach(function(r){
     base += r.base || 0; iva += r.iva || 0; total += r.total || 0;
@@ -3278,6 +3281,7 @@ $('heroComp').addEventListener('click', function(){
   L.push('Base imponible: ' + fmtEur(base));
   L.push('IVA identificado: ' + fmtEur(iva));
   L.push('Total: ' + fmtEur(total));
+  if (nAlb) { L.push('Albaranes (pendientes de su factura, no suman): ' + nAlb); }
   if (nDeben) { L.push('Sin pagar: ' + nDeben + (nDeben === 1 ? ' factura (' : ' facturas (') + fmtEur(deben) + ')'); }
   if (top.length) {
     L.push('Mayores proveedores:');
@@ -3894,7 +3898,11 @@ function pintarCuadre(){
 }
 
 function pintarHero(){
-  var rows = filasDelMes((panelData && panelData.rows) || []);
+  var todas = filasDelMes((panelData && panelData.rows) || []);
+  /* R9: los albaranes NO suman a las cifras fiscales (su factura definitiva puede llegar
+     después); se cuentan y se muestran aparte como "pendientes de su factura". */
+  var rows = todas.filter(function(r){ return String(r.deducible || '').toLowerCase() !== 'albaran'; });
+  var nAlb = todas.length - rows.length;
   var iva = 0, base = 0;
   rows.forEach(function(r){ iva += (r.iva || 0); base += (r.base || 0); });
   var lbl = $('pIvaLbl');
@@ -3911,10 +3919,14 @@ function pintarHero(){
   /* v181: tres renglones limpios en vez de una línea que se cortaba fea. La cuenta de facturas,
      más grande y en amarillo; debajo Sin IVA y Total con IVA, cada uno en su renglón. */
   if (pie){
-    if (rows.length){
-      pie.innerHTML = '<div class="hpN">' + rows.length + (rows.length === 1 ? ' factura' : ' facturas') + '</div>'
-        + '<div class="hpR">Sin IVA · ' + fmtEur(Math.round(base * 100) / 100) + '</div>'
-        + '<div class="hpR">Total con IVA · ' + fmtEur(Math.round((base + iva) * 100) / 100) + '</div>';
+    if (rows.length || nAlb){
+      var _h = rows.length
+        ? ('<div class="hpN">' + rows.length + (rows.length === 1 ? ' factura' : ' facturas') + '</div>'
+          + '<div class="hpR">Sin IVA · ' + fmtEur(Math.round(base * 100) / 100) + '</div>'
+          + '<div class="hpR">Total con IVA · ' + fmtEur(Math.round((base + iva) * 100) / 100) + '</div>')
+        : '<div class="hpN">0 facturas</div>';
+      if (nAlb) _h += '<div class="hpR">' + nAlb + (nAlb === 1 ? ' albarán · pendiente de su factura' : ' albaranes · pendientes de su factura') + '</div>';
+      pie.innerHTML = _h;
     } else {
       pie.textContent = panelEntro === 'hoy' ? 'Todavía no ha ingresado nada hoy.'
         : panelEntro === 'semana' ? 'Todavía no ha ingresado nada esta semana.'
@@ -6328,7 +6340,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v200';
+var APP_VER = 'v201';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

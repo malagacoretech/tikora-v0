@@ -3833,21 +3833,21 @@ function pintarCuadre(){
   }
 
   var huerf = Number(c.huerfanos || 0);
-  var apart = Number(c.apartadas || 0);
-  var cola  = apart ? (' · ' + apart + (apart === 1 ? ' apartada por peso' : ' apartadas por peso')) : '';
 
+  /* v196 (pedido de Matías): la línea de abajo NO muestra fotos/filas/apartadas;
+     solo la hora de la última actualización. El aviso de "fotos sin procesar"
+     sigue apareciendo en su tarjeta cuando de verdad hay algo que mirar. */
   if (huerf > 0){
     caja.style.display = 'block';
     $('cuadreTxt').textContent = huerf + (huerf === 1 ? ' foto sin procesar' : ' fotos sin procesar');
     $('cuadreHint').textContent = 'Están en la carpeta pero todavía no tienen fila. El sistema las recoge solo cada pocos minutos; si el número no baja, avisá.';
-    linea.textContent = 'Cuadre a las ' + String(c.cuando || '').slice(-5) + ': ' + c.drive + ' fotos · ' + c.filas + ' filas' + cola;
-    linea.className = 'cuadrelinea mal';
   } else {
     caja.style.display = 'none';
-    linea.textContent = '✓ Todo cuadra · ' + c.drive + ' fotos · ' + c.filas + ' filas' + cola +
-                        (c.cuando ? (' · ' + String(c.cuando).slice(-5)) : '');
-    linea.className = 'cuadrelinea bien';
   }
+
+  var hora = c.cuando ? String(c.cuando).slice(-5) : '';
+  linea.textContent = hora ? ('Actualizado ' + hora) : '';
+  linea.className = 'cuadrelinea' + (huerf > 0 ? ' mal' : ' bien');
 }
 
 function pintarHero(){
@@ -6245,7 +6245,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v195';
+var APP_VER = 'v196';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

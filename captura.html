@@ -1576,26 +1576,10 @@ function conClave(alPasar){
    Se puede cambiar cuando se quiera desde "Mis datos". */
 var QUIEN_KEY = 'tikora_quien', TURNO_KEY = 'tikora_turno';
 var TURNO_HORAS = 8;
-/* v117: LA LISTA DEPENDE DE LA LLAVE.
-   /sp y /spcam NO son dos apps: son esta misma captura.html abierta con distinto token (ver
-   _redirects en el repo). Por eso una lista única no podía servir: el móvil de Matías y el
-   móvil compartido de la estación enseñaban la misma gente. Ahora cada llave enseña a la suya.
-   Se mira solo el PREFIJO del token, nunca el token entero: si se escribieran las llaves
-   completas aquí, cualquiera que abriera la app con una llave podría leer las de los demás
-   clientes en el código fuente. */
-var NOMBRES_TODOS = ['Matías', 'Martín', 'Medina', 'Mía', 'Leo', 'Ailén', 'Inés'];
-var NOMBRES_POR_LLAVE = [
-  { pre: 'CAM', gente: ['Medina', 'Mía', 'Leo', 'Ailén', 'Inés'] },   /* /spcam — el móvil compartido, el de los empleados */
-  { pre: 'SP',  gente: ['Matías', 'Martín'] }                         /* /sp y /1949 — el móvil de Matías */
-];
-function nombresDeEsteMovil(){
-  var t = String(TOKEN || '').toUpperCase();
-  for (var i = 0; i < NOMBRES_POR_LLAVE.length; i++){       /* CAM antes que SP: no se solapan, pero el orden manda */
-    if (t.indexOf(NOMBRES_POR_LLAVE[i].pre) === 0) return NOMBRES_POR_LLAVE[i].gente;
-  }
-  return NOMBRES_TODOS;   /* llave desconocida (DEMO, un cliente nuevo): mejor que sobre un
-                             nombre a que alguien no pueda firmar su foto */
-}
+/* La lista de personas se obtiene tras validar la sesión; no se publica en la PWA. */
+var NOMBRES_TODOS = [];
+var NOMBRES_POR_LLAVE = [];
+function nombresDeEsteMovil(){ return []; }
 /* v115: ocho horas sin abrir la app = turno nuevo = se vuelve a preguntar quién es.
    Es como fichar en el TPV: una vez al empezar y no molesta más en todo el turno. */
 function turnoCaducado(){

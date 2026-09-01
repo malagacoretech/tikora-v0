@@ -4845,17 +4845,21 @@ function elegirVozEs(){
     var vs = window.speechSynthesis.getVoices() || [];
     var es = vs.filter(function(v){ return /^es/i.test(v.lang || ''); });
     if (!es.length) return null;
-    var pref = es.filter(function(v){ return /google|natural|premium|enhanced|microsoft|m[oó]nica|helena|elvira|laura|paulina/i.test(v.name || ''); });
-    var base = pref.length ? pref : es;
-    var esES = base.filter(function(v){ return /es[-_]ES/i.test(v.lang || ''); });
-    return esES[0] || base[0] || null;
+    var esES = es.filter(function(v){ return /es[-_]ES/i.test(v.lang || ''); });
+    var pool = esES.length ? esES : es;
+    /* preferir voz de HOMBRE de España (por nombre). El navegador no trae acento
+       andaluz: es castellano estándar; esto es lo más cercano sin un TTS de pago. */
+    var hombre = pool.filter(function(v){ return /jorge|pablo|[áa]lvaro|diego|enrique|carlos|miguel|\bmale\b|hombre|masculin/i.test(v.name || ''); });
+    if (hombre.length) return hombre[0];
+    var natural = pool.filter(function(v){ return /google|natural|premium|enhanced|microsoft/i.test(v.name || ''); });
+    return natural[0] || pool[0] || null;
   } catch(e){ return null; }
 }
 try { window.speechSynthesis.onvoiceschanged = function(){ _vozVoz = elegirVozEs(); }; } catch(e){}
 function vozDecir(txt){
   try {
     var u = new SpeechSynthesisUtterance(txt);
-    u.lang = 'es-ES'; u.rate = 0.9; u.pitch = 1.0;
+    u.lang = 'es-ES'; u.rate = 0.85; u.pitch = 0.96;
     if (!_vozVoz) _vozVoz = elegirVozEs();
     if (_vozVoz) u.voice = _vozVoz;
     window.speechSynthesis.speak(u);
@@ -6324,7 +6328,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v199';
+var APP_VER = 'v200';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

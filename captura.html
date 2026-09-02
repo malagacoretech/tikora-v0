@@ -3204,6 +3204,45 @@ function pintarVarios(){
         });
         row.appendChild(sh);
       }
+      /* v205: acciones en Varios reusando el MISMO endpoint probado del cajón "Otros"
+         (RESCATAR_URL). Solo dueño (#28); al empleado el servidor se las rebota, así que no
+         se le muestran (la foto sí la ve). "Es factura" la devuelve a revisar para completarla;
+         "Borrar" la saca con rastro en la hoja — la foto original NO se destruye. Pedido de
+         Matías (2-sep): "en Varios no tengo ninguna opción". */
+      if (!ES_EMPLEADO){
+        var vfac = document.createElement('button'); vfac.type = 'button'; vfac.className = 'capbadge';
+        vfac.textContent = '↩ Es factura';
+        vfac.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          if (!confirm('¿Devolver este papel a la lista de revisar?\n\nVuelve con su foto para que completes los datos, y cuenta como factura cuando lo hagas.')) return;
+          vfac.disabled = true;
+          fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid }) })
+            .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
+            .then(function(rr2){
+              if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ vfac.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo', true); return; }
+              toast('Devuelta a revisar — completá los datos');
+              row.remove(); loadPanel(true, true);
+            })
+            .catch(function(){ vfac.disabled = false; toast('No se pudo', true); });
+        });
+        row.appendChild(vfac);
+        var veli = document.createElement('button'); veli.type = 'button'; veli.className = 'capbadge peligro';
+        veli.textContent = '🗑'; veli.setAttribute('aria-label', 'Borrar del archivo');
+        veli.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          if (!confirm('¿Borrar este papel del archivo?\n\nDesaparece de esta lista. La foto original NO se destruye: queda anotado en la hoja que lo borraste vos, con fecha.')) return;
+          veli.disabled = true;
+          fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid, accion: 'borrar' }) })
+            .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
+            .then(function(rr2){
+              if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ veli.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo borrar', true); return; }
+              toast('Borrado del archivo');
+              row.remove(); loadPanel(true, true);
+            })
+            .catch(function(){ veli.disabled = false; toast('No se pudo borrar', true); });
+        });
+        row.appendChild(veli);
+      }
     }
     cont.appendChild(row);
   });
@@ -6379,7 +6418,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v204';
+var APP_VER = 'v205';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v204'; /* v204: el aviso del micrófono mostraba el código del emoji (&#127908;) como signos raros porque toast() usa texto plano; ahora dice "Te escucho, preguntame lo que quieras" limpio. (v203: micrófono solo icono + la notificación abre derecho la foto con la app cerrada.) */
+var VERSION = 'tikora-captura-v205'; /* v205: la carpeta VARIOS ahora tiene acciones (dueño): "↩ Es factura" (la devuelve a revisar) y "🗑 Borrar" (con rastro, la foto no se destruye), reusando el endpoint RESCATAR_URL ya probado en el cajón Otros. (v204: aviso del micrófono en texto limpio.) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

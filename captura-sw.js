@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v206'; /* v206: SECCIÓN CONTACTOS (en Más, solo dueño): la agenda de proveedores ya minada (tel/email/dir/web) en pantalla propia, con WhatsApp directo por wa.me y buscador. (v205: acciones en Varios.) */
+var VERSION = 'tikora-captura-v207'; /* v207: la ventana para que el aviso ESPECÍFICO (con botones Ver/Preguntar, que lleva a la foto) alcance a salir pasa de 4s a 8s; antes, si el panel tardaba, quedaba solo el genérico → panel. (v206: sección Contactos.) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',
@@ -188,7 +188,7 @@ self.addEventListener('push', function(e){
         tokSW = tok;
         return Promise.race([
           fetch(PANEL_URL_SW + '?u=' + encodeURIComponent(tok), { headers: { 'x-tikora-app': APP_SECRET_SW } }).then(function(r){ return r.json(); }),
-          esperar(4000)
+          esperar(8000)   /* v207: era 4s; si el panel tardaba más, el aviso específico (con Ver/Preguntar) no llegaba a salir y quedaba solo el genérico → panel. 8s le da margen a que aparezca el que lleva a la foto. */
         ]);
       })
       .then(function(d){

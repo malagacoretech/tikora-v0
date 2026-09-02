@@ -5076,6 +5076,15 @@ try {
   var qsVer = new URLSearchParams(location.search).get('ver');
   if (qsVer) verPendFid = qsVer;
 } catch(e){}
+/* v203: ?ver=<fid> — tocar la notificación de "boleta nueva" (o su botón "Ver factura")
+   con la app CERRADA abre DERECHO la foto de esa factura, no solo resalta la fila. Antes el
+   arranque abría la cámara y la foto no se abría sola (sí funcionaba con la app abierta, por
+   mensaje del SW). Mismo patrón que ?chat=. Regla de Matías (2-sep): "las notificaciones
+   tienen que llevarme derecho a la foto o a preguntar". abrirFacturaPanel abre la foto por
+   fid aunque el panel aún no haya cargado. Las fotos las ve también el empleado (sin dinero). */
+try {
+  if (qsVer) conClave(function(){ abrirFacturaPanel(qsVer); });
+} catch(e){}
 /* v96: ?rev=1 — el parte de la manana/noche abre el panel con "para repetir" desplegada */
 var revPend = false;
 try {
@@ -6062,9 +6071,15 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
 (function(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var btn = $('chatMic');
-  var ETIQUETA_MIC = '&#127908; Hablá conmigo';                 /* v61 */
+  /* v203: el botón del chat es el circulito de la barra: SOLO icono, sin texto dentro.
+     Antes el JS le metía "🎤 Hablá conmigo" y "⏺ Te escucho… hablá" y en un botón redondo
+     de 2,8rem quedaba apretado y raro (pedido de Matías 2-sep). El estado "grabando" se ve
+     por el color rojo (.rec) + un aviso, sin deformar el botón. */
+  var MIC_ICONO = '&#127908;';
   if (!SR){ btn.style.display = 'none'; return; }   /* sin soporte (iPhone): queda el mic del teclado */
+  btn.innerHTML = MIC_ICONO;
   var rec = null, grabando = false;
+  function micReposo(){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = MIC_ICONO; btn.setAttribute('aria-label', 'Dictar tu pregunta'); }
   btn.addEventListener('click', function(){
     if (grabando){ try { rec.stop(); } catch(e){} return; }
     rec = new SR();
@@ -6074,12 +6089,13 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
       $('chatInput').value = ($('chatInput').value + ' ' + t).trim();
     };
     rec.onend = function(){
-      grabando = false; btn.classList.remove('rec'); btn.innerHTML = ETIQUETA_MIC;
+      micReposo();
       if ($('chatInput').value.trim()) sendChat();   /* hablaste → se envía sola */
     };
-    rec.onerror = function(){ grabando = false; btn.classList.remove('rec'); btn.innerHTML = ETIQUETA_MIC; };
-    grabando = true; btn.classList.add('rec'); btn.innerHTML = '&#9210; Te escucho&hellip; hablá';
-    try { rec.start(); } catch(e){ grabando = false; btn.classList.remove('rec'); }
+    rec.onerror = function(){ micReposo(); };
+    grabando = true; btn.classList.add('rec'); btn.setAttribute('aria-label', 'Tocá para detener');
+    try { toast('&#127908; Te escucho… hablá'); } catch(e){}
+    try { rec.start(); } catch(e){ micReposo(); }
   });
 })();
 
@@ -6363,7 +6379,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v202';
+var APP_VER = 'v203';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

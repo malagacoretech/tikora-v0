@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v202'; /* v202: TRANSFERENCIA como 4ª forma de pago (violeta) en ventana post-foto, visor, ficha, corrector, chips de filtro y contadores. + VOZ más natural: la elección prioriza calidad (voces de red/Google) sobre género, y el ritmo pasa de 0.85 a 0.92. */
+var VERSION = 'tikora-captura-v203'; /* v203: micrófono del chat SOLO icono (antes le metía texto dentro y quedaba apretado en el botón redondo; grabando = rojo + aviso). + la notificación de boleta nueva con la app CERRADA abre DERECHO la foto (?ver abre abrirFacturaPanel al arrancar, no solo resalta la fila). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

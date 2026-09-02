@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v203'; /* v203: micrófono del chat SOLO icono (antes le metía texto dentro y quedaba apretado en el botón redondo; grabando = rojo + aviso). + la notificación de boleta nueva con la app CERRADA abre DERECHO la foto (?ver abre abrirFacturaPanel al arrancar, no solo resalta la fila). */
+var VERSION = 'tikora-captura-v204'; /* v204: el aviso del micrófono mostraba el código del emoji (&#127908;) como signos raros porque toast() usa texto plano; ahora dice "Te escucho, preguntame lo que quieras" limpio. (v203: micrófono solo icono + la notificación abre derecho la foto con la app cerrada.) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

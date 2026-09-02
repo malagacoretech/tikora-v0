@@ -6094,7 +6094,7 @@ $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'
     };
     rec.onerror = function(){ micReposo(); };
     grabando = true; btn.classList.add('rec'); btn.setAttribute('aria-label', 'Tocá para detener');
-    try { toast('&#127908; Te escucho… hablá'); } catch(e){}
+    try { toast('Te escucho, preguntame lo que quieras'); } catch(e){}
     try { rec.start(); } catch(e){ micReposo(); }
   });
 })();
@@ -6379,7 +6379,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v203';
+var APP_VER = 'v204';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

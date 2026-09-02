@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v205'; /* v205: la carpeta VARIOS ahora tiene acciones (dueño): "↩ Es factura" (la devuelve a revisar) y "🗑 Borrar" (con rastro, la foto no se destruye), reusando el endpoint RESCATAR_URL ya probado en el cajón Otros. (v204: aviso del micrófono en texto limpio.) */
+var VERSION = 'tikora-captura-v206'; /* v206: SECCIÓN CONTACTOS (en Más, solo dueño): la agenda de proveedores ya minada (tel/email/dir/web) en pantalla propia, con WhatsApp directo por wa.me y buscador. (v205: acciones en Varios.) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v207'; /* v207: la ventana para que el aviso ESPECÍFICO (con botones Ver/Preguntar, que lleva a la foto) alcance a salir pasa de 4s a 8s; antes, si el panel tardaba, quedaba solo el genérico → panel. (v206: sección Contactos.) */
+var VERSION = 'tikora-captura-v208'; /* v208: en Contactos se puede AGREGAR un contacto a mano (nombre/tel/email, guardado en el propio teléfono) además de los proveedores que el sistema mina solo de las facturas. (v207: 8s para el aviso específico.) */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

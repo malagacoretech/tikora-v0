@@ -1115,6 +1115,16 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <h2>Contactos</h2>
   <p class="masIntro">Los tel&eacute;fonos de tus proveedores, con WhatsApp directo. Se completan solos con cada factura.</p>
   <input type="search" id="contactosSearch" class="psearch" placeholder="&#128269; Buscar proveedor o n&uacute;mero" autocomplete="off">
+  <button type="button" id="contactoAdd" class="dbtn sec" style="width:100%;margin:0 0 0.6rem">&#10133; Agregar contacto</button>
+  <div id="contactoForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.8rem;margin:0 0 0.7rem">
+    <input type="text" id="cNombre" class="psearch" placeholder="Nombre" autocomplete="off" style="margin:0 0 0.4rem">
+    <input type="tel" id="cTel" class="psearch" placeholder="Tel&eacute;fono (ej. 612 345 678)" autocomplete="off" style="margin:0 0 0.4rem">
+    <input type="email" id="cEmail" class="psearch" placeholder="Email (opcional)" autocomplete="off" style="margin:0 0 0.5rem">
+    <div style="display:flex;gap:0.45rem">
+      <button type="button" id="cGuardar" class="dbtn" style="flex:1">Guardar</button>
+      <button type="button" id="cCancelar" class="dbtn sec" style="flex:1">Cancelar</button>
+    </div>
+  </div>
   <div id="contactosLista"></div>
 </div>
 
@@ -5279,19 +5289,11 @@ function pintarContactos(){
   var cont = $('contactosLista'); if (!cont) return;
   if (!panelData){ cont.innerHTML = '<div class="nempty">Cargando…</div>'; return; }
   var q = normTxt(($('contactosSearch') && $('contactosSearch').value) || '');
-  var provs = (typeof provsDeLasFilas === 'function' ? (provsDeLasFilas(panelData) || panelData.proveedores || []) : (panelData.proveedores || []));
-  var ag = panelData.agenda || {};
-  var items = provs.map(function(p){ return { p: p, a: ag[p.clave] || {} }; })
-    .filter(function(x){ return x.a.tel || x.a.email || x.a.dir || x.a.web; });
-  if (q) items = items.filter(function(x){ return normTxt((x.p.nombre || '') + ' ' + (x.p.nif || '') + ' ' + (x.a.tel || '')).indexOf(q) >= 0; });
-  if (!items.length){ cont.innerHTML = '<div class="nempty">' + (q ? 'Ningún contacto coincide.' : 'Todavía no hay contactos con datos. Se completan solos con las próximas facturas.') + '</div>'; return; }
-  cont.innerHTML = '';
-  items.forEach(function(x){
-    var a = x.a;
+  function enlace(href, texto, blank){ var el = document.createElement('a'); el.href = href; el.textContent = texto; el.rel = 'noopener'; if (blank) el.target = '_blank'; return el; }
+  function tarjeta(nombre, sub, a, delFn){
     var card = document.createElement('div'); card.className = 'pcard provficha'; card.style.marginBottom = '0.55rem';
-    var tt = document.createElement('div'); tt.className = 'lbl'; tt.textContent = x.p.nombre + (x.p.nif ? (' · ' + x.p.nif) : ''); card.appendChild(tt);
+    var tt = document.createElement('div'); tt.className = 'lbl'; tt.textContent = nombre + (sub ? (' · ' + sub) : ''); card.appendChild(tt);
     function pfr(emoji, nodo){ var d = document.createElement('div'); d.className = 'pfr'; d.appendChild(document.createTextNode(emoji + ' ')); d.appendChild(nodo); card.appendChild(d); }
-    function enlace(href, texto, blank){ var el = document.createElement('a'); el.href = href; el.textContent = texto; el.rel = 'noopener'; if (blank) el.target = '_blank'; return el; }
     if (a.tel){
       pfr('📞', enlace('tel:' + String(a.tel).replace(/[^+\d]/g, ''), a.tel));
       var dig = String(a.tel).replace(/\D/g, ''); if (dig.length === 9) dig = '34' + dig;
@@ -5300,11 +5302,60 @@ function pintarContactos(){
     if (a.email) pfr('✉️', enlace('mailto:' + a.email, a.email));
     if (a.dir) pfr('📍', document.createTextNode(a.dir));
     if (a.web){ var wurl = /^https?:/i.test(a.web) ? a.web : ('https://' + a.web); pfr('🌐', enlace(wurl, a.web, true)); }
+    if (delFn){
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'capbadge peligro'; del.style.marginTop = '0.5rem';
+      del.textContent = '🗑 Borrar contacto';
+      del.addEventListener('click', function(ev){ ev.stopPropagation(); if (confirm('¿Borrar este contacto?')) delFn(); });
+      card.appendChild(del);
+    }
     cont.appendChild(card);
+  }
+  cont.innerHTML = '';
+  var hubo = false;
+  /* v208: los contactos que agregaste A MANO (viven en este teléfono, localStorage). Van arriba,
+     con la marca ✎ y un borrar. Pedido de Matías (2-sep). */
+  contactosManual().forEach(function(c, idx){
+    if (q && normTxt((c.nombre || '') + ' ' + (c.tel || '') + ' ' + (c.email || '')).indexOf(q) < 0) return;
+    hubo = true;
+    tarjeta((c.nombre || 'Contacto') + ' ✎', '', { tel: c.tel, email: c.email }, function(){
+      var arr = contactosManual(); arr.splice(idx, 1); guardarContactosManual(arr); pintarContactos();
+    });
   });
+  /* proveedores minados por el sistema */
+  var provs = (typeof provsDeLasFilas === 'function' ? (provsDeLasFilas(panelData) || panelData.proveedores || []) : (panelData.proveedores || []));
+  var ag = panelData.agenda || {};
+  provs.map(function(p){ return { p: p, a: ag[p.clave] || {} }; })
+    .filter(function(x){ return x.a.tel || x.a.email || x.a.dir || x.a.web; })
+    .filter(function(x){ return !q || normTxt((x.p.nombre || '') + ' ' + (x.p.nif || '') + ' ' + (x.a.tel || '')).indexOf(q) >= 0; })
+    .forEach(function(x){ hubo = true; tarjeta(x.p.nombre, x.p.nif, x.a, null); });
+  if (!hubo){ cont.innerHTML = '<div class="nempty">' + (q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay contactos. Se completan solos con las facturas, o agregá uno con ➕.') + '</div>'; }
 }
 var _mc = $('masContactos'); if (_mc) _mc.addEventListener('click', abrirContactos);
 var _cs = $('contactosSearch'); if (_cs) _cs.addEventListener('input', function(){ pintarContactos(); });
+/* v208: contactos agregados A MANO — guardados en este teléfono (localStorage). No viajan al
+   servidor ni a otros teléfonos (eso sería backend, gated). Es un agregado seguro por dispositivo. */
+var CONTACTOS_KEY = 'tikora_contactos_manual';
+function contactosManual(){ try { return JSON.parse(localStorage.getItem(CONTACTOS_KEY) || '[]') || []; } catch(e){ return []; } }
+function guardarContactosManual(a){ try { localStorage.setItem(CONTACTOS_KEY, JSON.stringify(a.slice(0, 200))); } catch(e){} }
+(function(){
+  var add = $('contactoAdd'), form = $('contactoForm');
+  if (!add || !form) return;
+  add.addEventListener('click', function(){
+    var abierto = form.style.display === 'block';
+    form.style.display = abierto ? 'none' : 'block';
+    if (!abierto){ try { $('cNombre').focus(); } catch(e){} }
+  });
+  var cancelar = $('cCancelar'); if (cancelar) cancelar.addEventListener('click', function(){ form.style.display = 'none'; });
+  var guardar = $('cGuardar'); if (guardar) guardar.addEventListener('click', function(){
+    var nombre = ($('cNombre').value || '').trim(), tel = ($('cTel').value || '').trim(), email = ($('cEmail').value || '').trim();
+    if (!nombre && !tel){ toast('Poné al menos un nombre o un teléfono', true); return; }
+    var arr = contactosManual(); arr.unshift({ nombre: nombre, tel: tel, email: email }); guardarContactosManual(arr);
+    $('cNombre').value = ''; $('cTel').value = ''; $('cEmail').value = '';
+    form.style.display = 'none';
+    toast('Contacto guardado en este teléfono');
+    pintarContactos();
+  });
+})();
 $('tabPanel').addEventListener('click', function(){
   if ($('screenPanel').classList.contains('on')) return;
   /* v115: la puerta de la clave. Capturar NUNCA la pide; el dinero SÍ. */
@@ -6471,7 +6522,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v207';
+var APP_VER = 'v208';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

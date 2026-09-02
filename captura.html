@@ -513,7 +513,7 @@ input[type=file]{display:none}
 #psSeg{color:var(--accent);font-variant-numeric:tabular-nums;min-width:2.2rem;text-align:right}
 .psbar{height:4px;border-radius:999px;background:rgba(255,255,255,0.22);overflow:hidden}
 .psbar i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left center;transform:scaleX(1)}
-.psbtns{display:flex;gap:0.4rem}
+.psbtns{display:flex;flex-wrap:wrap;gap:0.4rem}
 #postShot.on{display:flex}
 #postShot button{flex:1;min-height:44px;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
 #postShot button.sel{background:var(--accent);color:#0A1628;border-color:var(--accent)}
@@ -528,6 +528,8 @@ input[type=file]{display:none}
 .prow.pg-efectivo .amt{color:#51CF66}
 .prow.pg-tarjeta{border-left:4px solid #1971C2}
 .prow.pg-tarjeta .amt{color:#4DABF7}
+.prow.pg-transferencia{border-left:4px solid #7048E8}
+.prow.pg-transferencia .amt{color:#9775FA}
 .pgtag{font-size:0.6rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:#FF6B6B}
 /* v18: tarjeta de deuda pendiente */
 .pcard.debe{border-color:rgba(229,72,77,0.55);margin-top:0.7rem;display:none}
@@ -568,6 +570,7 @@ input[type=file]{display:none}
 .pg-pendiente .pgword{color:#FF6B6B}
 .pg-efectivo .pgword{color:#51CF66}
 .pg-tarjeta .pgword{color:#4DABF7}
+.pg-transferencia .pgword{color:#9775FA}
 /* v32: sin forma de pago asignada — numero blanco y "sin asignar" debajo, que ninguna fila quede muda */
 .prow.pg-nada .amt{color:var(--text)}
 .prow.pg-nada .pgword{color:var(--text-muted)}
@@ -667,6 +670,7 @@ button.capbadge:active{transform:scale(0.95)}
 .pagofil button[data-f="pendiente"] .pf{background:#E5484D}
 .pagofil button[data-f="efectivo"] .pf{background:#2F9E44}
 .pagofil button[data-f="tarjeta"] .pf{background:#1971C2}
+.pagofil button[data-f="transferencia"] .pf{background:#7048E8}
 .pagofil button[data-f=""] .pf{background:var(--accent)}
 .pagofil button.on{border-color:var(--accent);color:var(--text);background:var(--surface-2)}
 /* v28: la tarjeta Sin pagar se toca y muestra solo las pendientes */
@@ -840,6 +844,7 @@ div:has(> #segProv) > button{min-height:44px}
         <button type="button" id="psRehacer">&#8635; Repetir</button>
         <button type="button" id="psEfectivo">&#128181; Efectivo</button>
         <button type="button" id="psTarjeta">&#128179; Tarjeta</button>
+        <button type="button" id="psTransferencia">&#127974; Transf.</button>
         <button type="button" id="psPendiente">&#128337; Sin pagar</button>
       </div>
     </div>
@@ -870,7 +875,7 @@ foto acercada se arrastra para recorrerla. Sin esto no se puede comprobar si sal
 <button type="button" class="fvPreg" id="fvPreg" style="display:none">&#128172; Preguntar por esta factura</button>
 <!-- v157: se asigna el pago sin salir de la foto. Solo aparece si la foto es de una factura
      del panel y quien mira es el dueno (los empleados no ven dinero, decision #28). -->
-<div class="fvPago" id="fvPago" style="display:none"><div class="t" id="fvPagoT">&iquest;C&oacute;mo se pag&oacute;?</div><div class="b"><button type="button" data-p="efectivo">&#128181; Efectivo</button><button type="button" data-p="tarjeta">&#128179; Tarjeta</button><button type="button" data-p="pendiente">&#9203; Sin pagar</button></div></div>
+<div class="fvPago" id="fvPago" style="display:none"><div class="t" id="fvPagoT">&iquest;C&oacute;mo se pag&oacute;?</div><div class="b"><button type="button" data-p="efectivo">&#128181; Efectivo</button><button type="button" data-p="tarjeta">&#128179; Tarjeta</button><button type="button" data-p="transferencia">&#127974; Transferencia</button><button type="button" data-p="pendiente">&#9203; Sin pagar</button></div></div>
 <!-- v128: Volver GRANDE abajo, donde llega el pulgar - pedido de Matias 22:1x: "que no tenga
      que ir a la cruz de arriba de todo". La cruz sigue arriba para quien la busque. -->
 <button type="button" class="fvVolver" id="fvVolver">&#10229; Volver</button>
@@ -1031,6 +1036,7 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
          "Efectivo 24 · 4982" eran muchos numeros pegados y Matias se confundia (06:4x) -->
     <button type="button" data-f="" class="on"><span class="pf"></span>Todas</button>
     <button type="button" data-f="tarjeta"><span class="pf"></span><span class="pn" data-n="tarjeta">Tarjeta</span></button>
+    <button type="button" data-f="transferencia"><span class="pf"></span><span class="pn" data-n="transferencia">Transferencia</span></button>
     <button type="button" data-f="pendiente"><span class="pf"></span><span class="pn" data-n="pendiente">Sin pagar</span></button>
     <button type="button" data-f="nada"><span class="pf"></span><span class="pn" data-n="nada">Sin asignar</span></button>
   </div>
@@ -1172,9 +1178,10 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <!-- v166: sacar de Facturas un papel que no es factura deducible (ticket sin los datos
          del bar). Caso real: Market Su Fuengirola, 22-ago. Dos toques, solo dueno. -->
     <button type="button" id="fichaNoFac">&#128683; No es una factura</button>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.45rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
       <button type="button" id="fichaEfectivo">&#128181; Efectivo</button>
       <button type="button" id="fichaTarjeta">&#128179; Tarjeta</button>
+      <button type="button" id="fichaTransferencia">&#127974; Transferencia</button>
       <button type="button" id="fichaPendiente">&#128337; Sin pagar</button>
     </div>
     <button type="button" id="fichaCerrar">Cerrar</button>
@@ -1901,7 +1908,7 @@ try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]');
 function guardarPagosPend(){ try { localStorage.setItem('tikora_pagos_pend', JSON.stringify(pagosPend.slice(-30))); } catch(e){} }
 function mostrarPostShot(id){
   holdItem = { id: id };
-  $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel'); $('psPendiente').classList.remove('sel');
+  $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel'); $('psTransferencia').classList.remove('sel'); $('psPendiente').classList.remove('sel');
   /* v140: foto nueva, aviso de nitidez a cero (si esta sale borrosa, vuelve a encenderse) */
   $('psAviso').classList.remove('on'); $('psRehacer').classList.remove('urg');
   $('postShot').classList.add('on');
@@ -1947,6 +1954,7 @@ function elegirPago(pago){
   var id = holdItem.id;
   $('psEfectivo').classList.toggle('sel', pago === 'efectivo');
   $('psTarjeta').classList.toggle('sel', pago === 'tarjeta');
+  $('psTransferencia').classList.toggle('sel', pago === 'transferencia');
   $('psPendiente').classList.toggle('sel', pago === 'pendiente');
   dbAll().then(function(items){
     var it = items.filter(function(i){ return i.id === id; })[0];
@@ -1959,6 +1967,7 @@ function elegirPago(pago){
 }
 $('psEfectivo').addEventListener('click', function(){ elegirPago('efectivo'); });
 $('psTarjeta').addEventListener('click', function(){ elegirPago('tarjeta'); });
+$('psTransferencia').addEventListener('click', function(){ elegirPago('transferencia'); });
 $('psPendiente').addEventListener('click', function(){ elegirPago('pendiente'); });
 function marcarPagoRemoto(fid, pago){
   return fetch(PAGO_URL, {
@@ -2099,6 +2108,7 @@ function fvPagoPalabra(p){
   return (p === 'pendiente') ? 'sin pagar'
        : (p === 'efectivo')  ? 'pagada en efectivo'
        : (p === 'tarjeta')   ? 'pagada con tarjeta'
+       : (p === 'transferencia') ? 'pagada por transferencia'
        : (p ? p.slice(0, 22) : 'sin asignar');   /* v159: lo que diga la hoja, aunque no sea de las tres */
 }
 $('fvPago').addEventListener('click', function(ev){
@@ -2931,7 +2941,7 @@ function corrPinta(){
     var inp;
     if (d.tipo === 'pago'){
       inp = document.createElement('select');
-      [['','—'],['efectivo','En efectivo'],['tarjeta','Con tarjeta'],['pendiente','Sin pagar todavía']].forEach(function(o){
+      [['','—'],['efectivo','En efectivo'],['tarjeta','Con tarjeta'],['transferencia','Por transferencia'],['pendiente','Sin pagar todavía']].forEach(function(o){
         var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; inp.appendChild(op);
       });
     } else {
@@ -3962,6 +3972,7 @@ function renderFilas(cont, rowsArr){
     if (pg === 'pendiente') row.classList.add('pg-pendiente');
     else if (pg === 'efectivo') row.classList.add('pg-efectivo');
     else if (pg === 'tarjeta') row.classList.add('pg-tarjeta');
+    else if (pg === 'transferencia') row.classList.add('pg-transferencia');
     else row.classList.add('pg-nada');
     var who = document.createElement('div'); who.className = 'who';
     var e1 = document.createElement('div'); e1.className = 'e'; e1.textContent = r.emisor || '(proveedor sin leer)';
@@ -4011,7 +4022,7 @@ function renderFilas(cont, rowsArr){
        guardada, y la app la llamaba sin asignar solo porque no reconocía la palabra.
        Sin filtro nuevo ni familia nueva: se dice lo que pone y ya. */
     pw.textContent = (pg === 'pendiente') ? 'sin pagar'
-                   : ((pg === 'efectivo' || pg === 'tarjeta') ? pg
+                   : ((pg === 'efectivo' || pg === 'tarjeta' || pg === 'transferencia') ? pg
                    : (pg ? pg.slice(0, 22) : 'sin asignar'));
     amtc.appendChild(pw);
     /* v85: si no hay pago asignado pero el papel DICE cómo se pagó, se enseña lo que pone.
@@ -4395,10 +4406,10 @@ function fmtEurCorto(n){
 }
 function pintarContadoresPago(){
   var filas = filasDelMes((panelData && panelData.rows) || []);   /* v71: del mes que estas viendo */
-  var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
+  var acc = { '': { n: 0, s: 0 }, 'pendiente': { n: 0, s: 0 }, 'efectivo': { n: 0, s: 0 }, 'tarjeta': { n: 0, s: 0 }, 'transferencia': { n: 0, s: 0 }, 'nada': { n: 0, s: 0 } };
   filas.forEach(function(r){
     var p = String(r.pago || '').toLowerCase();
-    var k = (p === 'pendiente' || p === 'efectivo' || p === 'tarjeta') ? p : 'nada';
+    var k = (p === 'pendiente' || p === 'efectivo' || p === 'tarjeta' || p === 'transferencia') ? p : 'nada';
     var t = Number(r.total) || 0;
     acc[k].n++; acc[k].s += t;
     acc[''].n++; acc[''].s += t;
@@ -4408,7 +4419,8 @@ function pintarContadoresPago(){
     'pendiente': { con: 'sin pagar', sola: 'Sin pagar' },
     'nada': { con: 'sin asignar', sola: 'Sin asignar' },
     'efectivo': { con: 'en efectivo', sola: 'Efectivo' },
-    'tarjeta': { con: 'con tarjeta', sola: 'Tarjeta' }
+    'tarjeta': { con: 'con tarjeta', sola: 'Tarjeta' },
+    'transferencia': { con: 'por transferencia', sola: 'Transferencia' }
   };
   document.querySelectorAll('#pagoFil .pn').forEach(function(sp){
     var k = sp.getAttribute('data-n') || '';
@@ -4581,7 +4593,7 @@ function renderLista(){
   if (panelFiltroPago){
     rows = rows.filter(function(r){
       var pgf = String(r.pago || '').toLowerCase();
-      if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta';
+      if (panelFiltroPago === 'nada') return pgf !== 'pendiente' && pgf !== 'efectivo' && pgf !== 'tarjeta' && pgf !== 'transferencia';
       return pgf === panelFiltroPago;
     });
     /* v91: fuera la barra "← Todas las facturas · viendo solo EFECTIVO". El chip de pago ya
@@ -4858,20 +4870,30 @@ function elegirVozEs(){
     var es = vs.filter(function(v){ return /^es/i.test(v.lang || ''); });
     if (!es.length) return null;
     var esES = es.filter(function(v){ return /es[-_]ES/i.test(v.lang || ''); });
-    var pool = esES.length ? esES : es;
-    /* preferir voz de HOMBRE de España (por nombre). El navegador no trae acento
-       andaluz: es castellano estándar; esto es lo más cercano sin un TTS de pago. */
-    var hombre = pool.filter(function(v){ return /jorge|pablo|[áa]lvaro|diego|enrique|carlos|miguel|\bmale\b|hombre|masculin/i.test(v.name || ''); });
-    if (hombre.length) return hombre[0];
-    var natural = pool.filter(function(v){ return /google|natural|premium|enhanced|microsoft/i.test(v.name || ''); });
-    return natural[0] || pool[0] || null;
+    var pool = (esES.length ? esES : es).slice();
+    /* v202: la NATURALIDAD manda sobre el género. Antes se elegía primero una voz de
+       hombre por nombre, pero las de hombre locales suelen ser las robóticas y sonaba
+       artificial. Ahora puntúa primero la CALIDAD (voces de red/nube: localService=false,
+       o Google/Microsoft/neural/premium, que en Android suenan mucho mejor) y, a igualdad
+       de calidad, prefiere hombre. El navegador no trae acento andaluz: es castellano. */
+    var score = function(v){
+      var n = (v.name || ''); var s = 0;
+      if (v.localService === false) s += 4;
+      if (/google/i.test(n)) s += 3;
+      if (/natural|neural|premium|enhanced|wavenet/i.test(n)) s += 3;
+      if (/microsoft/i.test(n)) s += 1;
+      if (/jorge|pablo|[áa]lvaro|diego|enrique|carlos|miguel|\bmale\b|hombre|masculin/i.test(n)) s += 2;
+      return s;
+    };
+    pool.sort(function(a, b){ return score(b) - score(a); });
+    return pool[0] || null;
   } catch(e){ return null; }
 }
 try { window.speechSynthesis.onvoiceschanged = function(){ _vozVoz = elegirVozEs(); }; } catch(e){}
 function vozDecir(txt){
   try {
     var u = new SpeechSynthesisUtterance(txt);
-    u.lang = 'es-ES'; u.rate = 0.85; u.pitch = 0.96;
+    u.lang = 'es-ES'; u.rate = 0.92; u.pitch = 1.0;
     if (!_vozVoz) _vozVoz = elegirVozEs();
     if (_vozVoz) u.voice = _vozVoz;
     window.speechSynthesis.speak(u);
@@ -6033,6 +6055,7 @@ $('fichaNoFac').addEventListener('click', function(){
 });
 $('fichaEfectivo').addEventListener('click', function(){ marcarPago('efectivo'); });
 $('fichaTarjeta').addEventListener('click', function(){ marcarPago('tarjeta'); });
+$('fichaTransferencia').addEventListener('click', function(){ marcarPago('transferencia'); });
 $('fichaPendiente').addEventListener('click', function(){ marcarPago('pendiente'); });
 
 /* ================== DICTADO POR VOZ (v12) ================== */
@@ -6340,7 +6363,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v201';
+var APP_VER = 'v202';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

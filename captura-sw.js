@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v201'; /* v201 (R9 frontend): los albaranes ya NO suman a las cifras fiscales del panel ni del resumen; se muestran aparte como "pendientes de su factura". (El cierre/export siguen pendientes de arreglo en backend.) */
+var VERSION = 'tikora-captura-v202'; /* v202: TRANSFERENCIA como 4ª forma de pago (violeta) en ventana post-foto, visor, ficha, corrector, chips de filtro y contadores. + VOZ más natural: la elección prioriza calidad (voces de red/Google) sobre género, y el ritmo pasa de 0.85 a 0.92. */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

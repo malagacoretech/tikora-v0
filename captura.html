@@ -5279,7 +5279,21 @@ function pintarContactos(){
     if (a.tel){
       pfr('📞', enlace('tel:' + String(a.tel).replace(/[^+\d]/g, ''), a.tel));
       var dig = String(a.tel).replace(/\D/g, ''); if (dig.length === 9) dig = '34' + dig;
-      if (dig.length >= 11) pfr('💬', enlace('https://wa.me/' + dig, 'WhatsApp', true));
+      if (dig.length >= 11){
+        pfr('💬', enlace('https://wa.me/' + dig, 'WhatsApp', true));
+        /* v214: escribir un mensaje ya redactado y abrir WhatsApp con él (pedido de Matías:
+           "enviarle un mensaje a este proveedor"). NO se manda solo: abre WhatsApp con el texto
+           para que Matías le dé enviar. */
+        var wbox = document.createElement('div'); wbox.className = 'pfr'; wbox.style.display = 'none'; wbox.style.flexDirection = 'column'; wbox.style.alignItems = 'stretch'; wbox.style.gap = '0.35rem';
+        var winp = document.createElement('input'); winp.type = 'text'; winp.className = 'psearch'; winp.placeholder = 'Escribí el mensaje…'; winp.style.margin = '0';
+        var wsnd = document.createElement('button'); wsnd.type = 'button'; wsnd.className = 'capbadge'; wsnd.textContent = '📤 Abrir WhatsApp con el mensaje';
+        wsnd.addEventListener('click', function(ev){ ev.stopPropagation(); var m = (winp.value || '').trim(); try { window.open('https://wa.me/' + dig + (m ? ('?text=' + encodeURIComponent(m)) : ''), '_blank', 'noopener'); } catch(e){} });
+        wbox.appendChild(winp); wbox.appendChild(wsnd);
+        var wbtnRow = document.createElement('div'); wbtnRow.className = 'pfr';
+        var wb = document.createElement('button'); wb.type = 'button'; wb.className = 'capbadge'; wb.textContent = '✍️ Escribir mensaje';
+        wb.addEventListener('click', function(ev){ ev.stopPropagation(); var ab = wbox.style.display === 'none'; wbox.style.display = ab ? 'flex' : 'none'; if (ab){ try { winp.focus(); } catch(e){} } });
+        wbtnRow.appendChild(wb); card.appendChild(wbtnRow); card.appendChild(wbox);
+      }
     }
     if (a.email) pfr('✉️', enlace('mailto:' + a.email, a.email));
     if (a.dir) pfr('📍', document.createTextNode(a.dir));
@@ -6527,7 +6541,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v213';
+var APP_VER = 'v214';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

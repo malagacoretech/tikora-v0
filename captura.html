@@ -3324,6 +3324,17 @@ $('heroComp').addEventListener('click', function(){
     L.push('Mayores proveedores:');
     top.forEach(function(k){ L.push(' · ' + k + ' (' + fmtEur(provs[k]) + ')'); });
   }
+  /* v210: "lo que subió / lo que no subió" en el resumen (pedido de Matías, 3-sep). Estado
+     ACTUAL de la captura (no del mes): cuántas procesaron, cuántas para revisar y cuántas fotos
+     siguen sin procesar (las huérfanas del cuadre). Es la resta honesta, no una promesa. */
+  var nRev210 = ((panelData && panelData.pendientes) || []).length;
+  var nSinProc210 = Number((panelData && panelData.cuadre && panelData.cuadre.huerfanos) || 0);
+  L.push('');
+  L.push('Estado de la captura (ahora):');
+  L.push(' · Subieron y se procesaron: ' + filas.length + (filas.length === 1 ? ' factura' : ' facturas') + (nAlb ? (' + ' + nAlb + (nAlb === 1 ? ' albarán' : ' albaranes')) : ''));
+  if (nRev210) L.push(' · Para revisar (confirmá un dato mirando la foto): ' + nRev210);
+  if (nSinProc210) L.push(' · Fotos sin procesar todavía: ' + nSinProc210 + ' (están en la carpeta; el sistema las recoge en minutos)');
+  if (!nRev210 && !nSinProc210) L.push(' · Todo lo que sacaste está procesado — nada pendiente.');
   L.push('');
   L.push('El IVA identificado es una estimación sobre las facturas capturadas; la deducción la confirma tu gestor.');
   var texto = L.join('\n');
@@ -6491,7 +6502,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v209';
+var APP_VER = 'v210';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

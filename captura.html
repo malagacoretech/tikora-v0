@@ -520,7 +520,7 @@ input[type=file]{display:none}
 /* v140: el aviso de foto borrosa, dentro de la ventana de pago — rojo, imposible de no ver */
 #psAviso{display:none;background:rgba(229,72,77,0.94);color:#fff;border-radius:10px;padding:0.5rem 0.7rem;font-size:0.84rem;font-weight:800;text-align:center}
 #psAviso.on{display:block}
-#postShot button#psRehacer.urg{background:#E5484D;border-color:#E5484D;color:#fff}
+#postShot button#psRehacer.urg{flex:1 1 100%;min-height:60px;font-size:1.05rem;background:#FF3B30;border-color:#FF3B30;color:#fff}   /* v224: Cancelar (y el Repetir de foto borrosa) grande, ancho completo y rojo fuerte (Matías) */
 /* v17: semaforo de pagos */
 .prow.pg-pendiente{border-left:4px solid #E5484D}
 .prow.pg-pendiente .amt{color:#FF6B6B}
@@ -6581,7 +6581,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v223';
+var APP_VER = 'v224';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

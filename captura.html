@@ -851,7 +851,7 @@ div:has(> #segProv) > button{min-height:44px}
          que getCapabilities() dijera `torch` EN ESE INSTANTE. En Android esa lista llega tarde
          (el driver la rellena unos cientos de ms despues), asi que en la mitad de los arranques
          salia vacia y el boton se quedaba invisible PARA SIEMPRE. Leccion del `.refreshbtn` (37). -->
-    <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" aria-label="Linterna">&#9889;</button><span class="lbl" id="torchLbl">linterna</span></div>
+    <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" aria-label="Linterna">&#128294;</button><span class="lbl" id="torchLbl">linterna</span></div>   <!-- v223: linterna de verdad 🔦 (antes ⚡, se confundía con el rayito del ritmo Rápido) -->
     <div class="sidewrap"><button class="sidebtn" id="ritmoBtn" type="button" aria-label="Ritmo para marcar el pago">&#9201;&#65039;</button><span class="lbl" id="ritmoLbl">6 s</span></div>
     <button id="shutter" type="button" aria-label="Capturar" disabled></button>
     <div class="sidewrap"><button class="sidebtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button><span class="lbl">adjuntar</span></div>
@@ -6581,7 +6581,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v222';
+var APP_VER = 'v223';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

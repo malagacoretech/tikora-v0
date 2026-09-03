@@ -825,7 +825,7 @@ div:has(> #segProv) > button{min-height:44px}
     </div>
   </div>
   <!-- v73: el ritmo, a mano y a la vista. Se toca poco pero cuando hace falta, hace falta ya. -->
-  <button type="button" id="ritmoBtn" class="ritmo">&#9201;&#65039; Tranquilo &middot; 6 s</button>
+  <button type="button" id="ritmoBtn" class="ritmo">&#9201;&#65039; Normal &middot; 6 s</button>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
   <!-- v54: los tres se apilan en UNA columna anclada abajo. Antes cada uno tenia su propio
@@ -1911,8 +1911,9 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
    tranquilo para marcar el pago con calma, rapido para disparar y seguir. */
 var RITMOS = [
   { ms: 3000,  clave: 'rapido',    txt: '⚡ Rápido · 3 s' },
-  { ms: 6000,  clave: 'tranquilo', txt: '⏱️ Tranquilo · 6 s' },
-  { ms: 10000, clave: 'lento',     txt: '🐢 Lento · 10 s' }
+  { ms: 6000,  clave: 'normal',    txt: '⏱️ Normal · 6 s' },
+  { ms: 10000, clave: 'tranquilo', txt: '🐢 Tranquilo · 10 s' },
+  { ms: 20000, clave: 'calma',     txt: '🧘 Con calma · 20 s' }   /* v217: 4º ritmo, 20 s (Matías) */
 ];
 var ritmoIdx = 1;   /* tranquilo por defecto: 3 s es poco para quien lo usa por primera vez */
 try {
@@ -1924,7 +1925,7 @@ function pintarRitmo(){
   var b = $('ritmoBtn'); if (!b) return;
   b.textContent = RITMOS[ritmoIdx].txt;
   b.classList.toggle('rapido', ritmoIdx === 0);
-  b.classList.toggle('lento', ritmoIdx === 2);
+  b.classList.toggle('lento', ritmoIdx >= 2);   /* v217: Tranquilo (10s) y Con calma (20s) van con el estilo lento */
 }
 var holdItem = null, postTimer = null, postTick = null, pagosPend = [];
 try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]'); } catch(e){}
@@ -6569,7 +6570,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v216';
+var APP_VER = 'v217';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

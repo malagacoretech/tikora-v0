@@ -306,7 +306,7 @@ input[type=file]{display:none}
 #qrFull.on{display:flex}
 #qrFull canvas{width:min(92vw,92vh);height:auto}
 #qrFull .cerrar{background:#0A1628;color:#fff;border:none;border-radius:12px;padding:0.8rem 1.6rem;font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer}
-#qrFull .pista{color:#333;font-size:0.85rem;text-align:center;padding:0 1.2rem}
+#qrFull .pista{color:#333;font-size:0.9rem;text-align:center;padding:0 1.2rem;white-space:pre-line;line-height:1.55;font-weight:600}   /* v222: multilínea para mostrar todos los datos */
 #qrBox .qh{font-size:0.7rem;color:var(--text-muted);margin-top:0.45rem}
 .acc{border:1px solid var(--border);border-radius:12px;margin-bottom:0.5rem;overflow:hidden;background:var(--surface)}
 .acc>button{width:100%;text-align:left;background:none;border:none;color:var(--text);font-family:inherit;font-size:0.9rem;font-weight:700;padding:0.85rem 0.95rem;cursor:pointer;display:flex;justify-content:space-between;gap:0.5rem}
@@ -515,7 +515,7 @@ input[type=file]{display:none}
 .psbar i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left center;transform:scaleX(1)}
 .psbtns{display:flex;flex-wrap:wrap;gap:0.4rem}
 #postShot.on{display:flex}
-#postShot button{flex:1;min-height:44px;padding:0.62rem 0.3rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer}
+#postShot button{flex:1;min-height:52px;padding:0.72rem 0.35rem;border-radius:12px;border:1px solid rgba(255,255,255,0.32);background:rgba(20,34,56,0.93);color:#fff;font-family:inherit;font-size:0.86rem;font-weight:700;cursor:pointer}   /* v222: botones de pago un poco más grandes, se toca mejor (Matías) */
 #postShot button.sel{background:var(--accent);color:#0A1628;border-color:var(--accent)}
 /* v140: el aviso de foto borrosa, dentro de la ventana de pago — rojo, imposible de no ver */
 #psAviso{display:none;background:rgba(229,72,77,0.94);color:#fff;border-radius:10px;padding:0.5rem 0.7rem;font-size:0.84rem;font-weight:800;text-align:center}
@@ -1993,7 +1993,7 @@ function elegirPago(pago){
   var b = $('psBarra'); if (b) b.style.transform = 'scaleX(1)';
   /* v221: tras tocar el pago, 2,5 s para CANCELAR (por si te equivocaste capturando rápido). El
      botón Repetir pasa a "✖ Cancelar" y descarta la foto (durante la ventana todavía no se envió). */
-  var _re = $('psRehacer'); if (_re) _re.innerHTML = '&#10006; Cancelar';
+  var _re = $('psRehacer'); if (_re){ _re.innerHTML = '&#10006; Cancelar'; _re.classList.add('urg'); }   /* v222: "Cancelar" en rojo (Matías) */
   postTimer = setTimeout(function(){ $('postShot').classList.remove('on'); holdItem = null; }, 2500);
 }
 $('psEfectivo').addEventListener('click', function(){ elegirPago('efectivo'); });
@@ -5990,7 +5990,7 @@ function qrGrande(){
   for (var y = 0; y < n; y++) for (var x = 0; x < n; x++){
     if (m[y][x]) ctx.fillRect((x + q) * esc, (y + q) * esc, esc, esc);
   }
-  $('qrFullTxt').textContent = (datos.nom || '') + (datos.nif ? ('  ·  NIF ' + datos.nif) : '');
+  $('qrFullTxt').textContent = textoDatos();   /* v222: muestra TODOS los datos (nombre, NIF, dirección, tel, email), no solo nombre+NIF (Matías) */
   $('qrFull').classList.add('on');
 }
 $('qrCanvas').addEventListener('click', qrGrande);
@@ -6581,7 +6581,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v221';
+var APP_VER = 'v222';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

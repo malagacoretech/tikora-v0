@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #screenCam.on{display:block}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
 .topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(0.8rem + env(safe-area-inset-top)) 1rem 0.8rem;background:linear-gradient(rgba(10,22,40,0.75),rgba(10,22,40,0));z-index:5}
-.topbar .brand{font-size:1.15rem;font-weight:800;letter-spacing:-0.02em}
+.topbar .brand{font-size:1.55rem;font-weight:800;letter-spacing:-0.02em}   /* v215: logo más grande */
 .topbar .brand span{color:var(--accent)}
 .pill{background:rgba(10,22,40,0.6);border:1px solid rgba(255,255,255,0.14);backdrop-filter:blur(6px);border-radius:20px;padding:0.3rem 0.75rem;font-size:0.75rem;color:var(--text);font-weight:600;display:inline-flex;align-items:center;gap:0.35rem}
 .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block}
@@ -392,7 +392,7 @@ input[type=file]{display:none}
 @keyframes introDot{40%{transform:scale(1.45)}70%{transform:scale(0.9)}100%{transform:scale(1)}}
 @keyframes introOut{to{opacity:0;visibility:hidden}}
 /* v9: adjuntar desde galeria/archivos */
-.clipbtn{width:2.5rem;height:2.5rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.95rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.clipbtn{width:3.1rem;height:3.1rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}   /* v215: adjuntar más grande */
 .clipbtn:active{transform:scale(0.94)}
 .attachlink{margin:1.1rem auto 0;display:block;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;padding:0.7rem 1.15rem;font-family:inherit;font-size:0.85rem;cursor:pointer}
 /* v10: buscador del panel */
@@ -586,7 +586,7 @@ input[type=file]{display:none}
 .alertas .pcard.debe .val2{font-size:0.88rem}
 .alertas .debehint{font-size:0.54rem;margin-top:0.12rem}
 .prow .e{font-size:1.06rem;font-weight:800}
-#weekPill{cursor:pointer}
+#weekPill{cursor:pointer;display:none}   /* v215: fuera el contador "esta semana" del visor (pedido de Matías) */
 /* v32: base + IVA en cada fila (la diferencia es la cuota, en dorado suave) */
 .baseline{font-size:0.66rem;color:var(--text-muted);margin-top:0.12rem;font-variant-numeric:tabular-nums}
 .baseline .bivaw{color:#F8D57E;font-weight:700}
@@ -857,7 +857,7 @@ div:has(> #segProv) > button{min-height:44px}
          salia vacia y el boton se quedaba invisible PARA SIEMPRE. Leccion del `.refreshbtn` (37). -->
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" aria-label="Linterna">&#9889;</button><span class="lbl" id="torchLbl">linterna</span></div>
     <button id="shutter" type="button" aria-label="Capturar" disabled></button>
-    <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button><span class="lbl">c&aacute;mara nativa</span></div>
+    <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button></div>
   </div>
   <div id="okOverlay"><div class="big">&#10003;</div><div class="txt">Enviada &#10003;</div><div class="sub" id="okSub"></div></div>
 </div>
@@ -6541,7 +6541,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v214';
+var APP_VER = 'v215';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

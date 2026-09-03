@@ -1938,7 +1938,7 @@ function mostrarPostShot(id){
   holdItem = { id: id };
   $('psEfectivo').classList.remove('sel'); $('psTarjeta').classList.remove('sel'); $('psTransferencia').classList.remove('sel'); $('psPendiente').classList.remove('sel');
   /* v140: foto nueva, aviso de nitidez a cero (si esta sale borrosa, vuelve a encenderse) */
-  $('psAviso').classList.remove('on'); $('psRehacer').classList.remove('urg');
+  $('psAviso').classList.remove('on'); $('psRehacer').classList.remove('urg'); $('psRehacer').innerHTML = '&#8635; Repetir';   /* v221: cada foto arranca con "Repetir"; tras tocar el pago pasa a "Cancelar" */
   $('postShot').classList.add('on');
   clearTimeout(postTimer); clearInterval(postTick);
   var fin = Date.now() + VENTANA_PAGO_MS;
@@ -1991,7 +1991,10 @@ function elegirPago(pago){
   clearTimeout(postTimer); clearInterval(postTick);
   var s = $('psSeg'); if (s) s.textContent = 'listo';
   var b = $('psBarra'); if (b) b.style.transform = 'scaleX(1)';
-  postTimer = setTimeout(function(){ $('postShot').classList.remove('on'); holdItem = null; }, 1400);
+  /* v221: tras tocar el pago, 2,5 s para CANCELAR (por si te equivocaste capturando rápido). El
+     botón Repetir pasa a "✖ Cancelar" y descarta la foto (durante la ventana todavía no se envió). */
+  var _re = $('psRehacer'); if (_re) _re.innerHTML = '&#10006; Cancelar';
+  postTimer = setTimeout(function(){ $('postShot').classList.remove('on'); holdItem = null; }, 2500);
 }
 $('psEfectivo').addEventListener('click', function(){ elegirPago('efectivo'); });
 $('psTarjeta').addEventListener('click', function(){ elegirPago('tarjeta'); });
@@ -6578,7 +6581,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v220';
+var APP_VER = 'v221';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

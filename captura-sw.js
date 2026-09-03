@@ -1,7 +1,7 @@
 /* Tikora — service worker de la app de captura.
    Alcance: SOLO captura.html y sus assets. index.html (el wallet) no se intercepta jamás.
    Al publicar cambios en captura.html, subir VERSION para invalidar la caché. */
-var VERSION = 'tikora-captura-v208'; /* v208: en Contactos se puede AGREGAR un contacto a mano (nombre/tel/email, guardado en el propio teléfono) además de los proveedores que el sistema mina solo de las facturas. (v207: 8s para el aviso específico.) */
+var VERSION = 'tikora-captura-v209'; /* v209: (1) botones "Es factura"/"Borrar" de Varios RETIRADOS — reusaban el workflow "Rescatar de Otros" que solo lee la pestaña Otros, así que fallaban en Varios (Matías, 2-sep); el resolver de Varios necesita workflow propio (backend). (2) Contactos: numerados, "a qué se dedica" a mano, y se muestran TODOS los proveedores. (3) miniatura de foto más grande (48px). */
 var ASSETS = [
   '/captura.html',
   '/captura.webmanifest',

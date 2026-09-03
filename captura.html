@@ -378,7 +378,7 @@ input[type=file]{display:none}
 /* v110: la miniatura dentro del boton de Foto. Cuadrada y pequena: se ve QUE papel es
    de un vistazo, sin abrir nada. La reduce Netlify en su servidor, no el movil. */
 .copybtn.conmini{display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.55rem 0.3rem 0.3rem}
-.copybtn.conmini .mini{width:34px;height:34px;border-radius:7px;object-fit:cover;background:#0A1628;flex:0 0 auto;display:block}
+.copybtn.conmini .mini{width:48px;height:48px;border-radius:9px;object-fit:cover;background:#0A1628;flex:0 0 auto;display:block}   /* v209: la miniatura un poco más grande (pedido de Matías, se ve mejor en la tablet) */
 .caprow.rev .copybtn.conmini{justify-content:center}
 .prow .nu{flex:0 0 auto;min-width:1.6rem;text-align:right;font-size:0.72rem;font-weight:700;color:var(--text-muted);font-variant-numeric:tabular-nums;opacity:0.75}
 .prow.destacada{outline:2px solid var(--accent);border-radius:14px;animation:destello 1.3s ease 3}
@@ -1119,7 +1119,8 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <div id="contactoForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.8rem;margin:0 0 0.7rem">
     <input type="text" id="cNombre" class="psearch" placeholder="Nombre" autocomplete="off" style="margin:0 0 0.4rem">
     <input type="tel" id="cTel" class="psearch" placeholder="Tel&eacute;fono (ej. 612 345 678)" autocomplete="off" style="margin:0 0 0.4rem">
-    <input type="email" id="cEmail" class="psearch" placeholder="Email (opcional)" autocomplete="off" style="margin:0 0 0.5rem">
+    <input type="email" id="cEmail" class="psearch" placeholder="Email (opcional)" autocomplete="off" style="margin:0 0 0.4rem">
+    <input type="text" id="cRubro" class="psearch" placeholder="A qu&eacute; se dedica (opcional)" autocomplete="off" style="margin:0 0 0.5rem">
     <div style="display:flex;gap:0.45rem">
       <button type="button" id="cGuardar" class="dbtn" style="flex:1">Guardar</button>
       <button type="button" id="cCancelar" class="dbtn sec" style="flex:1">Cancelar</button>
@@ -3226,45 +3227,10 @@ function pintarVarios(){
         });
         row.appendChild(sh);
       }
-      /* v205: acciones en Varios reusando el MISMO endpoint probado del cajón "Otros"
-         (RESCATAR_URL). Solo dueño (#28); al empleado el servidor se las rebota, así que no
-         se le muestran (la foto sí la ve). "Es factura" la devuelve a revisar para completarla;
-         "Borrar" la saca con rastro en la hoja — la foto original NO se destruye. Pedido de
-         Matías (2-sep): "en Varios no tengo ninguna opción". */
-      if (!ES_EMPLEADO){
-        var vfac = document.createElement('button'); vfac.type = 'button'; vfac.className = 'capbadge';
-        vfac.textContent = '↩ Es factura';
-        vfac.addEventListener('click', function(ev){
-          ev.stopPropagation();
-          if (!confirm('¿Devolver este papel a la lista de revisar?\n\nVuelve con su foto para que completes los datos, y cuenta como factura cuando lo hagas.')) return;
-          vfac.disabled = true;
-          fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid }) })
-            .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
-            .then(function(rr2){
-              if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ vfac.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo', true); return; }
-              toast('Devuelta a revisar — completá los datos');
-              row.remove(); loadPanel(true, true);
-            })
-            .catch(function(){ vfac.disabled = false; toast('No se pudo', true); });
-        });
-        row.appendChild(vfac);
-        var veli = document.createElement('button'); veli.type = 'button'; veli.className = 'capbadge peligro';
-        veli.textContent = '🗑'; veli.setAttribute('aria-label', 'Borrar del archivo');
-        veli.addEventListener('click', function(ev){
-          ev.stopPropagation();
-          if (!confirm('¿Borrar este papel del archivo?\n\nDesaparece de esta lista. La foto original NO se destruye: queda anotado en la hoja que lo borraste vos, con fecha.')) return;
-          veli.disabled = true;
-          fetch(RESCATAR_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tikora-app': APP_SECRET }, body: JSON.stringify({ u: TOKEN, f: o.fid, accion: 'borrar' }) })
-            .then(function(r2){ return r2.json().then(function(j){ return { ok: r2.ok, j: j }; }); })
-            .then(function(rr2){
-              if (!rr2.ok || (rr2.j && rr2.j.ok === false)){ veli.disabled = false; toast((rr2.j && rr2.j.motivo) ? rr2.j.motivo : 'No se pudo borrar', true); return; }
-              toast('Borrado del archivo');
-              row.remove(); loadPanel(true, true);
-            })
-            .catch(function(){ veli.disabled = false; toast('No se pudo borrar', true); });
-        });
-        row.appendChild(veli);
-      }
+      /* v205→v209: aquí había dos botones ("Es factura" / "Borrar") que reusaban RESCATAR_URL,
+         PERO ese workflow ("Tikora - Rescatar de Otros") SOLO lee la pestaña Otros; un papel de
+         Varios no está ahí, así que fallaba con "no se pudo" (Matías, 2-sep). Retirados hasta que
+         exista un workflow que lea la pestaña Varios (backend). La foto y compartir sí funcionan. */
     }
     cont.appendChild(row);
   });
@@ -5290,10 +5256,11 @@ function pintarContactos(){
   if (!panelData){ cont.innerHTML = '<div class="nempty">Cargando…</div>'; return; }
   var q = normTxt(($('contactosSearch') && $('contactosSearch').value) || '');
   function enlace(href, texto, blank){ var el = document.createElement('a'); el.href = href; el.textContent = texto; el.rel = 'noopener'; if (blank) el.target = '_blank'; return el; }
-  function tarjeta(nombre, sub, a, delFn){
+  function tarjeta(num, nombre, sub, a, delFn){
     var card = document.createElement('div'); card.className = 'pcard provficha'; card.style.marginBottom = '0.55rem';
-    var tt = document.createElement('div'); tt.className = 'lbl'; tt.textContent = nombre + (sub ? (' · ' + sub) : ''); card.appendChild(tt);
+    var tt = document.createElement('div'); tt.className = 'lbl'; tt.textContent = num + '. ' + nombre + (sub ? (' · ' + sub) : ''); card.appendChild(tt);
     function pfr(emoji, nodo){ var d = document.createElement('div'); d.className = 'pfr'; d.appendChild(document.createTextNode(emoji + ' ')); d.appendChild(nodo); card.appendChild(d); }
+    if (a.rubro) pfr('💼', document.createTextNode(a.rubro));   /* v209: a qué se dedica (hoy, el que escribís a mano) */
     if (a.tel){
       pfr('📞', enlace('tel:' + String(a.tel).replace(/[^+\d]/g, ''), a.tel));
       var dig = String(a.tel).replace(/\D/g, ''); if (dig.length === 9) dig = '34' + dig;
@@ -5302,6 +5269,10 @@ function pintarContactos(){
     if (a.email) pfr('✉️', enlace('mailto:' + a.email, a.email));
     if (a.dir) pfr('📍', document.createTextNode(a.dir));
     if (a.web){ var wurl = /^https?:/i.test(a.web) ? a.web : ('https://' + a.web); pfr('🌐', enlace(wurl, a.web, true)); }
+    if (!a.rubro && !a.tel && !a.email && !a.dir && !a.web){
+      var sn = document.createElement('div'); sn.className = 'pfr'; sn.style.color = 'var(--text-muted)';
+      sn.textContent = 'Ficha en camino — se completa sola con las próximas facturas.'; card.appendChild(sn);
+    }
     if (delFn){
       var del = document.createElement('button'); del.type = 'button'; del.className = 'capbadge peligro'; del.style.marginTop = '0.5rem';
       del.textContent = '🗑 Borrar contacto';
@@ -5311,24 +5282,22 @@ function pintarContactos(){
     cont.appendChild(card);
   }
   cont.innerHTML = '';
-  var hubo = false;
-  /* v208: los contactos que agregaste A MANO (viven en este teléfono, localStorage). Van arriba,
-     con la marca ✎ y un borrar. Pedido de Matías (2-sep). */
+  var n = 0;
+  /* v208: contactos A MANO (en este teléfono). v209: numerados y con "a qué se dedica". */
   contactosManual().forEach(function(c, idx){
-    if (q && normTxt((c.nombre || '') + ' ' + (c.tel || '') + ' ' + (c.email || '')).indexOf(q) < 0) return;
-    hubo = true;
-    tarjeta((c.nombre || 'Contacto') + ' ✎', '', { tel: c.tel, email: c.email }, function(){
+    if (q && normTxt((c.nombre || '') + ' ' + (c.tel || '') + ' ' + (c.email || '') + ' ' + (c.rubro || '')).indexOf(q) < 0) return;
+    n++;
+    tarjeta(n, (c.nombre || 'Contacto') + ' ✎', '', { tel: c.tel, email: c.email, rubro: c.rubro }, function(){
       var arr = contactosManual(); arr.splice(idx, 1); guardarContactosManual(arr); pintarContactos();
     });
   });
-  /* proveedores minados por el sistema */
+  /* proveedores minados por el sistema. v209: se muestran TODOS (los que aún no tienen datos
+     salen como "ficha en camino"), numerados (pedido de Matías 2-sep). */
   var provs = (typeof provsDeLasFilas === 'function' ? (provsDeLasFilas(panelData) || panelData.proveedores || []) : (panelData.proveedores || []));
   var ag = panelData.agenda || {};
-  provs.map(function(p){ return { p: p, a: ag[p.clave] || {} }; })
-    .filter(function(x){ return x.a.tel || x.a.email || x.a.dir || x.a.web; })
-    .filter(function(x){ return !q || normTxt((x.p.nombre || '') + ' ' + (x.p.nif || '') + ' ' + (x.a.tel || '')).indexOf(q) >= 0; })
-    .forEach(function(x){ hubo = true; tarjeta(x.p.nombre, x.p.nif, x.a, null); });
-  if (!hubo){ cont.innerHTML = '<div class="nempty">' + (q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay contactos. Se completan solos con las facturas, o agregá uno con ➕.') + '</div>'; }
+  provs.filter(function(p){ return !q || normTxt((p.nombre || '') + ' ' + (p.nif || '') + ' ' + ((ag[p.clave] || {}).tel || '')).indexOf(q) >= 0; })
+    .forEach(function(p){ n++; tarjeta(n, p.nombre, p.nif, ag[p.clave] || {}, null); });
+  if (!n){ cont.innerHTML = '<div class="nempty">' + (q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay contactos. Se completan solos con las facturas, o agregá uno con ➕.') + '</div>'; }
 }
 var _mc = $('masContactos'); if (_mc) _mc.addEventListener('click', abrirContactos);
 var _cs = $('contactosSearch'); if (_cs) _cs.addEventListener('input', function(){ pintarContactos(); });
@@ -5347,10 +5316,10 @@ function guardarContactosManual(a){ try { localStorage.setItem(CONTACTOS_KEY, JS
   });
   var cancelar = $('cCancelar'); if (cancelar) cancelar.addEventListener('click', function(){ form.style.display = 'none'; });
   var guardar = $('cGuardar'); if (guardar) guardar.addEventListener('click', function(){
-    var nombre = ($('cNombre').value || '').trim(), tel = ($('cTel').value || '').trim(), email = ($('cEmail').value || '').trim();
+    var nombre = ($('cNombre').value || '').trim(), tel = ($('cTel').value || '').trim(), email = ($('cEmail').value || '').trim(), rubro = (($('cRubro') && $('cRubro').value) || '').trim();
     if (!nombre && !tel){ toast('Poné al menos un nombre o un teléfono', true); return; }
-    var arr = contactosManual(); arr.unshift({ nombre: nombre, tel: tel, email: email }); guardarContactosManual(arr);
-    $('cNombre').value = ''; $('cTel').value = ''; $('cEmail').value = '';
+    var arr = contactosManual(); arr.unshift({ nombre: nombre, tel: tel, email: email, rubro: rubro }); guardarContactosManual(arr);
+    $('cNombre').value = ''; $('cTel').value = ''; $('cEmail').value = ''; if ($('cRubro')) $('cRubro').value = '';
     form.style.display = 'none';
     toast('Contacto guardado en este teléfono');
     pintarContactos();
@@ -6522,7 +6491,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v208';
+var APP_VER = 'v209';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

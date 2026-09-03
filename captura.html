@@ -4914,17 +4914,21 @@ function elegirVozEs(){
        artificial. Ahora puntúa primero la CALIDAD (voces de red/nube: localService=false,
        o Google/Microsoft/neural/premium, que en Android suenan mucho mejor) y, a igualdad
        de calidad, prefiere hombre. El navegador no trae acento andaluz: es castellano. */
-    var score = function(v){
+    /* v210: Matías quiere voz de HOMBRE (v202 priorizaba calidad y salía mujer). Primero se
+       filtra a las de hombre por nombre; entre ésas, la más natural (red/Google). Solo si NO
+       hay ninguna de hombre se cae a la más natural aunque sea de mujer. */
+    var calidad = function(v){
       var n = (v.name || ''); var s = 0;
       if (v.localService === false) s += 4;
       if (/google/i.test(n)) s += 3;
       if (/natural|neural|premium|enhanced|wavenet/i.test(n)) s += 3;
       if (/microsoft/i.test(n)) s += 1;
-      if (/jorge|pablo|[áa]lvaro|diego|enrique|carlos|miguel|\bmale\b|hombre|masculin/i.test(n)) s += 2;
       return s;
     };
-    pool.sort(function(a, b){ return score(b) - score(a); });
-    return pool[0] || null;
+    var hombres = pool.filter(function(v){ return /jorge|pablo|[áa]lvaro|diego|enrique|carlos|miguel|ra[úu]l|sergio|antonio|manuel|\bmale\b|hombre|masculin/i.test(v.name || ''); });
+    var elegibles = hombres.length ? hombres : pool;
+    elegibles.sort(function(a, b){ return calidad(b) - calidad(a); });
+    return elegibles[0] || null;
   } catch(e){ return null; }
 }
 try { window.speechSynthesis.onvoiceschanged = function(){ _vozVoz = elegirVozEs(); }; } catch(e){}
@@ -5570,9 +5574,18 @@ function limpiarParaVoz(t){
   var s = String(t || '');
   s = s.replace(/https?:\/\/[^\s]+/g, '');
   s = s.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+  s = s.replace(/[*_`#>]/g, '');                          /* v210: markdown suelto fuera */
   s = s.replace(/^\s*Fotos:\s*$/gmi, '');
-  s = s.replace(/^\s*[-·*]\s*$/gm, '');
+  s = s.replace(/(\d)\.(\d{3})(?=\D|$)/g, '$1$2');        /* v210: el punto de miles se leía "punto" (2.724 → 2724) */
+  s = s.replace(/[•·]/g, ', ');                           /* v210: los puntos-medio se leían "punto" */
+  s = s.replace(/\s*[—–]\s*/g, ', ');                     /* guiones largos → pausa */
+  s = s.replace(/\s*→\s*/g, ' ');
+  s = s.replace(/\s*€/g, ' euros');                       /* el símbolo se lee mejor como palabra */
+  s = s.replace(/%/g, ' por ciento');
+  s = s.replace(/^\s*[-]\s*$/gm, '');
   s = s.replace(/\s+/g, ' ').trim();
+  s = s.replace(/\s+([,.;:!?])/g, '$1');                  /* sin espacio antes de la puntuación */
+  s = s.replace(/(,\s*){2,}/g, ', ');                     /* comas duplicadas */
   if (s.length > 300) s = s.slice(0, 300).replace(/\s\S*$/, '') + '. Te dejé el detalle completo en Preguntar.';
   return s;
 }
@@ -6502,7 +6515,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v210';
+var APP_VER = 'v211';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

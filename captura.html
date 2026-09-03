@@ -22,8 +22,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #screenCam{position:absolute;inset:0;background:#000;display:none}
 #screenCam.on{display:block}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-.topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(0.8rem + env(safe-area-inset-top)) 1rem 0.8rem;background:linear-gradient(rgba(10,22,40,0.75),rgba(10,22,40,0));z-index:5}
-.topbar .brand{font-size:1.55rem;font-weight:800;letter-spacing:-0.02em}   /* v215: logo más grande */
+.topbar{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:calc(0.8rem + env(safe-area-inset-top)) 1rem 0.8rem;background:linear-gradient(rgba(10,22,40,0.75),rgba(10,22,40,0));z-index:5}   /* v216: logo centrado arriba, adjuntar chiquito debajo (Matías) */
+.topbar .brand{font-size:1.95rem;font-weight:800;letter-spacing:-0.02em}   /* v216: logo grande y centrado arriba */
 .topbar .brand span{color:var(--accent)}
 .pill{background:rgba(10,22,40,0.6);border:1px solid rgba(255,255,255,0.14);backdrop-filter:blur(6px);border-radius:20px;padding:0.3rem 0.75rem;font-size:0.75rem;color:var(--text);font-weight:600;display:inline-flex;align-items:center;gap:0.35rem}
 .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block}
@@ -392,7 +392,7 @@ input[type=file]{display:none}
 @keyframes introDot{40%{transform:scale(1.45)}70%{transform:scale(0.9)}100%{transform:scale(1)}}
 @keyframes introOut{to{opacity:0;visibility:hidden}}
 /* v9: adjuntar desde galeria/archivos */
-.clipbtn{width:3.1rem;height:3.1rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}   /* v215: adjuntar más grande */
+.clipbtn{width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(255,255,255,0.28);background:rgba(10,22,40,0.5);color:#fff;font-size:0.85rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}   /* v216: adjuntar chiquito, debajo del logo */
 .clipbtn:active{transform:scale(0.94)}
 .attachlink{margin:1.1rem auto 0;display:block;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;padding:0.7rem 1.15rem;font-family:inherit;font-size:0.85rem;cursor:pointer}
 /* v10: buscador del panel */
@@ -5271,7 +5271,7 @@ function pintarContactos(){
   if (!panelData){ cont.innerHTML = '<div class="nempty">Cargando…</div>'; return; }
   var q = normTxt(($('contactosSearch') && $('contactosSearch').value) || '');
   function enlace(href, texto, blank){ var el = document.createElement('a'); el.href = href; el.textContent = texto; el.rel = 'noopener'; if (blank) el.target = '_blank'; return el; }
-  function tarjeta(num, nombre, sub, a, delFn){
+  function tarjeta(num, nombre, sub, a, delFn, editFn){
     var card = document.createElement('div'); card.className = 'pcard provficha'; card.style.marginBottom = '0.55rem';
     var tt = document.createElement('div'); tt.className = 'lbl'; tt.textContent = num + '. ' + nombre + (sub ? (' · ' + sub) : ''); card.appendChild(tt);
     function pfr(emoji, nodo){ var d = document.createElement('div'); d.className = 'pfr'; d.appendChild(document.createTextNode(emoji + ' ')); d.appendChild(nodo); card.appendChild(d); }
@@ -5302,6 +5302,19 @@ function pintarContactos(){
       var sn = document.createElement('div'); sn.className = 'pfr'; sn.style.color = 'var(--text-muted)';
       sn.textContent = 'Ficha en camino — se completa sola con las próximas facturas.'; card.appendChild(sn);
     }
+    if (editFn){
+      /* v216: editar el contacto a mano (pedido de Matías: "los números no siempre son los mismos").
+         En proveedores, la corrección se guarda como override en el teléfono (no toca el backend). */
+      var eBtn = document.createElement('button'); eBtn.type = 'button'; eBtn.className = 'capbadge'; eBtn.textContent = '✏️ Editar'; eBtn.style.marginTop = '0.5rem';
+      var eFrm = document.createElement('div'); eFrm.style.display = 'none'; eFrm.style.marginTop = '0.4rem';
+      function eInput(ph, val){ var i = document.createElement('input'); i.type = 'text'; i.className = 'psearch'; i.placeholder = ph; i.value = val || ''; i.style.margin = '0 0 0.35rem'; return i; }
+      var eTel = eInput('Teléfono', a.tel), eMail = eInput('Email', a.email), eRub = eInput('A qué se dedica', a.rubro);
+      var eOk = document.createElement('button'); eOk.type = 'button'; eOk.className = 'capbadge'; eOk.textContent = 'Guardar cambios';
+      eOk.addEventListener('click', function(ev){ ev.stopPropagation(); editFn({ tel: eTel.value.trim(), email: eMail.value.trim(), rubro: eRub.value.trim() }); });
+      eFrm.appendChild(eTel); eFrm.appendChild(eMail); eFrm.appendChild(eRub); eFrm.appendChild(eOk);
+      eBtn.addEventListener('click', function(ev){ ev.stopPropagation(); var ab = eFrm.style.display === 'none'; eFrm.style.display = ab ? 'block' : 'none'; if (ab){ try { eTel.focus(); } catch(e){} } });
+      card.appendChild(eBtn); card.appendChild(eFrm);
+    }
     if (delFn){
       var del = document.createElement('button'); del.type = 'button'; del.className = 'capbadge peligro'; del.style.marginTop = '0.5rem';
       del.textContent = '🗑 Borrar contacto';
@@ -5318,6 +5331,8 @@ function pintarContactos(){
     n++;
     tarjeta(n, (c.nombre || 'Contacto') + ' ✎', '', { tel: c.tel, email: c.email, rubro: c.rubro }, function(){
       var arr = contactosManual(); arr.splice(idx, 1); guardarContactosManual(arr); pintarContactos();
+    }, function(d){
+      var arr = contactosManual(); if (arr[idx]){ arr[idx].tel = d.tel; arr[idx].email = d.email; arr[idx].rubro = d.rubro; guardarContactosManual(arr); } pintarContactos();
     });
   });
   /* proveedores minados por el sistema. v209: se muestran TODOS (los que aún no tienen datos
@@ -5336,8 +5351,15 @@ function pintarContactos(){
   });
   provs.sort(function(a, b){ return String(a.nombre).localeCompare(String(b.nombre)); });
   var ag = panelData.agenda || {};
-  provs.filter(function(p){ return !q || normTxt((p.nombre || '') + ' ' + (p.nif || '') + ' ' + ((ag[p.clave] || {}).tel || '')).indexOf(q) >= 0; })
-    .forEach(function(p){ n++; tarjeta(n, p.nombre, p.nif, ag[p.clave] || {}, null); });
+  var ovr = contactosOvr();
+  provs.filter(function(p){ var aa = Object.assign({}, ag[p.clave] || {}, ovr[p.clave] || {}); return !q || normTxt((p.nombre || '') + ' ' + (p.nif || '') + ' ' + (aa.tel || '')).indexOf(q) >= 0; })
+    .forEach(function(p){
+      n++;
+      var aa = Object.assign({}, ag[p.clave] || {}, ovr[p.clave] || {});
+      tarjeta(n, p.nombre, p.nif, aa, null, function(d){
+        var o = contactosOvr(); o[p.clave] = { tel: d.tel, email: d.email, rubro: d.rubro }; guardarContactosOvr(o); pintarContactos();
+      });
+    });
   if (!n){ cont.innerHTML = '<div class="nempty">' + (q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay contactos. Se completan solos con las facturas, o agregá uno con ➕.') + '</div>'; }
 }
 var _mc = $('masContactos'); if (_mc) _mc.addEventListener('click', abrirContactos);
@@ -5347,6 +5369,12 @@ var _cs = $('contactosSearch'); if (_cs) _cs.addEventListener('input', function(
 var CONTACTOS_KEY = 'tikora_contactos_manual';
 function contactosManual(){ try { return JSON.parse(localStorage.getItem(CONTACTOS_KEY) || '[]') || []; } catch(e){ return []; } }
 function guardarContactosManual(a){ try { localStorage.setItem(CONTACTOS_KEY, JSON.stringify(a.slice(0, 200))); } catch(e){} }
+/* v216: correcciones a mano de los contactos de PROVEEDOR (tel/email/rubro), por teléfono
+   (localStorage). Sobrescriben lo que minó el sistema sin tocar el backend — Matías puede
+   arreglar un número que cambió. */
+var CONTACTOS_OVR_KEY = 'tikora_contactos_ovr';
+function contactosOvr(){ try { return JSON.parse(localStorage.getItem(CONTACTOS_OVR_KEY) || '{}') || {}; } catch(e){ return {}; } }
+function guardarContactosOvr(o){ try { localStorage.setItem(CONTACTOS_OVR_KEY, JSON.stringify(o)); } catch(e){} }
 (function(){
   var add = $('contactoAdd'), form = $('contactoForm');
   if (!add || !form) return;
@@ -6541,7 +6569,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v215';
+var APP_VER = 'v216';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

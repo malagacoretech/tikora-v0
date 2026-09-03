@@ -1749,7 +1749,10 @@ function processQueue(fromUser){
             return dbDel(item.id).then(function(){
               weekCount(1);
               if (r.id) apuntarEnviada(r.id, item.filename);   /* v81: para poder decir despues cual no entro */
-              thumbDone(item.id, true, item.pago ? ('Enviada ✓ · ' + item.pago) : 'Enviada ✓');
+              /* v219: "pendiente" (forma de pago = sin pagar) se leía como "envío pendiente" y confundía
+                 (Matías, con captura). Se traduce a palabras claras: sin pagar / en efectivo / con tarjeta. */
+              var _pt = { pendiente: 'sin pagar', efectivo: 'en efectivo', tarjeta: 'con tarjeta', transferencia: 'por transferencia' }[item.pago] || item.pago;
+              thumbDone(item.id, true, item.pago ? ('Enviada ✓ · ' + _pt) : 'Enviada ✓');
               flashOK(item.kind === 'archivo' ? 'archivo' : 'foto');
               if (item.pago && r.id){
                 pagosPend.push({ fid: r.id, pago: item.pago, tries: 0 });
@@ -6567,7 +6570,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v218';
+var APP_VER = 'v219';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

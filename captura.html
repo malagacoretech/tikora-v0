@@ -1173,6 +1173,11 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
     <button id="chatSend" type="button" aria-label="Enviar">&#10148;</button>
   </div>
   <button type="button" id="chatVozBtn" class="chatvoz">&#128266; Leer en voz</button>
+  <!-- v212: elegir la voz a mano (adivinar el género falla según el teléfono) -->
+  <div id="vozPick" style="display:none;gap:0.4rem;margin-top:0.4rem;align-items:center">
+    <select id="vozSelect" aria-label="Elegir voz" style="flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.5rem 0.6rem;color:var(--text);font-family:inherit;font-size:0.85rem"></select>
+    <button type="button" id="vozProbar" style="flex:0 0 auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.5rem 0.7rem;color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">&#128266; Probar</button>
+  </div>
   <p class="legal" style="margin-top:0.5rem">Te responde un asistente de IA de Tikora, solo con los datos de tus facturas. No es asesoramiento fiscal.</p>
 </div>
 
@@ -4905,6 +4910,8 @@ var _vozVoz = null;
 function elegirVozEs(){
   try {
     var vs = window.speechSynthesis.getVoices() || [];
+    /* v212: si Matías eligió una voz a mano en el selector, esa manda sobre cualquier heurística. */
+    try { var _gu = localStorage.getItem('tikora_voz_uri') || ''; if (_gu){ var _ev = vs.filter(function(v){ return v.voiceURI === _gu; })[0]; if (_ev) return _ev; } } catch(_e){}
     var es = vs.filter(function(v){ return /^es/i.test(v.lang || ''); });
     if (!es.length) return null;
     var esES = es.filter(function(v){ return /es[-_]ES/i.test(v.lang || ''); });
@@ -5308,7 +5315,19 @@ function pintarContactos(){
   });
   /* proveedores minados por el sistema. v209: se muestran TODOS (los que aún no tienen datos
      salen como "ficha en camino"), numerados (pedido de Matías 2-sep). */
-  var provs = (typeof provsDeLasFilas === 'function' ? (provsDeLasFilas(panelData) || panelData.proveedores || []) : (panelData.proveedores || []));
+  /* v212: la agenda de contactos NO puede depender del mes/filtro que estés viendo. El bug de
+     v209 era usar provsDeLasFilas(), que filtra por filasDelMes + filtro de pago: si el mes
+     activo no tenía proveedores, la lista quedaba VACÍA (Matías, 3-sep: "antes había, ahora no").
+     Se arma de TODAS las filas del panel (que ya son las de 4 años), sin filtrar por mes. */
+  var _cmap = {}, provs = [];
+  ((panelData && panelData.rows) || []).forEach(function(r){
+    var nom = String(r.emisor || '').trim();
+    if (!nom || nom.charAt(0) === '(') return;
+    var k = normTxt(nom);
+    if (!_cmap[k]){ _cmap[k] = { clave: k, nombre: nom, nif: r.nif || '' }; provs.push(_cmap[k]); }
+    else if (!_cmap[k].nif && r.nif) _cmap[k].nif = r.nif;
+  });
+  provs.sort(function(a, b){ return String(a.nombre).localeCompare(String(b.nombre)); });
   var ag = panelData.agenda || {};
   provs.filter(function(p){ return !q || normTxt((p.nombre || '') + ' ' + (p.nif || '') + ' ' + ((ag[p.clave] || {}).tel || '')).indexOf(q) >= 0; })
     .forEach(function(p){ n++; tarjeta(n, p.nombre, p.nif, ag[p.clave] || {}, null); });
@@ -5502,6 +5521,36 @@ var chatVozOn = false; try { chatVozOn = localStorage.getItem(CHATVOZ_KEY) === '
       if (bots.length){ try { vozDecir(limpiarParaVoz(bots[bots.length - 1].textContent)); } catch(e){} }
     } else { try { window.speechSynthesis.cancel(); } catch(e){} }
   });
+})();
+/* v212: SELECTOR DE VOZ — la Web Speech API no dice el género fiable y cada teléfono nombra
+   sus voces distinto, así que adivinar "hombre" fallaba (Matías: "sigue siendo de mujer").
+   Ahora Matías elige la voz de una lista y se guarda; si no elige, decide la heurística. */
+var VOZ_URI_KEY = 'tikora_voz_uri';
+function poblarVozSelect(){
+  var sel = $('vozSelect'), pick = $('vozPick'); if (!sel || !pick) return;
+  var vs = [];
+  try { vs = (window.speechSynthesis.getVoices() || []).filter(function(v){ return /^es/i.test(v.lang || ''); }); } catch(e){}
+  if (vs.length < 2){ pick.style.display = 'none'; return; }
+  vs.sort(function(a, b){ return String(a.name).localeCompare(String(b.name)); });
+  var actual = ''; try { actual = localStorage.getItem(VOZ_URI_KEY) || ''; } catch(e){}
+  sel.innerHTML = '';
+  var op0 = document.createElement('option'); op0.value = ''; op0.textContent = 'Voz automática'; sel.appendChild(op0);
+  vs.forEach(function(v){
+    var o = document.createElement('option'); o.value = v.voiceURI; o.textContent = v.name + ' · ' + v.lang;
+    if (v.voiceURI === actual) o.selected = true; sel.appendChild(o);
+  });
+  pick.style.display = 'flex';
+}
+(function(){
+  var sel = $('vozSelect'), pr = $('vozProbar');
+  if (sel) sel.addEventListener('change', function(){
+    try { localStorage.setItem(VOZ_URI_KEY, this.value || ''); } catch(e){}
+    _vozVoz = null;
+    try { toast(this.value ? 'Voz elegida ✓' : 'Voz automática'); } catch(e){}
+  });
+  if (pr) pr.addEventListener('click', function(){ _vozVoz = null; try { vozDecir('Hola, soy la voz de Tikora. Así sueno cuando te leo las respuestas.'); } catch(e){} });
+  try { window.speechSynthesis.addEventListener('voiceschanged', poblarVozSelect); } catch(e){}
+  try { poblarVozSelect(); } catch(e){}
 })();
 function sugAbrir(abrir){ $('chatSug').classList.toggle('open', abrir); }
 var chatHistCargado = false;   /* v174: el historial se pinta una vez por apertura de la app */
@@ -6515,7 +6564,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v211';
+var APP_VER = 'v212';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

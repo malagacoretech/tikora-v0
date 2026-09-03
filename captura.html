@@ -762,6 +762,7 @@ body.emp #cardAlbaran{display:none !important}
 .cuadrelinea{text-align:center;font-size:0.72rem;color:var(--text-muted);margin-top:0.6rem}
 .cuadrelinea.bien{color:#4FBF7B}
 .cuadrelinea.mal{color:#E5484D;font-weight:700}
+#panelUpdated.fresco{color:#4FBF7B;font-weight:700}   /* v220: la hora de actualización, una sola y en verde */
 .albtag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(91,141,239,0.18);border:1px solid #5B8DEF;color:#9CC0FF;border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em}
 /* v119: la duda del motor, por fin visible. Ambar, no rojo: es "mirala", no "esta mal". */
 .dudatag{display:inline-block;margin-left:0.45rem;vertical-align:middle;background:rgba(244,201,93,0.14);border:1px solid rgba(244,201,93,0.65);color:var(--accent);border-radius:6px;padding:0.05rem 0.35rem;font-size:0.58rem;font-weight:800;letter-spacing:0.03em;white-space:nowrap}
@@ -1090,6 +1091,9 @@ un display:none en un ancestro se lleva por delante hasta un position:fixed. -->
   <h2>M&aacute;s</h2>
   <p class="masIntro">Tus herramientas personales, ordenadas en un solo lugar.</p>
   <div class="masGrid">
+    <button class="masItem" id="masVerQR" type="button">
+      <span class="mi">&#128307;</span><span class="mg"><span class="mt">Ver QR</span><span class="ms">Tu c&oacute;digo con el NIF a pantalla completa, listo para que lo escaneen.</span></span><span class="ma">&rsaquo;</span>
+    </button>
     <button class="masItem" id="masContactos" type="button">
       <span class="mi">&#128199;</span><span class="mg"><span class="mt">Contactos</span><span class="ms">Los tel&eacute;fonos de tus proveedores, con WhatsApp directo.</span></span><span class="ma">&rsaquo;</span>
     </button>
@@ -3942,7 +3946,7 @@ function pintarCuadre(){
   }
 
   var hora = c.cuando ? String(c.cuando).slice(-5) : '';
-  linea.textContent = hora ? ('Actualizado ' + hora) : '';
+  linea.textContent = '';   /* v220: la hora la muestra #panelUpdated en verde (una sola línea, sin duplicar — Matías) */
   linea.className = 'cuadrelinea' + (huerf > 0 ? ' mal' : ' bien');
 }
 
@@ -4429,9 +4433,11 @@ function renderPanel(data, cachedNote){
   /* v101: la carpeta Sin IVA se trae aparte (endpoint propio, no toca el Panel API) */
   if (!ES_EMPLEADO){ if (sinIvaDatos) pintarSinIva(); else cargarSinIva(); }
   pintarVarios();   /* v139: la carpeta Varios llega en el propio Panel API */
-  $('panelUpdated').textContent = cachedNote
+  var _upd = $('panelUpdated');
+  _upd.textContent = cachedNote
     ? ('datos guardados ' + cachedNote)
-    : ('actualizado a las ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
+    : ('Actualizado ' + (data.updatedAt ? String(data.updatedAt).slice(11,16) : '') );
+  _upd.classList.toggle('fresco', !cachedNote);   /* v220: una sola línea "Actualizado HH:MM" en verde (Matías) */
 }
 /* v48: cuantas facturas y cuanto dinero hay en cada forma de pago, dentro del propio chip.
    Se calcula sobre TODAS las filas que devuelve el panel (verificado: no vienen recortadas),
@@ -5257,6 +5263,8 @@ $('tabMas').addEventListener('click', function(){
 $('masClaves').addEventListener('click', function(){ $('tabClaves').click(); });
 $('masDatos').addEventListener('click', function(){ $('tabDatos').click(); });
 $('masNotas').addEventListener('click', function(){ $('tabNotas').click(); });
+/* v220: "Ver QR" abre el QR a pantalla completa directo, sin entrar a Mis datos (pedido de Matías). */
+var _mvq = $('masVerQR'); if (_mvq) _mvq.addEventListener('click', function(){ try { qrGrande(); } catch(e){} });
 /* v206: CONTACTOS — la agenda de proveedores (tel/WhatsApp/email/dir) ya viene minada en
    panelData.agenda (workflow "Tikora - Proveedores"); pantalla propia con WhatsApp directo
    por wa.me (mismo patrón ya probado en la ficha del proveedor). Solo dueño: la lista de
@@ -6570,7 +6578,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v219';
+var APP_VER = 'v220';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;

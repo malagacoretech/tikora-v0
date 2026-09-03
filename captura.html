@@ -39,7 +39,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 #shutter:active{transform:scale(0.92)}
 #shutter.busy::after{background:var(--accent)}
 #shutter:disabled{opacity:0.45}
-.resbadge{position:absolute;top:calc(3.6rem + env(safe-area-inset-top));right:1rem;z-index:5;font-size:0.62rem;color:rgba(255,255,255,0.75);background:rgba(10,22,40,0.5);border-radius:8px;padding:0.15rem 0.5rem;letter-spacing:0.03em}
+.resbadge{display:none;position:absolute;top:calc(3.6rem + env(safe-area-inset-top));right:1rem;z-index:5;font-size:0.62rem;color:rgba(255,255,255,0.75);background:rgba(10,22,40,0.5);border-radius:8px;padding:0.15rem 0.5rem;letter-spacing:0.03em}   /* v218: fuera "foto nativa del sensor" (Matías) */
 
 /* flash de captura */
 #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:8}
@@ -819,13 +819,8 @@ div:has(> #segProv) > button{min-height:44px}
   <div id="flash"></div>
   <div class="topbar">
     <div class="brand">Tikora<span>.</span></div>
-    <div style="display:flex;align-items:center;gap:0.5rem">
-      <div class="pill" id="weekPill"><span class="dot"></span><span id="weekCount">0 esta semana</span></div>
-      <button class="clipbtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button>
-    </div>
+    <div class="pill" id="weekPill" style="display:none"><span class="dot"></span><span id="weekCount">0 esta semana</span></div>
   </div>
-  <!-- v73: el ritmo, a mano y a la vista. Se toca poco pero cuando hace falta, hace falta ya. -->
-  <button type="button" id="ritmoBtn" class="ritmo">&#9201;&#65039; Normal &middot; 6 s</button>
   <div class="resbadge" id="resBadge"></div>
   <div id="statusLine"></div>
   <!-- v54: los tres se apilan en UNA columna anclada abajo. Antes cada uno tenia su propio
@@ -856,8 +851,9 @@ div:has(> #segProv) > button{min-height:44px}
          (el driver la rellena unos cientos de ms despues), asi que en la mitad de los arranques
          salia vacia y el boton se quedaba invisible PARA SIEMPRE. Leccion del `.refreshbtn` (37). -->
     <div class="sidewrap"><button class="sidebtn" id="torchBtn" type="button" aria-label="Linterna">&#9889;</button><span class="lbl" id="torchLbl">linterna</span></div>
+    <div class="sidewrap"><button class="sidebtn" id="ritmoBtn" type="button" aria-label="Ritmo para marcar el pago">&#9201;&#65039;</button><span class="lbl" id="ritmoLbl">6 s</span></div>
     <button id="shutter" type="button" aria-label="Capturar" disabled></button>
-    <div class="sidewrap"><button class="sidebtn" id="nativeBtn" type="button">&#128247;</button></div>
+    <div class="sidewrap"><button class="sidebtn" id="attachBtn" type="button" aria-label="Adjuntar archivo">&#128206;</button><span class="lbl">adjuntar</span></div>
   </div>
   <div id="okOverlay"><div class="big">&#10003;</div><div class="txt">Enviada &#10003;</div><div class="sub" id="okSub"></div></div>
 </div>
@@ -1910,10 +1906,10 @@ function enqueue(blob, mime, filename, kind, markThumb, holdMs){
 /* v73: dos ritmos. Detras de una barra no siempre se tiene el mismo tiempo:
    tranquilo para marcar el pago con calma, rapido para disparar y seguir. */
 var RITMOS = [
-  { ms: 3000,  clave: 'rapido',    txt: '⚡ Rápido · 3 s' },
-  { ms: 6000,  clave: 'normal',    txt: '⏱️ Normal · 6 s' },
-  { ms: 10000, clave: 'tranquilo', txt: '🐢 Tranquilo · 10 s' },
-  { ms: 20000, clave: 'calma',     txt: '🧘 Con calma · 20 s' }   /* v217: 4º ritmo, 20 s (Matías) */
+  { ms: 3000,  clave: 'rapido',    emoji: '⚡',  seg: '3 s',  txt: '⚡ Rápido · 3 s' },
+  { ms: 6000,  clave: 'normal',    emoji: '⏱️', seg: '6 s',  txt: '⏱️ Normal · 6 s' },
+  { ms: 10000, clave: 'tranquilo', emoji: '🐢', seg: '10 s', txt: '🐢 Tranquilo · 10 s' },
+  { ms: 20000, clave: 'calma',     emoji: '🧘', seg: '20 s', txt: '🧘 Con calma · 20 s' }
 ];
 var ritmoIdx = 1;   /* tranquilo por defecto: 3 s es poco para quien lo usa por primera vez */
 try {
@@ -1923,9 +1919,10 @@ try {
 var VENTANA_PAGO_MS = RITMOS[ritmoIdx].ms;
 function pintarRitmo(){
   var b = $('ritmoBtn'); if (!b) return;
-  b.textContent = RITMOS[ritmoIdx].txt;
+  b.textContent = RITMOS[ritmoIdx].emoji || '⏱️';   /* v218: en la barra de abajo, solo el icono; los segundos van en la etiqueta */
+  var _rl = $('ritmoLbl'); if (_rl) _rl.textContent = RITMOS[ritmoIdx].seg || '';
   b.classList.toggle('rapido', ritmoIdx === 0);
-  b.classList.toggle('lento', ritmoIdx >= 2);   /* v217: Tranquilo (10s) y Con calma (20s) van con el estilo lento */
+  b.classList.toggle('lento', ritmoIdx >= 2);
 }
 var holdItem = null, postTimer = null, postTick = null, pagosPend = [];
 try { pagosPend = JSON.parse(localStorage.getItem('tikora_pagos_pend') || '[]'); } catch(e){}
@@ -3628,7 +3625,7 @@ $('shutter').addEventListener('click', capturePhoto);
 /* ================== CÁMARA NATIVA (fallback / modo pro) ==================
    El fichero se envía TAL CUAL llega del sistema: cero recompresión, EXIF intacto. */
 function openNative(){ $('fileInput').value = ''; $('fileInput').click(); }
-$('nativeBtn').addEventListener('click', openNative);
+/* v218: la cámara nativa se eliminó (Matías: "no quiero que exista más"); openNative queda solo para bigShot (fallback sin cámara). */
 function handleIncomingFiles(files){
   if (!files || !files.length) return;
   var okTypes = ['image/jpeg','image/png','image/webp','application/pdf'];
@@ -6570,7 +6567,7 @@ if ('serviceWorker' in navigator){
    Ahora pregunta sola: al volver a primer plano, al recuperar red y cada 15 minutos.
    Cuando entra la version nueva, el service worker toma el control (skipWaiting +
    clients.claim) y aqui recargamos — pero solo cuando no se pisa nada. */
-var APP_VER = 'v217';
+var APP_VER = 'v218';
 var swHabiaControlador = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
 var reinicioPedido = false;
 var ultimaBusqueda = 0;
